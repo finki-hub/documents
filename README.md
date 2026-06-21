@@ -32,7 +32,6 @@ released on its own cadence — independent of the application code.
 processed/   reviewed Markdown — the tracked corpus (one file per document)
 raw/         local staging for originals (gitignored; archived to R2)
 tools/       offline content-prep CLI (preprocess.py + docpipe.py)
-.github/     ingest workflow (CI on merge)
 ```
 
 ## Pipeline
@@ -54,7 +53,7 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
    extraction/OCR errors change meaning. This step is not optional.
 4. **Archive** originals to R2: `preprocess.py upload [raw_dir]`
    (needs `R2_ACCOUNT_ID`/`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`).
-5. **Ingest + embed** (or let CI do it — see below):
+5. **Ingest + embed** — a manual two-command step; run it when you've added or revised documents:
    - `preprocess.py ingest [api_url]` — POST each `processed/*.md` to `/documents`
      (chunked server-side, idempotent by name, R2 key attached to metadata).
    - `preprocess.py fill [api_url]` — drive `/documents/fill` for all models over chunks
@@ -68,17 +67,12 @@ replaces the old document and its chunks. `fill` only embeds chunks whose embedd
 columns are still `NULL`, so a revision re-embeds just the changed document — not the
 whole corpus.
 
-## Ingestion via CI
+## Automating ingestion (optional, later)
 
-[`.github/workflows/ingest.yaml`](.github/workflows/ingest.yaml) runs `ingest` then
-`fill` on every push to `main` that touches `processed/**`, and on manual dispatch.
-Configure once under **Settings → Secrets and variables → Actions**:
-
-- variable `INGEST_API_URL` — the chat-bot API base URL (no trailing slash)
-- secret `INGEST_API_KEY` — the API's `API_KEY`
-
-If the API is only reachable on a private network, point the job at a **self-hosted
-runner** that can reach it (change `runs-on` in the workflow).
+Ingestion is the manual two commands above — fine for a corpus that changes rarely.
+If revisions become frequent (or non-engineers manage the content), add a CI job that
+runs `ingest` then `fill` on merge to `main`; it would need the API reachable from the
+runner (self-hosted if the API is private) plus an API URL + key. Not set up yet.
 
 ## Chunking
 
