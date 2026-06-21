@@ -1,0 +1,46 @@
+name: Ingest documents
+
+# On merge to main, push the reviewed Markdown into the chat-bot API and fill any
+# missing chunk embeddings. Ingest is idempotent (unchanged docs are skipped by hash);
+# fill only embeds chunks whose columns are still NULL, so revised docs cost little.
+#
+# Requires (Settings -> Secrets and variables -> Actions):
+#   - variable INGEST_API_URL   e.g. https://chat-bot-api.internal.finki...  (no trailing slash)
+#   - secret   INGEST_API_KEY   the API's API_KEY
+# If the API is only reachable on a private network, run this on a self-hosted runner
+# (change `runs-on`) that can see it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "processed/**"
+      - "tools/preprocess.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingest-documents
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Ingest processed Markdown
+        env:
+          API_KEY: ${{ secrets.INGEST_API_KEY }}
+        run: python tools/preprocess.py ingest "${{ vars.INGEST_API_URL }}"
+
+      - name: Fill chunk embeddings (all models, missing only)
+        env:
+          API_KEY: ${{ secrets.INGEST_API_KEY }}
+        run: python tools/preprocess.py fill "${{ vars.INGEST_API_URL }}"

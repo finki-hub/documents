@@ -1,0 +1,15 @@
+# Environment
+.env
+
+# Original source files (binaries) — staged locally, archived to R2, never tracked here.
+/raw/*
+!/raw/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.venv/
