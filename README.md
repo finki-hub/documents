@@ -2,7 +2,7 @@
 
 Source-of-truth corpus for the [`finki-hub/chat-bot`](https://github.com/finki-hub/chat-bot)
 RAG: official FINKI / UKIM governance documents (laws, rulebooks, statutes, procedures),
-converted to Markdown and structured by членови. The bot retrieves from these chunks
+converted to Markdown and structured by articles (членови). The bot retrieves from these chunks
 alongside the FAQ. Keeping them here makes every revision a reviewable pull request.
 
 ## Layout
