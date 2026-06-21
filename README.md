@@ -23,7 +23,8 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
 
 - `extract` / `ocr <pdf>` — convert originals into `processed/*.md`. **Human-review every file against its original before ingesting** — these are legal texts.
 - `upload [dir]` — archive originals to R2 (needs the `R2_*` env vars).
-- `ingest [url]` then `fill [url]` — push the Markdown to the chat-bot `/documents` API and embed it. Idempotent by name; a revision re-embeds only the changed document. Needs `API_KEY`.
+- `ingest [url]` then `fill [url]` — push the Markdown to the chat-bot `/documents` API and embed it. Idempotent by name (the filename stem); a revision under the **same filename** re-embeds only the changed document. Needs `API_KEY`.
+- `sync [url]` then `fill [url]` — like `ingest`, but also **prunes** any stored document whose file was removed or **renamed**, so the API mirrors `processed/`. Use this whenever documents are renamed or retired. R2 originals are kept as an archive (orphaned keys are reported, not deleted).
 
 ## License
 

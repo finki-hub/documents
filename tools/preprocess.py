@@ -11,6 +11,7 @@ Run from the repository root. Usage (ephemeral deps via uv):
       python tools/preprocess.py upload [raw_dir]  # archive originals to R2 (provenance)
       python tools/preprocess.py ingest [api_url]  # POST processed/*.md to /documents
       python tools/preprocess.py fill [api_url]    # drive /documents/fill (all models, missing chunks)
+      python tools/preprocess.py sync [api_url]    # ingest + prune renamed/removed docs (folder = source of truth)
 
 Always HUMAN-REVIEW processed/*.md against the originals before ingesting —
 these are legal texts and OCR/extraction errors change meaning.
@@ -331,6 +332,59 @@ def fill(api_url: str) -> None:
     print(f"\nFill complete: {ok} ok, {err} errors.")
 
 
+def sync(api_url: str) -> None:
+    """Reconcile the API to processed/: ingest current files, then prune documents whose file is gone.
+
+    The processed/ folder is the source of truth, so renames and removals are handled by deleting any
+    stored document whose name no longer matches a file. R2 originals are kept (archive) — orphaned
+    keys are reported, not deleted.
+    """
+    import json
+    import urllib.parse
+    import urllib.request
+
+    api_key = os.environ.get("API_KEY")
+    if not api_key:
+        sys.exit("Set API_KEY in the environment to sync.")
+
+    ingest(api_url)
+
+    desired = {p.stem for p in OUT_DIR.glob("*.md")}
+    list_req = urllib.request.Request(
+        f"{api_url}/documents/list",
+        headers={"x-api-key": api_key},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(list_req) as resp:  # noqa: S310
+            stored = json.loads(resp.read())
+    except Exception as e:  # noqa: BLE001
+        sys.exit(f"Failed to list documents: {e}")
+
+    orphans = [d for d in stored if d["name"] not in desired]
+    if not orphans:
+        print("\nIn sync: every stored document has a matching file; nothing to prune.")
+    else:
+        print(f"\nPruning {len(orphans)} document(s) with no matching file (rename/removal):")
+        for d in orphans:
+            name = d["name"]
+            del_req = urllib.request.Request(
+                f"{api_url}/documents/{urllib.parse.quote(name, safe='')}",
+                headers={"x-api-key": api_key},
+                method="DELETE",
+            )
+            try:
+                with urllib.request.urlopen(del_req) as resp:  # noqa: S310
+                    deleted = json.loads(resp.read())
+                r2 = (deleted.get("metadata") or {}).get("r2_key")
+                note = f"  (R2 original kept as archive: {r2})" if r2 else ""
+                print(f"  pruned {name}{note}")
+            except Exception as e:  # noqa: BLE001
+                print(f"  FAIL pruning {name}: {e}")
+
+    print("\nNow run: preprocess.py fill  to embed any new/changed chunks.")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     cmd = sys.argv[1] if len(sys.argv) > 1 else "extract"
@@ -345,6 +399,8 @@ def main() -> None:
         ingest(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
     elif cmd == "fill":
         fill(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
+    elif cmd == "sync":
+        sync(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
     else:
         sys.exit(f"Unknown command: {cmd}")
 
