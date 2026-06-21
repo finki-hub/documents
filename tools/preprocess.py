@@ -213,7 +213,7 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
     print(f"OK    Tier B OCR -> {out.name}")
 
 
-R2_DOCS_PREFIX = "docs/"
+R2_PREFIX = "documents/"
 
 
 def _r2_client():
@@ -240,7 +240,7 @@ def upload_originals(raw_dir: Path) -> None:
     for src in sorted(raw_dir.iterdir()):
         if src.is_dir() or is_excluded(src.name):
             continue
-        key = f"{R2_DOCS_PREFIX}{src.name}"
+        key = f"{R2_PREFIX}{src.name}"
         client.upload_file(str(src), bucket, key)
         print(f"OK    uploaded {src.name} -> r2://{bucket}/{key}")
     print("\nOriginals archived. The R2 key is stored in each document's metadata at ingest time.")
@@ -266,7 +266,7 @@ def ingest(api_url: str) -> None:
         title = title_match.group(1).strip() if title_match else md_path.stem
         source_file = _source_filename(content)
         metadata = (
-            {"source_file": source_file, "r2_key": f"{R2_DOCS_PREFIX}{source_file}"}
+            {"source_file": source_file, "r2_key": f"{R2_PREFIX}{source_file}"}
             if source_file
             else None
         )
