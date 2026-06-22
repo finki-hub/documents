@@ -47,6 +47,7 @@ NEEDS_OCR = (
     "procedura_za_prijava",
     "procedura_za_zalbi",
     "strategija_za_obezbeduvanje",
+    "cenovnik_finki",
 )
 
 # Human-readable document titles, used in chunk embeddings + citations.
