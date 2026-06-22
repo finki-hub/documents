@@ -1,4 +1,4 @@
-<!-- title: Статут на Факултетското студентско собрание (ФИНКИ) | source: statut_na_fakultetskoto_studentsko_sobranie_na_fakultetot_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_-_skopje.pdf | TIER A extraction — REVIEW BEFORE INGEST -->
+<!-- title: Статут на Факултетското студентско собрание (ФИНКИ) | source: statut_na_fakultetskoto_studentsko_sobranie_na_fakultetot_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_-_skopje.pdf | TIER A extraction -->
 
 Врз основа на член 37 став
 

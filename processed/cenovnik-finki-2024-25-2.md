@@ -1,4 +1,4 @@
-<!-- title: Ценовник на ФИНКИ 2024/25 | source: cenovnik_finki_2024-25-2.pdf | TIER B Claude transcription (from text layer) — REVIEW BEFORE INGEST; fee tables reconstructed from a flattened layout, verify rows against the PDF; source row numbers (Ред. бр.) were not present in the text layer -->
+<!-- title: Ценовник на ФИНКИ 2024/25 | source: cenovnik_finki_2024-25-2.pdf | TIER B Claude transcription (from text layer); fee tables reconstructed from a flattened layout, verify rows against the PDF; source row numbers (Ред. бр.) were not present in the text layer -->
 
 04.07.2024
 

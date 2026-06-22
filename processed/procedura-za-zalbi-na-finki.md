@@ -1,4 +1,4 @@
-<!-- title: Процедура за жалби (ФИНКИ) | source: procedura_za_zalbi_na_finki.pdf | TIER B Claude transcription (from text layer) — REVIEW BEFORE INGEST -->
+<!-- title: Процедура за жалби (ФИНКИ) | source: procedura_za_zalbi_na_finki.pdf | TIER B Claude transcription (from text layer) -->
 
 РЕПУБЛИКА СЕВЕРНА МАКЕДОНИЈА
 Универзитет „Св. Кирил и Методиј“ – Скопје

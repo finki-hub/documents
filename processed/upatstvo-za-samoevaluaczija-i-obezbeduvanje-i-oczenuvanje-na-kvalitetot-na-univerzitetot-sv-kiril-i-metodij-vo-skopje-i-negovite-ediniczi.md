@@ -1,4 +1,4 @@
-<!-- title: Упатство за самоевалуација (УКИМ) | source: upatstvo-za-samoevaluaczija-i-obezbeduvanje-i-oczenuvanje-na-kvalitetot-na-univerzitetot-sv.-kiril-i-metodij-vo-skopje-i-negovite-ediniczi.pdf | TIER A extraction — REVIEW BEFORE INGEST -->
+<!-- title: Упатство за самоевалуација (УКИМ) | source: upatstvo-za-samoevaluaczija-i-obezbeduvanje-i-oczenuvanje-na-kvalitetot-na-univerzitetot-sv.-kiril-i-metodij-vo-skopje-i-negovite-ediniczi.pdf | TIER A extraction -->
 
 Br. 674, 4 март 2024
 

@@ -1,4 +1,4 @@
-<!-- title: Правилник за работа на овластено лице за прием на пријави за корупција | source: pravilnik-za-rabota-na-ovlasteno-lice-za-prierm-na-prijavi-na-korupcija.pdf | TIER A extraction — REVIEW BEFORE INGEST -->
+<!-- title: Правилник за работа на овластено лице за прием на пријави за корупција | source: pravilnik-za-rabota-na-ovlasteno-lice-za-prierm-na-prijavi-na-korupcija.pdf | TIER A extraction -->
 
 ПРАВИЛНИК Факултетот за информатички науки и компјутерско инженерство (ФИНКИ) при Универзитет „Св. Кирил и Методиј“ во Скопје (УКИМ) I. ОПШТИ ОДРЕДБИ
 

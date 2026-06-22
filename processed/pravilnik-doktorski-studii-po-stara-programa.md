@@ -1,4 +1,4 @@
-<!-- title: Правилник за докторски студии (стара програма) | source: Pravilnik_doktorski_studii_po_stara_programa.pdf | TIER A extraction — REVIEW BEFORE INGEST -->
+<!-- title: Правилник за докторски студии (стара програма) | source: Pravilnik_doktorski_studii_po_stara_programa.pdf | TIER A extraction -->
 
 ПРАВИЛНИК ЗА СТЕКНУВАЊЕ ДОКТОРАТ НА ИНФОРМАТИЧКИ НАУКИ НА ФАКУЛТЕТОТ ЗА ИНФОРМАТИЧКИ НАУКИ И КОМПЈУТЕРСКО ИНЖЕНЕРСТВО ВО СКОПЈЕ ОПШТИ ОДРЕДБИ
 

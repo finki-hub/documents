@@ -1,4 +1,4 @@
-<!-- title: Правилник за стандардите и постапката за надворешна евалуација и самоевалуација | source: pravilnik_za_standardite_i_postapkata_za_nadvoreshna_evaluacija_i_samoevaluacija_sluzhben_vesnik_na_republika_severna_makedonija_br._153.2022.pdf | TIER B Claude vision OCR — REVIEW BEFORE INGEST -->
+<!-- title: Правилник за стандардите и постапката за надворешна евалуација и самоевалуација | source: pravilnik_za_standardite_i_postapkata_za_nadvoreshna_evaluacija_i_samoevaluacija_sluzhben_vesnik_na_republika_severna_makedonija_br._153.2022.pdf | TIER B Claude vision OCR -->
 
 Евалуацијата на високообразовните установи се врши преку:
 

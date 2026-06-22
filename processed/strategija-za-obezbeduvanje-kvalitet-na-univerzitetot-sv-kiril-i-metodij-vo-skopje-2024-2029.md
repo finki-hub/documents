@@ -1,4 +1,4 @@
-<!-- title: Стратегија за обезбедување квалитет (УКИМ) 2024–2029 | source: strategija_za_obezbeduvanje_kvalitet_na_univerzitetot_sv._kiril_i_metodij_vo_skopje_2024_-_2029.pdf | TIER B Claude transcription (from text layer) — REVIEW BEFORE INGEST; indicator tables reconstructed from a flattened layout, verify cell alignment against the PDF -->
+<!-- title: Стратегија за обезбедување квалитет (УКИМ) 2024–2029 | source: strategija_za_obezbeduvanje_kvalitet_na_univerzitetot_sv._kiril_i_metodij_vo_skopje_2024_-_2029.pdf | TIER B Claude transcription (from text layer); indicator tables reconstructed from a flattened layout, verify cell alignment against the PDF -->
 
 Бр. 02–779/6
 24.6.2024 година

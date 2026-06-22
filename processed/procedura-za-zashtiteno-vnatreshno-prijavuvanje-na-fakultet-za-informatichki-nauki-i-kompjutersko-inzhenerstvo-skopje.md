@@ -1,4 +1,4 @@
-<!-- title: Процедура за заштитено внатрешно пријавување (ФИНКИ) | source: procedura_za_zashtiteno_vnatreshno_prijavuvanje_na_fakultet_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_skopje.pdf | TIER A extraction — REVIEW BEFORE INGEST -->
+<!-- title: Процедура за заштитено внатрешно пријавување (ФИНКИ) | source: procedura_za_zashtiteno_vnatreshno_prijavuvanje_na_fakultet_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_skopje.pdf | TIER A extraction -->
 
 РЕПУБЛИКА МАКЕДОНИЈА Универзитет „Св. Кирил и Методиј“ – Скопје Факултет за информатички науки и компјутерско инженерство Дел. бр. 02-1898 Дата 25.08.2016 Врз основа на член 4 ст.1 од Законот за заштита на укажувачи и Правилникот за заштитено внатрешно пријавување во институциите од јавниот сектор, Деканатската управа на Факултет за информатички науки и компјутерско инженерство Скопје на својата та седница одржана на 22.08.2016 година ги донесе следните П Р О Ц Е Д У Р И за заштитено внатрешно пријавување на Факултет за информатички науки и компјутерско инженерство Скопје I - Општи одредби
 

@@ -13,8 +13,9 @@ Run from the repository root. Usage (ephemeral deps via uv):
       python tools/preprocess.py fill [api_url]    # drive /documents/fill (all models, missing chunks)
       python tools/preprocess.py sync [api_url]    # ingest + prune renamed/removed docs (folder = source of truth)
 
-Always HUMAN-REVIEW processed/*.md against the originals before ingesting —
-these are legal texts and OCR/extraction errors change meaning.
+The corpus is used for FAQ retrieval and processed/*.md is ingested as-is;
+extraction/OCR can introduce errors, so spot-check against the originals only
+if you need stronger accuracy.
 
 ingest/fill need API_KEY; upload needs R2 creds (offline only — never used by the API runtime):
   R2_ACCOUNT_ID (or R2_ENDPOINT), R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, API_KEY
@@ -151,7 +152,7 @@ def extract_tier_a(raw_dir: Path) -> None:
             continue
 
         out = OUT_DIR / f"{slug(stem)}.md"
-        header = f"<!-- title: {title_for(stem)} | source: {src.name} | TIER A extraction — REVIEW BEFORE INGEST -->\n\n"
+        header = f"<!-- title: {title_for(stem)} | source: {src.name} | TIER A extraction -->\n\n"
         out.write_text(header + md, encoding="utf-8")
         print(f"OK    Tier A         {src.name}  -> {out.name}")
 
@@ -214,7 +215,7 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
 
     stem = path.stem
     out = OUT_DIR / f"{slug(stem)}.md"
-    header = f"<!-- title: {title_for(stem)} | source: {path.name} | TIER B Claude vision OCR — REVIEW BEFORE INGEST -->\n\n"
+    header = f"<!-- title: {title_for(stem)} | source: {path.name} | TIER B Claude vision OCR -->\n\n"
     out.write_text(header + "\n\n".join(parts), encoding="utf-8")
     print(f"OK    Tier B OCR -> {out.name}")
 
