@@ -38,10 +38,16 @@ EXCLUDE = (
     "podatoci_od_javen_karakter",
 )
 
-# Documents whose text layer is unusable (scanned or legacy-font) -> Tier B vision OCR.
+# Documents routed to Tier B Claude transcription instead of deterministic Tier A —
+# either an unusable text layer (scanned / legacy-font) OR a clean text layer whose
+# layout (tables, fillable forms, mixed nested lists) defeats deterministic reflow and
+# flattens into one structureless paragraph.
 NEEDS_OCR = (
     "statut_i_delovnik",
     "pravilnik_za_standardite",
+    "procedura_za_prijava",  # • / numbered lists + ":"-headings
+    "procedura_za_zalbi",  # numbered list w/ sub-bullets + a fillable form
+    "strategija_za_obezbeduvanje",  # ToC, multi-line numbered headings, indicator tables
 )
 
 # Human-readable titles (used in chunk embeddings + citations); falls back to the
