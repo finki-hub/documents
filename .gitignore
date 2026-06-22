@@ -1,9 +1,16 @@
 # Environment
 .env
 
-# Original source files (binaries) — staged locally, archived to R2, never tracked here.
-/raw/*
-!/raw/.gitkeep
+# Original source files live in raw/ and ARE tracked (git is the source of truth,
+# R2 is just a downstream mirror). Exception: the excluded originals must never be
+# committed — salary tables, job systematization, internal reports, and personal data.
+/raw/*odluka_za_plati*
+/raw/*sistematizacija*
+/raw/*finalen_izveshtaj*
+/raw/*posrednici*
+/raw/*odatoci_od_javen*
+# Scratch dumps (e.g. raw text extractions) are not originals.
+/raw/_*
 
 # Python
 __pycache__/
