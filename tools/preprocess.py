@@ -49,8 +49,7 @@ NEEDS_OCR = (
     "strategija_za_obezbeduvanje",
 )
 
-# Human-readable titles (used in chunk embeddings + citations); falls back to the
-# prettified filename for anything not listed.
+# Human-readable document titles, used in chunk embeddings + citations.
 TITLES = {
     "264_statut_ukim-6.6.2019": "Статут на Универзитетот „Св. Кирил и Методиј“ во Скопје",
     "Pravilnik_studii_prv_vtor_ciklus_FINKI": "Правилник за студии на прв и втор циклус (ФИНКИ)",
@@ -238,7 +237,6 @@ def _r2_client():
 
 
 def upload_originals(raw_dir: Path) -> None:
-    """Archive the (non-excluded) original source files to R2 for provenance."""
     bucket = os.environ.get("R2_BUCKET")
     if not bucket:
         sys.exit("Set R2_BUCKET (+ R2_ACCOUNT_ID/R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).")
@@ -253,7 +251,6 @@ def upload_originals(raw_dir: Path) -> None:
 
 
 def _source_filename(content: str) -> str | None:
-    """Pull the original filename out of the processed-Markdown header comment."""
     m = re.search(r"source:\s*(.+?\.(?:pdf|docx))", content, re.IGNORECASE)
     return m.group(1).strip() if m else None
 
