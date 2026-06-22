@@ -1,1 +1,5 @@
 * text=auto eol=lf
+
+# Original source files are binary — never normalize line endings or diff them.
+*.pdf binary
+*.docx binary
