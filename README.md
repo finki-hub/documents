@@ -6,7 +6,7 @@ Source-of-truth corpus for the [`finki-hub/chat-bot`](https://github.com/finki-h
 
 ```
 processed/   reviewed Markdown — the tracked corpus (one file per document)
-raw/         original PDFs/DOCX — tracked here too (excluded/sensitive ones are gitignored)
+raw/         original PDFs/DOCX — the corpus source files, tracked here
 tools/       offline CLI: preprocess.py + docpipe.py
 ```
 

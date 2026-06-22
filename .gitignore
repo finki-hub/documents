@@ -1,19 +1,6 @@
 # Environment
 .env
 
-# Original source files live in raw/ and ARE tracked (git is the source of truth;
-# R2 is a downstream mirror). The 5 documents excluded from the corpus (low
-# student-FAQ value — employee pay rules, job systematization, internal QA reports,
-# the public-information register) are kept out so raw/ stays 1:1 with processed/.
-# They are public university acts, not confidential — just not corpus material.
-/raw/*odluka_za_plati*
-/raw/*sistematizacija*
-/raw/*finalen_izveshtaj*
-/raw/*posrednici*
-/raw/*odatoci_od_javen*
-# Scratch dumps (e.g. raw text extractions) are not originals.
-/raw/_*
-
 # Python
 __pycache__/
 *.py[cod]
