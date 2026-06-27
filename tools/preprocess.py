@@ -5,7 +5,7 @@ Offline preprocessing for source-of-truth documents. Three tiers:
   - Ingest/fill: POST the reviewed Markdown to /documents, then drive /documents/fill.
 
 Run from the repository root. Usage (ephemeral deps via uv):
-  uv run --with pymupdf --with pypdf --with python-docx --with anthropic --with langchain-text-splitters --with boto3 \
+  uv run --with pymupdf --with pypdf --with python-docx --with anthropic --with langchain-text-splitters --with boto3 --with posthog \
       python tools/preprocess.py extract           # Tier A -> processed/
       python tools/preprocess.py ocr <pdf> [pages] # Tier B -> processed/
       python tools/preprocess.py upload [raw_dir]  # archive originals to R2 (provenance)
@@ -19,6 +19,10 @@ if you need stronger accuracy.
 
 ingest/fill need API_KEY; upload needs R2 creds (offline only — never used by the API runtime):
   R2_ACCOUNT_ID (or R2_ENDPOINT), R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, API_KEY
+
+Optional PostHog product analytics (metadata-only — counts/sizes, never document text):
+  POSTHOG_KEY (public ingest key), POSTHOG_HOST (default https://eu.i.posthog.com).
+  Unset POSTHOG_KEY -> no-op (dev / CI emit nothing).
 """
 
 import base64
@@ -26,6 +30,8 @@ import os
 import re
 import sys
 from pathlib import Path
+
+from analytics import Analytics
 
 RAW_DIR = Path("raw")
 OUT_DIR = Path("processed")
@@ -257,7 +263,7 @@ def _source_filename(content: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
-def ingest(api_url: str) -> None:
+def ingest(api_url: str, analytics: Analytics) -> None:
     import json
     import urllib.request
 
@@ -291,7 +297,18 @@ def ingest(api_url: str) -> None:
         try:
             with urllib.request.urlopen(req) as resp:  # noqa: S310
                 result = json.loads(resp.read())
-                print(f"OK    ingested {md_path.name} -> {result.get('chunk_count')} chunks")
+                chunk_count = result.get("chunk_count")
+                print(f"OK    ingested {md_path.name} -> {chunk_count} chunks")
+                analytics.capture(
+                    "document_ingested",
+                    {
+                        "doc_id": md_path.stem,
+                        "name": md_path.stem,
+                        "chunk_count": chunk_count,
+                        "bytes": len(content.encode("utf-8")),
+                        "source": source_file,
+                    },
+                )
         except Exception as e:  # noqa: BLE001
             print(f"FAIL  {md_path.name}: {e}")
     print("\nNow run: preprocess.py fill  (or POST /documents/fill) to generate embeddings.")
@@ -336,7 +353,7 @@ def fill(api_url: str) -> None:
     print(f"\nFill complete: {ok} ok, {err} errors.")
 
 
-def sync(api_url: str) -> None:
+def sync(api_url: str, analytics: Analytics) -> None:
     """Reconcile the API to processed/: ingest current files, then prune documents whose file is gone.
 
     The processed/ folder is the source of truth, so renames and removals are handled by deleting any
@@ -351,7 +368,7 @@ def sync(api_url: str) -> None:
     if not api_key:
         sys.exit("Set API_KEY in the environment to sync.")
 
-    ingest(api_url)
+    ingest(api_url, analytics)
 
     desired = {p.stem for p in OUT_DIR.glob("*.md")}
     list_req = urllib.request.Request(
@@ -391,22 +408,26 @@ def sync(api_url: str) -> None:
 
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "extract"
-    if cmd == "extract":
-        raw_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR
-        extract_tier_a(raw_dir)
-    elif cmd == "ocr":
-        ocr_pdf(Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
-    elif cmd == "upload":
-        upload_originals(Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR)
-    elif cmd == "ingest":
-        ingest(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
-    elif cmd == "fill":
-        fill(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
-    elif cmd == "sync":
-        sync(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
-    else:
-        sys.exit(f"Unknown command: {cmd}")
+    analytics = Analytics.from_env()
+    try:
+        cmd = sys.argv[1] if len(sys.argv) > 1 else "extract"
+        if cmd == "extract":
+            raw_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR
+            extract_tier_a(raw_dir)
+        elif cmd == "ocr":
+            ocr_pdf(Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
+        elif cmd == "upload":
+            upload_originals(Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR)
+        elif cmd == "ingest":
+            ingest(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics)
+        elif cmd == "fill":
+            fill(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
+        elif cmd == "sync":
+            sync(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics)
+        else:
+            sys.exit(f"Unknown command: {cmd}")
+    finally:
+        analytics.shutdown()
 
 
 if __name__ == "__main__":
