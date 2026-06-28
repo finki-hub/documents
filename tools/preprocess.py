@@ -207,7 +207,10 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
                                 "data": data,
                             },
                         },
-                        {"type": "text", "text": "Транскрибирај го документот според упатствата."},
+                        {
+                            "type": "text",
+                            "text": "Транскрибирај го документот според упатствата.",
+                        },
                     ],
                 },
             ],
@@ -216,7 +219,9 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
                 text.append(chunk)
             msg = stream.get_final_message()
         if msg.stop_reason == "max_tokens":
-            print(f"  WARN: pages {start}-{end} hit max_tokens — narrow the page window")
+            print(
+                f"  WARN: pages {start}-{end} hit max_tokens — narrow the page window"
+            )
         parts.append("".join(text))
 
     stem = path.stem
@@ -247,7 +252,9 @@ def _r2_client():
 def upload_originals(raw_dir: Path) -> None:
     bucket = os.environ.get("R2_BUCKET")
     if not bucket:
-        sys.exit("Set R2_BUCKET (+ R2_ACCOUNT_ID/R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).")
+        sys.exit(
+            "Set R2_BUCKET (+ R2_ACCOUNT_ID/R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)."
+        )
     client = _r2_client()
     for src in sorted(raw_dir.iterdir()):
         if src.is_dir() or is_excluded(src.name):
@@ -255,7 +262,9 @@ def upload_originals(raw_dir: Path) -> None:
         key = f"{R2_PREFIX}{src.name}"
         client.upload_file(str(src), bucket, key)
         print(f"OK    uploaded {src.name} -> r2://{bucket}/{key}")
-    print("\nOriginals archived. The R2 key is stored in each document's metadata at ingest time.")
+    print(
+        "\nOriginals archived. The R2 key is stored in each document's metadata at ingest time."
+    )
 
 
 def _source_filename(content: str) -> str | None:
@@ -311,7 +320,18 @@ def ingest(api_url: str, analytics: Analytics) -> None:
                 )
         except Exception as e:  # noqa: BLE001
             print(f"FAIL  {md_path.name}: {e}")
-    print("\nNow run: preprocess.py fill  (or POST /documents/fill) to generate embeddings.")
+            analytics.capture_exception(
+                e,
+                properties={
+                    "doc_id": md_path.stem,
+                    "name_len": len(md_path.stem),
+                    "stage": "ingest",
+                    "error_type": type(e).__name__,
+                },
+            )
+    print(
+        "\nNow run: preprocess.py fill  (or POST /documents/fill) to generate embeddings."
+    )
 
 
 def fill(api_url: str) -> None:
@@ -337,12 +357,14 @@ def fill(api_url: str) -> None:
                 line = raw.decode("utf-8").strip()
                 if not line.startswith("data:"):
                     continue
-                evt = json.loads(line[len("data:"):].strip())
+                evt = json.loads(line[len("data:") :].strip())
                 if evt.get("status") == "ok":
                     ok += 1
                 else:
                     err += 1
-                    print(f"  FAIL [{evt.get('model')}] {evt.get('name')}: {evt.get('error')}")
+                    print(
+                        f"  FAIL [{evt.get('model')}] {evt.get('name')}: {evt.get('error')}"
+                    )
                 done = ok + err
                 if done % 50 == 0:
                     print(f"  ... {done}/{evt.get('total')} ({err} errors)")
@@ -386,7 +408,9 @@ def sync(api_url: str, analytics: Analytics) -> None:
     if not orphans:
         print("\nIn sync: every stored document has a matching file; nothing to prune.")
     else:
-        print(f"\nPruning {len(orphans)} document(s) with no matching file (rename/removal):")
+        print(
+            f"\nPruning {len(orphans)} document(s) with no matching file (rename/removal):"
+        )
         for d in orphans:
             name = d["name"]
             del_req = urllib.request.Request(
@@ -407,10 +431,10 @@ def sync(api_url: str, analytics: Analytics) -> None:
 
 
 def main() -> None:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     analytics = Analytics.from_env()
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "extract"
     try:
-        cmd = sys.argv[1] if len(sys.argv) > 1 else "extract"
         if cmd == "extract":
             raw_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR
             extract_tier_a(raw_dir)
@@ -419,13 +443,20 @@ def main() -> None:
         elif cmd == "upload":
             upload_originals(Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR)
         elif cmd == "ingest":
-            ingest(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics)
+            ingest(
+                sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics
+            )
         elif cmd == "fill":
             fill(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
         elif cmd == "sync":
-            sync(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics)
+            sync(
+                sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880", analytics
+            )
         else:
             sys.exit(f"Unknown command: {cmd}")
+    except Exception as exc:
+        analytics.capture_exception(exc, properties={"cmd": cmd, "stage": "run"})
+        raise
     finally:
         analytics.shutdown()
 

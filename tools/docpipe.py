@@ -115,7 +115,7 @@ def chunk(markdown: str, mode: str, token_len, target=380, hard=450, overlap=48)
 
 
 def main() -> None:
-    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     path = sys.argv[1]
     from transformers import AutoTokenizer
 
@@ -129,37 +129,50 @@ def main() -> None:
 
     if os.path.isdir(path):
         files = sorted(glob.glob(os.path.join(path, "*.pdf")))
-        print(f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE")
+        print(
+            f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE"
+        )
         total = 0
         for f in files:
             try:
                 raw = extract_pdf(f)
                 if len(raw.strip()) < 50:
-                    print(f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}")
+                    print(
+                        f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}"
+                    )
                     continue
                 cyr = sum(1 for c in raw if "Ѐ" <= c <= "ӿ")
                 lat = sum(1 for c in raw if c.isascii() and c.isalpha())
                 if cyr / (cyr + lat + 1) < 0.85:
-                    print(f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)")
+                    print(
+                        f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)"
+                    )
                     continue
                 mode, md = to_markdown(raw)
                 ch = chunk(md, mode, tlen)
                 title = os.path.basename(f)
-                sizes = [tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}") for lb, b in ch]
+                sizes = [
+                    tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}")
+                    for lb, b in ch
+                ]
                 over = sum(1 for s in sizes if s > 512)
                 total += len(ch)
                 nm = len({lb for lb, _ in ch if lb.startswith("Член")})
-                print(f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}")
+                print(
+                    f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}"
+                )
             except Exception as e:
-                print(f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {e}")
+                print(
+                    f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {e}"
+                )
         print(f"\nTOTAL CHUNKS (text-layer PDFs): {total}")
         return
 
     if path.lower().endswith(".pdf"):
         mode, md = to_markdown(extract_pdf(path))
     else:
-        with open(path, encoding="utf-8") as f:
-            md = f.read()
+        with open(path, encoding="utf-8") as fp:
+            md = fp.read()
         md = re.sub(r"<!--.*?-->", "", md, flags=re.DOTALL).strip()
         mode = "member" if re.search(r"^# Член\s+\d+", md, re.MULTILINE) else "heading"
     doc_title = path.split("/")[-1].split("\\")[-1]
@@ -178,8 +191,10 @@ def main() -> None:
 
     print(f"=== {doc_title}")
     print(f"mode={mode}  chars={len(md)}  chunks={len(chunks)}")
-    print(f"embed-token sizes: min={min(sizes)} median={sorted(sizes)[len(sizes)//2]} "
-          f"max={max(sizes)} >512={over}")
+    print(
+        f"embed-token sizes: min={min(sizes)} median={sorted(sizes)[len(sizes) // 2]} "
+        f"max={max(sizes)} >512={over}"
+    )
     print("\n--- markdown head ---")
     print(md[:700])
     print("\n--- sample chunks ---")

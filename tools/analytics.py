@@ -2,7 +2,8 @@
 
 Metadata-only by construction: callers pass dicts of ids / names / counts / sizes /
 sources — never document text. The pipeline handles sovereign Macedonian legal text,
-so exception autocapture (which could embed source text) is disabled.
+so SDK exception autocapture (which could embed source text in the breadcrumbs) is
+disabled; instead, ``capture_exception`` is called manually with curated metadata only.
 
 No-op when POSTHOG_KEY is unset, so dev / CI / tests emit nothing. As a short-lived
 batch the client must be flushed and shut down before exit or queued events are dropped.
@@ -50,6 +51,25 @@ class Analytics:
             distinct_id=DISTINCT_ID,
             properties={"service": SERVICE, **properties},
         )
+
+    def capture_exception(
+        self,
+        exc: BaseException,
+        distinct_id: str = DISTINCT_ID,
+        properties: dict[str, Any] | None = None,
+    ) -> None:
+        """Capture an exception with curated metadata; no-op when disabled, never raises."""
+        if self._client is None:
+            return
+        try:
+            props: dict[str, Any] = {"service": SERVICE}
+            if properties:
+                props.update(properties)
+            self._client.capture_exception(
+                exc, distinct_id=distinct_id, properties=props
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     def shutdown(self) -> None:
         if self._client is None:
