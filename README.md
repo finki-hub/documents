@@ -28,7 +28,7 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
 
 ### Analytics (optional)
 
-`ingest`/`sync` emit a `document_ingested` PostHog event per document (metadata only — `doc_id`, `chunk_count`, `bytes`, `source`; never document text). Set `POSTHOG_KEY` (and optionally `POSTHOG_HOST`, default `https://eu.i.posthog.com`) to enable; leave `POSTHOG_KEY` unset for a no-op. The fleet's public ingest key is `phc_xXEqLMnYeDPuXA6HHwuasQMdSufDGryS8vZZuHmu9Qwd`.
+`ingest`/`sync` emit a `document_ingested` PostHog event per document (metadata only — `doc_id`, `name`, `chunk_count`, `bytes`, `source`; never document text). Set `POSTHOG_KEY` (and optionally `POSTHOG_HOST`, default `https://eu.i.posthog.com`) to enable; leave `POSTHOG_KEY` unset for a no-op.
 
 ## License
 

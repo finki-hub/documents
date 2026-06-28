@@ -49,11 +49,11 @@ class Analytics:
         if self._client is None:
             return
         try:
-            # Fresh dict per event; only the metadata the caller passed, plus `service`.
+            # service is set last so callers cannot accidentally override it.
             self._client.capture(
                 event,
                 distinct_id=DISTINCT_ID,
-                properties={"service": SERVICE, **properties},
+                properties={**properties, "service": SERVICE},
             )
         except Exception:  # noqa: BLE001
             pass
@@ -74,10 +74,11 @@ class Analytics:
         if self._client is None:
             return
         try:
-            props: dict[str, Any] = {"service": SERVICE}
+            props: dict[str, Any] = {}
             if properties:
                 props.update(properties)
-            # Override any caller-supplied $exception_list to enforce residency.
+            # service and $exception_list are set last so callers cannot override them.
+            props["service"] = SERVICE
             props["$exception_list"] = [
                 {"type": type(exc).__name__, "value": "(redacted for residency)"}
             ]
@@ -92,5 +93,8 @@ class Analytics:
     def shutdown(self) -> None:
         if self._client is None:
             return
-        self._client.flush()
-        self._client.shutdown()
+        try:
+            self._client.flush()
+            self._client.shutdown()
+        except Exception:  # noqa: BLE001
+            pass
