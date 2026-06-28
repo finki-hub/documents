@@ -235,7 +235,7 @@ R2_PREFIX = "documents/"
 
 
 def _r2_client():
-    import boto3
+    import boto3  # type: ignore[import-untyped]
 
     endpoint = os.environ.get("R2_ENDPOINT") or (
         f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com"

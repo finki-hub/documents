@@ -45,12 +45,15 @@ class Analytics:
     def capture(self, event: str, properties: dict[str, Any]) -> None:
         if self._client is None:
             return
-        # Fresh dict per event; only the metadata the caller passed, plus `service`.
-        self._client.capture(
-            event,
-            distinct_id=DISTINCT_ID,
-            properties={"service": SERVICE, **properties},
-        )
+        try:
+            # Fresh dict per event; only the metadata the caller passed, plus `service`.
+            self._client.capture(
+                event,
+                distinct_id=DISTINCT_ID,
+                properties={"service": SERVICE, **properties},
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     def capture_exception(
         self,

@@ -13,7 +13,7 @@ import re
 import sys
 from collections import Counter
 
-import fitz  # PyMuPDF
+import fitz  # type: ignore[import-untyped]  # PyMuPDF
 
 MEMBER_RE = re.compile(r"^Член\s+\d+")
 MEMBER_SPLIT = re.compile(r"(?=^Член\s+\d+)", re.MULTILINE)
@@ -117,7 +117,7 @@ def chunk(markdown: str, mode: str, token_len, target=380, hard=450, overlap=48)
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     path = sys.argv[1]
-    from transformers import AutoTokenizer
+    from transformers import AutoTokenizer  # type: ignore[import-not-found]
 
     tok = AutoTokenizer.from_pretrained("intfloat/multilingual-e5-large")
 
