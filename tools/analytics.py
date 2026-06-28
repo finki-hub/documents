@@ -2,8 +2,11 @@
 
 Metadata-only by construction: callers pass dicts of ids / names / counts / sizes /
 sources — never document text. The pipeline handles sovereign Macedonian legal text,
-so SDK exception autocapture (which could embed source text in the breadcrumbs) is
-disabled; instead, ``capture_exception`` is called manually with curated metadata only.
+so SDK exception autocapture (which could embed source text in breadcrumbs) is
+disabled. ``capture_exception`` also never forwards the exception object to the SDK —
+PostHog's ``capture_exception()`` serialises the full stacktrace including frame-local
+variables, which would embed document text. Instead it emits a ``$exception`` event
+with a redacted ``$exception_list`` so errors still surface in PostHog Error Tracking.
 
 No-op when POSTHOG_KEY is unset, so dev / CI / tests emit nothing. As a short-lived
 batch the client must be flushed and shut down before exit or queued events are dropped.
@@ -61,15 +64,27 @@ class Analytics:
         distinct_id: str = DISTINCT_ID,
         properties: dict[str, Any] | None = None,
     ) -> None:
-        """Capture an exception with curated metadata; no-op when disabled, never raises."""
+        """Emit a redacted $exception event; no-op when disabled, never raises.
+
+        The exception object is never forwarded to the SDK — PostHog serialises
+        full stacktraces with frame-local variables, which would leak document text.
+        The ``$exception_list`` entry carries only the class name so the event still
+        surfaces in PostHog Error Tracking.
+        """
         if self._client is None:
             return
         try:
             props: dict[str, Any] = {"service": SERVICE}
             if properties:
                 props.update(properties)
-            self._client.capture_exception(
-                exc, distinct_id=distinct_id, properties=props
+            # Override any caller-supplied $exception_list to enforce residency.
+            props["$exception_list"] = [
+                {"type": type(exc).__name__, "value": "(redacted for residency)"}
+            ]
+            self._client.capture(
+                "$exception",
+                distinct_id=distinct_id,
+                properties=props,
             )
         except Exception:  # noqa: BLE001
             pass
