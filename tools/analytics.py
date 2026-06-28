@@ -64,13 +64,7 @@ class Analytics:
         distinct_id: str = DISTINCT_ID,
         properties: dict[str, Any] | None = None,
     ) -> None:
-        """Emit a redacted $exception event; no-op when disabled, never raises.
-
-        The exception object is never forwarded to the SDK — PostHog serialises
-        full stacktraces with frame-local variables, which would leak document text.
-        The ``$exception_list`` entry carries only the class name so the event still
-        surfaces in PostHog Error Tracking.
-        """
+        """Emit a redacted $exception event; no-op when disabled, never raises."""
         if self._client is None:
             return
         try:
