@@ -2,7 +2,12 @@ from pathlib import Path
 
 import fitz
 
-from tools.docpipe import chunk, extract_pdf, to_markdown
+from tools.docpipe import USAGE, chunk, extract_pdf, to_markdown
+
+
+def test_usage_documents_directory_mode() -> None:
+    assert "<pdf-or-markdown-path-or-directory>" in USAGE
+    assert "*.pdf" in USAGE
 
 
 def test_extract_pdf_preserves_repeated_body_lines_and_numeric_cells(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ Chunk sizes are measured against the real multilingual-e5-large tokenizer; the
 512-token window is the binding constraint across the configured embedding models.
 """
 
+import os
 import re
 import sys
 from collections import Counter
@@ -23,7 +24,10 @@ MEMBER_SPLIT = re.compile(rf"(?=^Член\s+{ARTICLE_NUMBER_RE})", re.MULTILINE)
 LINE_WRAP_HYPHEN_RE = re.compile(r"(?<=\w)-\n(?=\w)")
 PAGENUM_RE = re.compile(r"^\d{1,3}$")
 PAGE_MARKER_RE = re.compile(r"^\d+\s+од\s+\d+$")
-USAGE: Final = "Usage: python tools/docpipe.py <pdf-or-markdown-path>"
+USAGE: Final = (
+    "Usage: python tools/docpipe.py <pdf-or-markdown-path-or-directory>\n"
+    "Directories process top-level *.pdf files."
+)
 
 
 def extract_pdf(path: str) -> str:
@@ -137,7 +141,7 @@ def main() -> int:
         return 0 if len(sys.argv) == 2 else 2
 
     path = sys.argv[1]
-    if not __import__("os").path.exists(path):
+    if not os.path.exists(path):
         print(f"error: path does not exist: {path}", file=sys.stderr)
         return 2
 
@@ -149,7 +153,6 @@ def main() -> int:
         return len(tok.encode(s, add_special_tokens=False))
 
     import glob
-    import os
 
     if os.path.isdir(path):
         files = sorted(glob.glob(os.path.join(path, "*.pdf")))
