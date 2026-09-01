@@ -1,4 +1,4 @@
-<!-- title: Листа на посредници за заштита од вознемирување на работно место (ФИНКИ) | source: lista-posrednici-voznemiruvanje-rabotno-mesto-finki.pdf | TIER B visual transcription -->
+<!-- title: Листа на посредници за заштита од вознемирување на работно место (ФИНКИ) | source: lista-posrednici-voznemiruvanje-rabotno-mesto-finki.pdf | document_date: 2026-05-18 | date_kind: issued | date_precision: day | date_source: document_text | date_confidence: high | current_status: current | last_verified: 2026-09-01 | issued: 2026-05-18 | TIER B visual transcription -->
 
 Арх. бр. 02-822/4 од 18.05.2026 година.
 
