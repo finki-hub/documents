@@ -1,4 +1,4 @@
-<!-- title: Закон за студентски стандард (111/2026) | source: zakon-studentski-standard-111-2026.docx | document_date: 111/2026 | date_kind: published | date_precision: gazette_issue | date_source: document_text | date_confidence: high | current_status: presumed_current | last_verified: 2026-09-01 | amended_through: 111/2026 | TIER A extraction -->
+<!-- title: Закон за студентски стандард (111/2026) | source: zakon-studentski-standard-111-2026.docx | authority_url: https://portal.mdt.gov.mk/post-body-files/zakoni-mon-file-GeVe.docx | document_date: 111/2026 | date_kind: published | date_precision: gazette_issue | date_source: document_text | date_confidence: high | current_status: presumed_current | last_verified: 2026-09-01 | amended_through: 111/2026 | TIER A extraction -->
 
 Закон за студентскиот стандард
 КОНСОЛИДИРАН ТЕКСТ
