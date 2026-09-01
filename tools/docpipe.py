@@ -19,9 +19,12 @@ from typing import Final
 
 import fitz  # PyMuPDF
 
-ARTICLE_NUMBER_RE: Final = r"\d+(?:-[^\W\d_]+)?"
-MEMBER_SPLIT = re.compile(rf"(?=^Член\s+{ARTICLE_NUMBER_RE})", re.MULTILINE)
-LINE_WRAP_HYPHEN_RE = re.compile(r"(?<=\w)-\n(?=\w)")
+ARTICLE_NUMBER_RE: Final = r"\d+(?:(?:-|[ \t]+)[^\W\d_]+|\.\d+)?"
+MEMBER_SPLIT = re.compile(
+    rf"(?=^Член[ \t]+{ARTICLE_NUMBER_RE}[ \t]*$)",
+    re.MULTILINE,
+)
+SOFT_HYPHEN_RE = re.compile("\u00ad\n?")
 PAGENUM_RE = re.compile(r"^\d{1,3}$")
 PAGE_MARKER_RE = re.compile(r"^\d+\s+од\s+\d+$")
 USAGE: Final = (
@@ -50,7 +53,11 @@ def extract_pdf(path: str) -> str:
         for index, s in enumerate(lines):
             is_boundary = index <= 1 or index >= last - 1
             is_boundary_number = PAGENUM_RE.fullmatch(s) and is_boundary
-            if (s in repeated and is_boundary) or PAGE_MARKER_RE.fullmatch(s) or is_boundary_number:
+            if (
+                (s in repeated and is_boundary)
+                or PAGE_MARKER_RE.fullmatch(s)
+                or is_boundary_number
+            ):
                 continue
             out.append(s)
     return "\n".join(out)
@@ -60,9 +67,17 @@ def to_markdown(text: str) -> tuple[str, str]:
     """Detect structure; return (mode, markdown). mode in {member, heading}."""
     lines = [ln for ln in text.splitlines() if ln.strip()]
     joined = "\n".join(lines)
-    joined = re.sub(r"(?m)^Член\s*\n\s*(\d+[а-яА-Я-]*)\s*$", r"Член \1", joined)
-    joined = re.sub(r"(?m)^Член\s*(\d+[а-яА-Я-]*)\s*$", r"Член \1", joined)
-    joined = LINE_WRAP_HYPHEN_RE.sub("", joined)
+    joined = re.sub(
+        rf"(?m)^Член\s*\n\s*({ARTICLE_NUMBER_RE})\s*$",
+        r"Член \1",
+        joined,
+    )
+    joined = re.sub(
+        rf"(?m)^Член\s*({ARTICLE_NUMBER_RE})\s*$",
+        r"Член \1",
+        joined,
+    )
+    joined = SOFT_HYPHEN_RE.sub("", joined)
     if not MEMBER_SPLIT.search(joined):
         return "heading", joined
 
@@ -111,14 +126,22 @@ def chunk(
 
     units: list[tuple[str, str]] = []
     if mode == "member":
-        blocks = re.split(rf"(?=^# Член\s+{ARTICLE_NUMBER_RE})", markdown, flags=re.MULTILINE)
+        blocks = re.split(
+            rf"(?=^# Член[ \t]+{ARTICLE_NUMBER_RE}[ \t]*$)",
+            markdown,
+            flags=re.MULTILINE,
+        )
         for b in blocks:
             b = b.strip()
             if not b:
                 continue
-            m = re.match(rf"# (Член\s+{ARTICLE_NUMBER_RE})", b)
+            m = re.match(rf"# (Член[ \t]+{ARTICLE_NUMBER_RE})[ \t]*(?:\n|$)", b)
             label = m.group(1) if m else "Преамбула"
-            body = re.sub(rf"^# Член\s+{ARTICLE_NUMBER_RE}\s*", "", b).strip()
+            body = re.sub(
+                rf"^# Член[ \t]+{ARTICLE_NUMBER_RE}[ \t]*(?:\n|$)",
+                "",
+                b,
+            ).strip()
             units.append((label, body))
     else:
         units.append(("", markdown))
@@ -134,8 +157,12 @@ def chunk(
 
 
 def main() -> int:
-    sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True)
-    sys.stderr = TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True)
+    sys.stdout = TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+    )
+    sys.stderr = TextIOWrapper(
+        sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+    )
     if len(sys.argv) != 2 or sys.argv[1] in {"-h", "--help"}:
         print(USAGE)
         return 0 if len(sys.argv) == 2 else 2
@@ -156,29 +183,42 @@ def main() -> int:
 
     if os.path.isdir(path):
         files = sorted(glob.glob(os.path.join(path, "*.pdf")))
-        print(f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE")
+        print(
+            f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE"
+        )
         total = 0
         for f in files:
             try:
                 raw = extract_pdf(f)
                 if len(raw.strip()) < 50:
-                    print(f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}")
+                    print(
+                        f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}"
+                    )
                     continue
                 cyr = sum(1 for c in raw if "Ѐ" <= c <= "ӿ")
                 lat = sum(1 for c in raw if c.isascii() and c.isalpha())
                 if cyr / (cyr + lat + 1) < 0.85:
-                    print(f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)")
+                    print(
+                        f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)"
+                    )
                     continue
                 mode, md = to_markdown(raw)
                 ch = chunk(md, mode, tlen)
                 title = os.path.basename(f)
-                sizes = [tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}") for lb, b in ch]
+                sizes = [
+                    tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}")
+                    for lb, b in ch
+                ]
                 over = sum(1 for s in sizes if s > 512)
                 total += len(ch)
                 nm = len({lb for lb, _ in ch if lb.startswith("Член")})
-                print(f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}")
+                print(
+                    f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}"
+                )
             except (fitz.FileDataError, OSError, RuntimeError, ValueError) as error:
-                print(f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {error}")
+                print(
+                    f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {error}"
+                )
         print(f"\nTOTAL CHUNKS (text-layer PDFs): {total}")
         return 0
 
@@ -188,7 +228,11 @@ def main() -> int:
         with open(path, encoding="utf-8") as f:
             md = f.read()
         md = re.sub(r"<!--.*?-->", "", md, flags=re.DOTALL).strip()
-        mode = "member" if re.search(rf"^# Член\s+{ARTICLE_NUMBER_RE}", md, re.MULTILINE) else "heading"
+        mode = (
+            "member"
+            if re.search(rf"^# Член\s+{ARTICLE_NUMBER_RE}", md, re.MULTILINE)
+            else "heading"
+        )
     doc_title = path.split("/")[-1].split("\\")[-1]
     chunks = chunk(md, mode, tlen)
 
@@ -205,8 +249,10 @@ def main() -> int:
 
     print(f"=== {doc_title}")
     print(f"mode={mode}  chars={len(md)}  chunks={len(chunks)}")
-    print(f"embed-token sizes: min={min(sizes)} median={sorted(sizes)[len(sizes)//2]} "
-          f"max={max(sizes)} >512={over}")
+    print(
+        f"embed-token sizes: min={min(sizes)} median={sorted(sizes)[len(sizes) // 2]} "
+        f"max={max(sizes)} >512={over}"
+    )
     print("\n--- markdown head ---")
     print(md[:700])
     print("\n--- sample chunks ---")
