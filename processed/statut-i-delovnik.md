@@ -1,4 +1,4 @@
-<!-- title: Статут на ФИНКИ | source: statut_i_delovnik.pdf | source_pages: 3-21 | document_date: 2019-09-10 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: currentness_unresolved | last_verified: 2026-09-01 | issued: 2019-09-10 | TIER B Claude vision OCR -->
+<!-- title: Статут на ФИНКИ | source: statut_i_delovnik.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/06/statut_i_delovnik.pdf | source_pages: 3-21 | document_date: 2019-09-10 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: currentness_unresolved | last_verified: 2026-09-01 | issued: 2019-09-10 | TIER B Claude vision OCR -->
 
 Врз основа на член 110 од Законот за високото образование (Сл. весник на РМ бр.82/2018), како и член 147 од Статутот на Универзитетот „Св. Кирил Методиј" во Скопје, Наставно-научниот совет на Факултетот за информатички науки и компјутерско инженерство во Скопје, на седницата одржана на 10.09.2019 година, донесе
 
