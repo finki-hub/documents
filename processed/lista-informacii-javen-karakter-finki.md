@@ -1,4 +1,4 @@
-<!-- title: Листа на информации од јавен карактер (ФИНКИ) | source: lista-informacii-javen-karakter-finki.pdf | TIER B visual transcription -->
+<!-- title: Листа на информации од јавен карактер (ФИНКИ) | source: lista-informacii-javen-karakter-finki.pdf | document_date: 2012-10-30 | date_kind: issued | date_precision: day | date_source: document_text | date_confidence: high | current_status: stale_review_required | last_verified: 2026-09-01 | issued: 2012-10-30 | TIER B visual transcription -->
 
 Дел. бр. 02-1285/1 од 30.10.2012 година.
 
