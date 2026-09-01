@@ -9,6 +9,7 @@ def _metadata_header(**overrides: str) -> str:
     fields = {
         "title": "Document",
         "source": "document.pdf",
+        "authority_url": "https://finki.ukim.mk/official/document.pdf",
         "document_date": "2024-05-16",
         "date_kind": "adopted",
         "date_precision": "day",
@@ -34,6 +35,76 @@ def test_audit_rejects_missing_canonical_metadata(tmp_path: Path) -> None:
         preprocess.MetadataError, match="document.md: missing document_date"
     ):
         preprocess.audit_corpus(out_dir)
+
+
+def test_audit_rejects_missing_authority_url(tmp_path: Path) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    header = _metadata_header().replace(
+        " | authority_url: https://finki.ukim.mk/official/document.pdf",
+        "",
+    )
+    (out_dir / "document.md").write_text(header, encoding="utf-8")
+
+    with pytest.raises(
+        preprocess.MetadataError, match="document.md: missing authority_url"
+    ):
+        preprocess.audit_corpus(out_dir)
+
+
+@pytest.mark.parametrize(
+    ("authority_url", "message"),
+    [
+        ("", "empty authority_url"),
+        ("http://finki.ukim.mk/document.pdf", "invalid authority_url"),
+        ("https://example.com/document.pdf", "unofficial authority_url"),
+        (r"https://evil.example\@finki.ukim.mk/document.pdf", "invalid authority_url"),
+        ("https://user@finki.ukim.mk/document.pdf", "invalid authority_url"),
+        ("https://finki.ukim.mk:8443/document.pdf", "invalid authority_url"),
+        ("https://finki.ukim.mk:notaport/document.pdf", "invalid authority_url"),
+        ("https://finki.ukim.mk:99999/document.pdf", "invalid authority_url"),
+        ("https://attacker.finki.ukim.mk/document.pdf", "unofficial authority_url"),
+        ("https://finki.ukim.mk.evil.example/document.pdf", "unofficial authority_url"),
+    ],
+)
+def test_audit_rejects_invalid_authority_url(
+    tmp_path: Path,
+    authority_url: str,
+    message: str,
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    (out_dir / "document.md").write_text(
+        _metadata_header(authority_url=authority_url),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(preprocess.MetadataError, match=message):
+        preprocess.audit_corpus(out_dir)
+
+
+@pytest.mark.parametrize(
+    "authority_url",
+    [
+        "https://finki.ukim.mk/document.pdf",
+        "https://ukim.edu.mk/document.pdf",
+        "https://portal.mdt.gov.mk/document.pdf",
+        "https://azlp.mk/document.pdf",
+        "https://slvesnik.com.mk/",
+    ],
+)
+def test_audit_accepts_approved_official_authority_hosts(
+    tmp_path: Path,
+    authority_url: str,
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    (out_dir / "document.md").write_text(
+        _metadata_header(authority_url=authority_url),
+        encoding="utf-8",
+    )
+
+    assert preprocess.audit_corpus(out_dir) == {"current": 1}
 
 
 def test_audit_accepts_unresolved_and_non_calendar_dates(tmp_path: Path) -> None:

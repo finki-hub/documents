@@ -3,6 +3,7 @@ from collections import Counter
 from datetime import date
 from pathlib import Path
 from typing import Final
+from urllib.parse import urlsplit
 
 REQUIRED_FIELDS: Final = (
     "title",
@@ -14,9 +15,11 @@ REQUIRED_FIELDS: Final = (
     "date_confidence",
     "current_status",
     "last_verified",
+    "authority_url",
 )
 
 INGEST_FIELDS: Final = (
+    "authority_url",
     "document_date",
     "date_kind",
     "date_precision",
@@ -31,6 +34,16 @@ INGEST_FIELDS: Final = (
     "valid_until",
     "coverage_period",
     "source_pages",
+)
+
+OFFICIAL_AUTHORITY_HOSTS: Final = frozenset(
+    {
+        "azlp.mk",
+        "finki.ukim.mk",
+        "portal.mdt.gov.mk",
+        "slvesnik.com.mk",
+        "ukim.edu.mk",
+    }
 )
 
 ALLOWED_VALUES: Final = {
@@ -154,6 +167,27 @@ def _validate_date(
         raise MetadataError(f"{path.name}: invalid {field} {value!r}")
 
 
+def _validate_authority_url(path: Path, value: str) -> None:
+    if "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
+        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError as error:
+        raise MetadataError(f"{path.name}: invalid authority_url {value!r}") from error
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+    ):
+        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
+    hostname = parsed.hostname.casefold()
+    if hostname not in OFFICIAL_AUTHORITY_HOSTS:
+        raise MetadataError(f"{path.name}: unofficial authority_url {value!r}")
+
+
 def validate_document(path: Path) -> str:
     content = path.read_text(encoding="utf-8")
     fields = header_fields(content, path.name)
@@ -165,6 +199,8 @@ def validate_document(path: Path) -> str:
         if not value:
             raise MetadataError(f"{path.name}: empty {field}")
         values[field] = value
+
+    _validate_authority_url(path, values["authority_url"])
 
     for field, allowed in ALLOWED_VALUES.items():
         if values[field] not in allowed:
