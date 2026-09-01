@@ -1,4 +1,4 @@
-<!-- title: Скала на оценување / Grading Scale (ФИНКИ) | source: grading_scale_1.pdf | authority_url: https://finki.ukim.mk/studii-2/poddrshka/dokumenti-i-proceduri/dokumenti-i-proceduri-dodiplomski/ | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: current | last_verified: 2026-09-01 | source_pages: 1 | TIER B reviewed table -->
+<!-- title: Скала на оценување / Grading Scale (ФИНКИ) | source: grading_scale_1.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/06/grading_scale_1.pdf | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: current | last_verified: 2026-09-01 | source_pages: 1 | TIER B reviewed table -->
 
 # GRADING SCALE
 

@@ -21,14 +21,14 @@ This ledger records the authority evidence behind the machine-readable headers i
 | Document | Primary date | Kind / precision | Status | Evidence and authority source |
 |---|---:|---|---|---|
 | `264-statut-ukim-6-6-2019` | 2019-06 | adopted / month | current | Text says “Скопје, јуни 2019” and repeals the 2008 statute; [official UKIM PDF](https://ukim.edu.mk/wp-content/uploads/2021/05/264_statut_ukim-6.6.2019.pdf). |
-| `cenovnik-finki-2024-25-2` | 2024-07-04 | adopted / day | presumed_current | Date and 2024/25 applicability are printed in the text; it remains valid until replaced. No public decision URL was located. |
+| `cenovnik-finki-2024-25-2` | 2024-07-04 | adopted / day | presumed_current | Date and 2024/25 applicability are printed in the text; it remains valid until replaced; [official FINKI PDF](https://finki.ukim.mk/wp-content/uploads/2026/07/cenovnik_finki_2024-25-2.pdf). |
 | `delovnik-za-rabota-glasnik-682` | 2024-04-22 | published / day | presumed_current | University Gazette 682; adopted 2024-04-01 and effective on publication; [FINKI legal acts](https://www.finki.ukim.mk/mk/zafakultetot/pravni_akti). |
 | `etichki-kodeks-ukim-finki` | 2021-05-10 | published / day | current | University Gazette 549; adopted 2021-05-06 and effective on publication; [UKIM ethical code](https://ukim.edu.mk/univerzitet/dokumenti-2/normativni-akti-2/drugi-akti/etichki-kodeks/). |
 | `grading-scale-finki` | unresolved | unresolved / none | current | The PDF carries no authoritative issuance date; FINKI's current [undergraduate documents and procedures page](https://finki.ukim.mk/studii-2/poddrshka/dokumenti-i-proceduri/dokumenti-i-proceduri-dodiplomski/) links it as the official grading scale. |
 | `izveshtaj-samoevaluacija-finki-2023-2024` | 2023/2024 | coverage_period / academic_year | informational | The report states its coverage period; no signed issuance date is visible; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
 | `lista-informacii-javen-karakter-finki` | 2012-10-30 | issued / day | stale_review_required | Archive number/date and immediate effect are printed; current FINKI page links a newer upload without a visible issuance date: [public-information page](https://finki.ukim.mk/en/za-nas/administracija-i-dokumenti/sloboden-pristap-do-informacii-od-javen-karakter/). |
 | `lista-posrednici-voznemiruvanje-rabotno-mesto-finki` | 2026-05-18 | issued / day | current | Archive number/date and immediate effect are printed; personnel list requires periodic review; [official PDF](https://finki.ukim.mk/sites/default/files/u703/odluka-lista-za-posrednici-za-zastita-od-voznemirvanje-na-rabotno-mesto.pdf). |
-| `odluka-plati-nadomestoci-finki-2026-02-19` | 2019-09-26 | adopted / day | currentness_unresolved | Base decision date is printed; the claimed 2026 consolidation cutoff lacks an amendment register or public source. |
+| `odluka-plati-nadomestoci-finki-2026-02-19` | 2019-09-26 | adopted / day | currentness_unresolved | Base decision date is printed and an [official consolidated copy](https://finki.ukim.mk/wp-content/uploads/2026/07/odluka_za_plati_2024_-_so_vneseni_site_izmeni_zakluchno_so_19.02.2026.pdf) is available; the claimed 2026 cutoff still lacks a separate amendment register. |
 | `odluka-sovet-kvalitet-finki` | 2019-09-26 | issued / day | stale_review_required | Decision 02-684/1; member mandates were three years and student mandates two years; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
 | `pravilnik-doktorski-studii-po-stara-programa` | unresolved | unresolved / none | historical | Text expressly limits scope to the period through 2011-12-31; no adoption or publication date is present. |
 | `pravilnik-iii-ciklus-2020` | 2020-12-31 | published / day | presumed_current | University Gazette 530/2020; [UKIM guide page and governing-rule reference](https://ukim.edu.mk/studii/informacii-za-studentite/vodich-za-studenti/). |
@@ -57,13 +57,13 @@ This ledger records the authority evidence behind the machine-readable headers i
 
 ## Canonical authority URLs
 
-The 32 direct-file URLs below were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256 on 2026-09-01. The grading scale and disciplinary rulebook use official FINKI authority pages because no stable direct official file was available.
+The 33 direct-file URLs below were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256 on 2026-09-01. The disciplinary rulebook uses an official FINKI authority page because its SharePoint file is not a stable direct URL.
 
 - `264-statut-ukim-6-6-2019` — <https://finki.ukim.mk/wp-content/uploads/2026/06/264_statut_ukim-6.6.2019.pdf>
 - `cenovnik-finki-2024-25-2` — <https://finki.ukim.mk/wp-content/uploads/2026/07/cenovnik_finki_2024-25-2.pdf>
 - `delovnik-za-rabota-glasnik-682` — <https://finki.ukim.mk/wp-content/uploads/2026/06/delovnik_za_rabota_-glasnik-682.pdf>
 - `etichki-kodeks-ukim-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/06/etichki_kodeks_ukim-finki.pdf>
-- `grading-scale-finki` — <https://finki.ukim.mk/studii-2/poddrshka/dokumenti-i-proceduri/dokumenti-i-proceduri-dodiplomski/>
+- `grading-scale-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/06/grading_scale_1.pdf>
 - `izveshtaj-samoevaluacija-finki-2023-2024` — <https://finki.ukim.mk/wp-content/uploads/2026/06/finalen_izveshtaj_za_samoevaluacija_2023-24.pdf>
 - `lista-informacii-javen-karakter-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/06/podatoci_od_javen_karakter.pdf>
 - `lista-posrednici-voznemiruvanje-rabotno-mesto-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/07/odluka-voznemiruvanje.pdf>
