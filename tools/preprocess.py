@@ -33,6 +33,7 @@ NEEDS_OCR = (
 
 CURATED_SOURCE_FILES: Final = frozenset(
     {
+        "grading_scale_1.pdf",
         "zakon-zashtita-lichni-podatoci-42-2020.pdf",
         "izmeni-zakon-zashtita-lichni-podatoci-294-2021.pdf",
         "dopolnuvanje-zakon-zashtita-lichni-podatoci-101-2025.pdf",
@@ -47,6 +48,7 @@ TITLES = {
     "zakon_za_visokoto_obrazovanie_nov": "Закон за високото образование",
     "cenovnik_finki_2024-25-2": "Ценовник на ФИНКИ 2024/25",
     "etichki_kodeks_ukim-finki": "Етички кодекс на УКИМ/ФИНКИ",
+    "grading_scale_1": "Скала на оценување / Grading Scale (ФИНКИ)",
     "delovnik_za_rabota_-glasnik-682": "Деловник за работа",
     "pravilnik-za-obezbeduvanje-kvalitet-na-univerzitetot-sv.-kiril-i-metodij-vo-skopje": "Правилник за обезбедување квалитет (УКИМ)",
     "pravilnik-za-rabota-na-ovlasteno-lice-za-prierm-na-prijavi-na-korupcija": "Правилник за работа на овластено лице за прием на пријави за корупција",
