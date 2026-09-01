@@ -1,4 +1,4 @@
-<!-- title: Процедура за пријава на корупција | source: procedura_za_prijava_na_korupcija.pdf | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: currentness_unresolved | last_verified: 2026-09-01 | TIER B Claude transcription (from text layer) -->
+<!-- title: Процедура за пријава на корупција | source: procedura_za_prijava_na_korupcija.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/06/procedura_za_prijava_na_korupcija.pdf | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: currentness_unresolved | last_verified: 2026-09-01 | TIER B Claude transcription (from text layer) -->
 
 РЕПУБЛИКА СЕВЕРНА МАКЕДОНИЈА
 Универзитет „Св. Кирил и Методиј“ - Скопје
