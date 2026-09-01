@@ -26,17 +26,16 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Final
 
 RAW_DIR = Path("raw")
 OUT_DIR = Path("processed")
 
-# Administrative / low student-FAQ-value documents excluded from the RAG corpus.
-EXCLUDE = (
-    "odluka_za_plati",
-    "sistematizacija_finki",
-    "finalen_izveshtaj",
-    "lista na posrednici",
-    "podatoci_od_javen_karakter",
+EXPLICITLY_EXCLUDED_SOURCES: Final = frozenset(
+    {
+        "vodich-za-studenti.pdf",
+        "pravilnik-za-prijavi-za-korupcija-glasnik-485-2020.pdf",
+    },
 )
 
 # Documents routed to Tier B Claude transcription instead of deterministic Tier A:
@@ -49,6 +48,14 @@ NEEDS_OCR = (
     "procedura_za_zalbi",
     "strategija_za_obezbeduvanje",
     "cenovnik_finki",
+)
+
+CURATED_SOURCE_FILES: Final = frozenset(
+    {
+        "zakon-zashtita-lichni-podatoci-42-2020.pdf",
+        "izmeni-zakon-zashtita-lichni-podatoci-294-2021.pdf",
+        "dopolnuvanje-zakon-zashtita-lichni-podatoci-101-2025.pdf",
+    },
 )
 
 # Human-readable document titles, used in chunk embeddings + citations.
@@ -98,8 +105,7 @@ def title_for(stem: str) -> str:
 
 
 def is_excluded(name: str) -> bool:
-    low = name.lower()
-    return any(x in low for x in EXCLUDE)
+    return name.casefold() in EXPLICITLY_EXCLUDED_SOURCES
 
 
 def needs_ocr(name: str) -> bool:
@@ -124,13 +130,19 @@ def docx_to_markdown(path: Path) -> str:
 
 
 def extract_tier_a(raw_dir: Path) -> None:
-    import docpipe  # local: tools/docpipe.py (pulls in PyMuPDF — only needed for extraction)
+    if __package__:
+        from tools import docpipe
+    else:
+        import docpipe
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for src in sorted(raw_dir.iterdir()):
         if src.is_dir():
             continue
         stem = src.stem
+        if src.name in CURATED_SOURCE_FILES:
+            print(f"SKIP  (curated set) {src.name}")
+            continue
         if is_excluded(src.name):
             print(f"SKIP  (excluded)   {src.name}")
             continue
@@ -201,7 +213,10 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
                                 "data": data,
                             },
                         },
-                        {"type": "text", "text": "Транскрибирај го документот според упатствата."},
+                        {
+                            "type": "text",
+                            "text": "Транскрибирај го документот според упатствата.",
+                        },
                     ],
                 },
             ],
@@ -210,7 +225,9 @@ def ocr_pdf(path: Path, page_range: str | None = None) -> None:
                 text.append(chunk)
             msg = stream.get_final_message()
         if msg.stop_reason == "max_tokens":
-            print(f"  WARN: pages {start}-{end} hit max_tokens — narrow the page window")
+            print(
+                f"  WARN: pages {start}-{end} hit max_tokens — narrow the page window"
+            )
         parts.append("".join(text))
 
     stem = path.stem
@@ -241,7 +258,9 @@ def _r2_client():
 def upload_originals(raw_dir: Path) -> None:
     bucket = os.environ.get("R2_BUCKET")
     if not bucket:
-        sys.exit("Set R2_BUCKET (+ R2_ACCOUNT_ID/R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY).")
+        sys.exit(
+            "Set R2_BUCKET (+ R2_ACCOUNT_ID/R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)."
+        )
     client = _r2_client()
     for src in sorted(raw_dir.iterdir()):
         if src.is_dir() or is_excluded(src.name):
@@ -249,12 +268,34 @@ def upload_originals(raw_dir: Path) -> None:
         key = f"{R2_PREFIX}{src.name}"
         client.upload_file(str(src), bucket, key)
         print(f"OK    uploaded {src.name} -> r2://{bucket}/{key}")
-    print("\nOriginals archived. The R2 key is stored in each document's metadata at ingest time.")
+    print(
+        "\nOriginals archived. The R2 key is stored in each document's metadata at ingest time."
+    )
+
+
+def _header_value(content: str, name: str) -> str | None:
+    match = re.search(
+        rf"(?:<!--\s*|\|\s*){re.escape(name)}:\s*([^|>]+)",
+        content,
+        re.IGNORECASE,
+    )
+    return match.group(1).strip() if match else None
+
+
+def _source_filenames(content: str) -> tuple[str, ...]:
+    values: list[str] = []
+    source = _header_value(content, "source")
+    if source:
+        values.append(source)
+    amendments = _header_value(content, "amendments")
+    if amendments:
+        values.extend(item.strip() for item in amendments.split(","))
+    return tuple(dict.fromkeys(value for value in values if value))
 
 
 def _source_filename(content: str) -> str | None:
-    m = re.search(r"source:\s*(.+?\.(?:pdf|docx))", content, re.IGNORECASE)
-    return m.group(1).strip() if m else None
+    sources = _source_filenames(content)
+    return sources[0] if sources else None
 
 
 def ingest(api_url: str) -> None:
@@ -267,20 +308,28 @@ def ingest(api_url: str) -> None:
 
     for md_path in sorted(OUT_DIR.glob("*.md")):
         content = md_path.read_text(encoding="utf-8")
-        title_match = re.search(r"<!--\s*title:\s*([^|]+?)\s*\|", content)
-        title = title_match.group(1).strip() if title_match else md_path.stem
-        source_file = _source_filename(content)
-        metadata = (
-            {"source_file": source_file, "r2_key": f"{R2_PREFIX}{source_file}"}
-            if source_file
-            else None
-        )
+        title = _header_value(content, "title") or md_path.stem
+        source_files = _source_filenames(content)
+        metadata: dict[str, str | list[str]] = {}
+        if source_files:
+            metadata.update(
+                source_file=source_files[0],
+                source_files=list(source_files),
+                r2_key=f"{R2_PREFIX}{source_files[0]}",
+                r2_keys=[f"{R2_PREFIX}{source}" for source in source_files],
+            )
+        document_date = _header_value(content, "issued")
+        if document_date:
+            metadata["document_date"] = document_date
+        current_status = _header_value(content, "current_status")
+        if current_status:
+            metadata["current_status"] = current_status
         body = {
             "name": md_path.stem,
             "title": title,
             "content": content,
             "source_type": "markdown",
-            "metadata": metadata,
+            "metadata": metadata or None,
         }
         req = urllib.request.Request(
             f"{api_url}/documents/",
@@ -291,10 +340,14 @@ def ingest(api_url: str) -> None:
         try:
             with urllib.request.urlopen(req) as resp:  # noqa: S310
                 result = json.loads(resp.read())
-                print(f"OK    ingested {md_path.name} -> {result.get('chunk_count')} chunks")
+                print(
+                    f"OK    ingested {md_path.name} -> {result.get('chunk_count')} chunks"
+                )
         except Exception as e:  # noqa: BLE001
             print(f"FAIL  {md_path.name}: {e}")
-    print("\nNow run: preprocess.py fill  (or POST /documents/fill) to generate embeddings.")
+    print(
+        "\nNow run: preprocess.py fill  (or POST /documents/fill) to generate embeddings."
+    )
 
 
 def fill(api_url: str) -> None:
@@ -320,12 +373,14 @@ def fill(api_url: str) -> None:
                 line = raw.decode("utf-8").strip()
                 if not line.startswith("data:"):
                     continue
-                evt = json.loads(line[len("data:"):].strip())
+                evt = json.loads(line[len("data:") :].strip())
                 if evt.get("status") == "ok":
                     ok += 1
                 else:
                     err += 1
-                    print(f"  FAIL [{evt.get('model')}] {evt.get('name')}: {evt.get('error')}")
+                    print(
+                        f"  FAIL [{evt.get('model')}] {evt.get('name')}: {evt.get('error')}"
+                    )
                 done = ok + err
                 if done % 50 == 0:
                     print(f"  ... {done}/{evt.get('total')} ({err} errors)")
@@ -369,7 +424,9 @@ def sync(api_url: str) -> None:
     if not orphans:
         print("\nIn sync: every stored document has a matching file; nothing to prune.")
     else:
-        print(f"\nPruning {len(orphans)} document(s) with no matching file (rename/removal):")
+        print(
+            f"\nPruning {len(orphans)} document(s) with no matching file (rename/removal):"
+        )
         for d in orphans:
             name = d["name"]
             del_req = urllib.request.Request(
