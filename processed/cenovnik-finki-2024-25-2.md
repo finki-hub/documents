@@ -1,4 +1,4 @@
-<!-- title: Ценовник на ФИНКИ 2024/25 | source: cenovnik_finki_2024-25-2.pdf | document_date: 2024-07-04 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: presumed_current | last_verified: 2026-09-01 | issued: 2024-07-04 | coverage_period: 2024/2025 | TIER B Claude transcription (from text layer); fee tables reconstructed from a flattened layout, verify rows against the PDF; source row numbers (Ред. бр.) were not present in the text layer -->
+<!-- title: Ценовник на ФИНКИ 2024/25 | source: cenovnik_finki_2024-25-2.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/07/cenovnik_finki_2024-25-2.pdf | document_date: 2024-07-04 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: presumed_current | last_verified: 2026-09-01 | issued: 2024-07-04 | coverage_period: 2024/2025 | TIER B Claude transcription (from text layer); fee tables reconstructed from a flattened layout, verify rows against the PDF; source row numbers (Ред. бр.) were not present in the text layer -->
 
 04.07.2024
 

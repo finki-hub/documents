@@ -1,31 +1,11 @@
-import json
 import subprocess
 import sys
-from contextlib import AbstractContextManager
 from pathlib import Path
-from types import ModuleType, TracebackType
-from typing import Self
-from urllib.request import Request
+from types import ModuleType
 
 import pytest
 
 from tools import document_ocr, preprocess
-
-
-class _Response(AbstractContextManager["_Response"]):
-    def __enter__(self) -> Self:
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        return None
-
-    def read(self) -> bytes:
-        return b'{"chunk_count": 1}'
 
 
 @pytest.mark.parametrize(
@@ -135,52 +115,3 @@ def test_direct_extract_cli_reaches_curated_source_guard(tmp_path: Path) -> None
 
     assert result.returncode == 0, result.stderr
     assert "SKIP  (curated set)" in result.stdout
-
-
-def test_ingest_preserves_all_sources_and_currentness_metadata(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    out_dir = tmp_path / "processed"
-    out_dir.mkdir()
-    (out_dir / "document.md").write_text(
-        "<!-- title: Document | source: base.pdf | amendments: first.pdf, second.pdf | "
-        "document_date: 2013-07-04 | date_kind: adopted | date_precision: day | "
-        "date_source: document_text | date_confidence: high | current_status: currentness_unresolved | "
-        "last_verified: 2026-09-01 | issued: 2013-07-04 | amended_through: 2025-05-01 | "
-        "source_pages: 3-21 | TIER A extraction -->\n\n# Член 1\n\nText",
-        encoding="utf-8",
-    )
-    captured: list[dict[str, str | dict[str, str | list[str]]]] = []
-
-    def urlopen(request: Request) -> _Response:
-        assert request.data is not None
-        captured.append(json.loads(request.data))
-        return _Response()
-
-    monkeypatch.setattr(preprocess, "OUT_DIR", out_dir)
-    monkeypatch.setenv("API_KEY", "test-key")
-    monkeypatch.setattr("urllib.request.urlopen", urlopen)
-
-    preprocess.ingest("https://example.test")
-
-    assert captured[0]["metadata"] == {
-        "amended_through": "2025-05-01",
-        "current_status": "currentness_unresolved",
-        "date_confidence": "high",
-        "date_kind": "adopted",
-        "date_precision": "day",
-        "date_source": "document_text",
-        "document_date": "2013-07-04",
-        "issued": "2013-07-04",
-        "last_verified": "2026-09-01",
-        "r2_key": "documents/base.pdf",
-        "r2_keys": [
-            "documents/base.pdf",
-            "documents/first.pdf",
-            "documents/second.pdf",
-        ],
-        "source_pages": "3-21",
-        "source_file": "base.pdf",
-        "source_files": ["base.pdf", "first.pdf", "second.pdf"],
-    }

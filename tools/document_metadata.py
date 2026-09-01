@@ -1,8 +1,11 @@
 import re
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Final
+from typing import Final, assert_never
+
+from tools.document_authority import authority_url_error
 
 REQUIRED_FIELDS: Final = (
     "title",
@@ -14,9 +17,11 @@ REQUIRED_FIELDS: Final = (
     "date_confidence",
     "current_status",
     "last_verified",
+    "authority_url",
 )
 
 INGEST_FIELDS: Final = (
+    "authority_url",
     "document_date",
     "date_kind",
     "date_precision",
@@ -63,6 +68,13 @@ ALLOWED_VALUES: Final = {
 
 class MetadataError(ValueError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedDocument:
+    path: Path
+    content: str
+    current_status: str
 
 
 def header_fields(content: str, document_name: str = "document") -> dict[str, str]:
@@ -154,8 +166,19 @@ def _validate_date(
         raise MetadataError(f"{path.name}: invalid {field} {value!r}")
 
 
-def validate_document(path: Path) -> str:
-    content = path.read_text(encoding="utf-8")
+def _validate_authority_url(path: Path, value: str) -> None:
+    match authority_url_error(value):
+        case None:
+            return
+        case "invalid":
+            raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
+        case "unofficial":
+            raise MetadataError(f"{path.name}: unofficial authority_url {value!r}")
+        case unreachable:
+            assert_never(unreachable)
+
+
+def _validate_document_content(path: Path, content: str) -> str:
     fields = header_fields(content, path.name)
     values: dict[str, str] = {}
     for field in REQUIRED_FIELDS:
@@ -165,6 +188,8 @@ def validate_document(path: Path) -> str:
         if not value:
             raise MetadataError(f"{path.name}: empty {field}")
         values[field] = value
+
+    _validate_authority_url(path, values["authority_url"])
 
     for field, allowed in ALLOWED_VALUES.items():
         if values[field] not in allowed:
@@ -222,14 +247,35 @@ def validate_document(path: Path) -> str:
     return values["current_status"]
 
 
-def audit_corpus(directory: Path, raw_directory: Path | None = None) -> dict[str, int]:
+def validate_document(path: Path) -> str:
+    return _validate_document_content(path, path.read_text(encoding="utf-8"))
+
+
+def validated_corpus(
+    directory: Path,
+    raw_directory: Path | None = None,
+) -> tuple[ValidatedDocument, ...]:
     paths = sorted(directory.glob("*.md"))
     if not paths:
         raise MetadataError(f"{directory}: no Markdown documents found")
+    contents = tuple((path, path.read_text(encoding="utf-8")) for path in paths)
     if raw_directory is not None:
-        for path in paths:
-            content = path.read_text(encoding="utf-8")
+        for path, content in contents:
             for source in source_filenames(content):
                 if not (raw_directory / source).is_file():
                     raise MetadataError(f"{path.name}: missing raw source {source!r}")
-    return dict(sorted(Counter(validate_document(path) for path in paths).items()))
+    return tuple(
+        ValidatedDocument(path, content, _validate_document_content(path, content))
+        for path, content in contents
+    )
+
+
+def audit_corpus(directory: Path, raw_directory: Path | None = None) -> dict[str, int]:
+    return dict(
+        sorted(
+            Counter(
+                document.current_status
+                for document in validated_corpus(directory, raw_directory)
+            ).items()
+        )
+    )

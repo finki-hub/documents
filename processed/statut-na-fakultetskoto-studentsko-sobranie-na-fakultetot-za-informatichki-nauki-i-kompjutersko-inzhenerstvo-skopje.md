@@ -1,4 +1,4 @@
-<!-- title: Статут на Факултетското студентско собрание (ФИНКИ) | source: statut_na_fakultetskoto_studentsko_sobranie_na_fakultetot_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_-_skopje.pdf | document_date: 2024-04-18 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: currentness_unresolved | last_verified: 2026-09-01 | issued: 2024-04-18 | TIER A extraction -->
+<!-- title: Статут на Факултетското студентско собрание (ФИНКИ) | source: statut_na_fakultetskoto_studentsko_sobranie_na_fakultetot_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_-_skopje.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/07/statut_na_fakultetskoto_studentsko_sobranie_na_fakultetot_za_informatichki_nauki_i_kompjutersko_inzhenerstvo_-_skopje.pdf | document_date: 2024-04-18 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: currentness_unresolved | last_verified: 2026-09-01 | issued: 2024-04-18 | TIER A extraction -->
 
 Врз основа на член 37 став
 

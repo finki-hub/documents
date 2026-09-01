@@ -16,6 +16,7 @@ Both the originals (`raw/`) and the reviewed Markdown (`processed/`) are version
 
 Every reviewed file starts with one HTML comment containing pipe-separated metadata. The required currentness fields are:
 
+- `authority_url` — a reachable HTTPS URL on an approved FINKI, UKIM, competent government-authority, or Official Gazette host. Prefer the direct official file; when no stable direct file exists, use the official authority, archive, or index page that establishes the document's provenance.
 - `document_date` — the best authority-backed primary date: ISO `YYYY`, `YYYY-MM`, or `YYYY-MM-DD`; academic year `YYYY/YYYY`; Gazette issue `N/YYYY`; or `unresolved` when the document does not establish one.
 - `date_kind` — what `document_date` means: `adopted`, `published`, `issued`, `coverage_period`, or `unresolved`.
 - `date_precision` — `day`, `month`, `year`, `academic_year`, `gazette_issue`, or `none`.
@@ -39,7 +40,7 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
 - `upload [dir]` — mirror the originals to Cloudflare R2 for backup / public serving (optional; needs the `R2_*` env vars).
 - `ingest [url]` then `fill [url]` — push the Markdown to the chat-bot `/documents` API and embed it. Idempotent by name (the filename stem); a revision under the **same filename** re-embeds only the changed document. Needs `API_KEY`.
 - `sync [url]` then `fill [url]` — like `ingest`, but also **prunes** any stored document whose file was removed or **renamed**, so the API mirrors `processed/`. Use this whenever documents are renamed or retired. R2 originals are kept as an archive (orphaned keys are reported, not deleted).
-- `audit` — validate all reviewed headers and report the corpus status distribution without contacting external services.
+- `audit` — validate all reviewed headers, including the `authority_url` scheme and official host, and report the corpus status distribution without contacting external services. Check URL reachability separately when authority evidence is reviewed or updated.
 
 ## License
 

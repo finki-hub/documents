@@ -3,13 +3,10 @@ import sys
 from pathlib import Path
 from typing import Final
 
-if __package__:
-    from tools import document_api, document_metadata, document_ocr, document_storage
-else:
-    import document_api
-    import document_metadata
-    import document_ocr
-    import document_storage
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from tools import document_api, document_metadata, document_ocr, document_storage
 
 RAW_DIR = Path("raw")
 OUT_DIR = Path("processed")

@@ -1,4 +1,4 @@
-<!-- title: Процедура за пристап и исправка на сопствените лични податоци | source: procedura-pristap-ispravka-lichni-podatoci.pdf | document_date: 2017-10-17 | date_kind: issued | date_precision: day | date_source: document_text | date_confidence: high | current_status: likely_superseded | last_verified: 2026-09-01 | issued: 2017-10-17 | TIER B visual transcription -->
+<!-- title: Процедура за пристап и исправка на сопствените лични податоци | source: procedura-pristap-ispravka-lichni-podatoci.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/08/399_procedura-za-pristap-na-subjektite-na-lichni-podatoci.pdf | document_date: 2017-10-17 | date_kind: issued | date_precision: day | date_source: document_text | date_confidence: high | current_status: likely_superseded | last_verified: 2026-09-01 | issued: 2017-10-17 | TIER B visual transcription -->
 
 Бр. 03-197 од 17.10.2017 година, Скопје.
 

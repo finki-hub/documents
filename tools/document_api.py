@@ -5,10 +5,12 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-if __package__:
-    from tools.document_metadata import header_value, ingest_metadata, source_filenames
-else:
-    from document_metadata import header_value, ingest_metadata, source_filenames
+from tools.document_metadata import (
+    header_value,
+    ingest_metadata,
+    source_filenames,
+    validated_corpus,
+)
 
 
 def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
@@ -16,11 +18,14 @@ def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
     if not api_key:
         sys.exit("Set API_KEY in the environment to ingest.")
 
-    for md_path in sorted(out_dir.glob("*.md")):
-        content = md_path.read_text(encoding="utf-8")
+    documents = validated_corpus(out_dir)
+    for document in documents:
+        md_path = document.path
+        content = document.content
         title = header_value(content, "title") or md_path.stem
         source_files = source_filenames(content)
-        metadata: dict[str, str | list[str]] = ingest_metadata(content)
+        metadata: dict[str, str | list[str]] = {}
+        metadata.update(ingest_metadata(content))
         if source_files:
             metadata.update(
                 source_file=source_files[0],
