@@ -1,4 +1,4 @@
-<!-- title: Правилник за докторски студии (стара програма) | source: Pravilnik_doktorski_studii_po_stara_programa.pdf | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: historical | last_verified: 2026-09-01 | TIER A extraction -->
+<!-- title: Правилник за докторски студии (стара програма) | source: Pravilnik_doktorski_studii_po_stara_programa.pdf | authority_url: https://finki.ukim.mk/wp-content/uploads/2026/06/pravilnik_doktorski_studii_po_stara_programa.pdf | document_date: unresolved | date_kind: unresolved | date_precision: none | date_source: unresolved | date_confidence: none | current_status: historical | last_verified: 2026-09-01 | TIER A extraction -->
 
 ПРАВИЛНИК ЗА СТЕКНУВАЊЕ ДОКТОРАТ НА ИНФОРМАТИЧКИ НАУКИ НА ФАКУЛТЕТОТ ЗА ИНФОРМАТИЧКИ НАУКИ И КОМПЈУТЕРСКО ИНЖЕНЕРСТВО ВО СКОПЈЕ ОПШТИ ОДРЕДБИ
 
