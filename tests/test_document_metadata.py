@@ -158,4 +158,4 @@ def test_reviewed_corpus_satisfies_canonical_metadata_contract() -> None:
 
     statuses = preprocess.audit_corpus(repo_root / "processed", repo_root / "raw")
 
-    assert sum(statuses.values()) == 33
+    assert sum(statuses.values()) == 34
