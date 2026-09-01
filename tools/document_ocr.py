@@ -21,10 +21,15 @@ def ocr_pdf(
     slug: str,
     page_range: str | None = None,
 ) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output = out_dir / f"{slug}.md"
+    if output.exists():
+        print(f"SKIP  (processed exists) {path.name}  -> {output.name}")
+        return
+
     import anthropic
     import pypdf
 
-    out_dir.mkdir(parents=True, exist_ok=True)
     client = anthropic.Anthropic()
     reader = pypdf.PdfReader(str(path))
     page_count = len(reader.pages)
@@ -81,7 +86,6 @@ def ocr_pdf(
             )
         parts.append("".join(text))
 
-    output = out_dir / f"{slug}.md"
     header = (
         f"<!-- title: {title} | source: {path.name} | TIER B Claude vision OCR -->\n\n"
     )

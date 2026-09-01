@@ -120,6 +120,11 @@ def extract_tier_a(raw_dir: Path) -> None:
             )
             continue
 
+        output = OUT_DIR / f"{slug(source.stem)}.md"
+        if output.exists():
+            print(f"SKIP  (processed exists) {source.name}  -> {output.name}")
+            continue
+
         if source.suffix.lower() == ".docx":
             markdown = docx_to_markdown(source)
         elif source.suffix.lower() == ".pdf":
@@ -135,7 +140,6 @@ def extract_tier_a(raw_dir: Path) -> None:
         else:
             continue
 
-        output = OUT_DIR / f"{slug(source.stem)}.md"
         header = (
             f"<!-- title: {title_for(source.stem)} | source: {source.name} | "
             "TIER A extraction -->\n\n"

@@ -3,13 +3,13 @@ import subprocess
 import sys
 from contextlib import AbstractContextManager
 from pathlib import Path
-from types import TracebackType
+from types import ModuleType, TracebackType
 from typing import Self
 from urllib.request import Request
 
 import pytest
 
-from tools import preprocess
+from tools import document_ocr, preprocess
 
 
 class _Response(AbstractContextManager["_Response"]):
@@ -65,6 +65,54 @@ def test_extract_preserves_reviewed_consolidated_document(
 
     assert reviewed.read_text(encoding="utf-8") == "reviewed consolidated law"
     assert [path.name for path in out_dir.iterdir()] == [reviewed.name]
+
+
+def test_extract_preserves_existing_reviewed_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_dir = tmp_path / "raw"
+    out_dir = tmp_path / "processed"
+    raw_dir.mkdir()
+    out_dir.mkdir()
+    (raw_dir / "document.docx").write_bytes(b"not read")
+    reviewed = out_dir / "document.md"
+    reviewed.write_text("reviewed document", encoding="utf-8")
+    monkeypatch.setattr(preprocess, "OUT_DIR", out_dir)
+
+    def fail_if_extracted(path: Path) -> str:
+        raise AssertionError(f"reviewed file was re-extracted from {path}")
+
+    monkeypatch.setattr(preprocess, "docx_to_markdown", fail_if_extracted)
+
+    preprocess.extract_tier_a(raw_dir)
+
+    assert reviewed.read_text(encoding="utf-8") == "reviewed document"
+
+
+def test_ocr_preserves_existing_reviewed_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    source = tmp_path / "document.pdf"
+    source.write_bytes(b"not read")
+    reviewed = out_dir / "document.md"
+    reviewed.write_text("reviewed document", encoding="utf-8")
+    anthropic = ModuleType("anthropic")
+
+    class FailAnthropic:
+        def __init__(self) -> None:
+            raise AssertionError("OCR API must not start for an existing output")
+
+    monkeypatch.setattr(anthropic, "Anthropic", FailAnthropic, raising=False)
+    monkeypatch.setitem(sys.modules, "anthropic", anthropic)
+    monkeypatch.setitem(sys.modules, "pypdf", ModuleType("pypdf"))
+
+    document_ocr.ocr_pdf(source, out_dir, "Document", "document")
+
+    assert reviewed.read_text(encoding="utf-8") == "reviewed document"
 
 
 def test_direct_extract_cli_reaches_curated_source_guard(tmp_path: Path) -> None:
