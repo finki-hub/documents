@@ -186,6 +186,8 @@ def _validate_authority_url(path: Path, value: str) -> None:
         or parsed.password is not None
         or port is not None
         or not parsed.netloc.isascii()
+        or parsed.query
+        or parsed.fragment
     ):
         raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
     hostname = parsed.hostname.lower()
