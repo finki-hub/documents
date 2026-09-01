@@ -1,4 +1,4 @@
-<!-- title: Одлука за формирање Совет за квалитет (ФИНКИ) | source: odluka-sovet-kvalitet-finki.pdf | TIER B visual transcription -->
+<!-- title: Одлука за формирање Совет за квалитет (ФИНКИ) | source: odluka-sovet-kvalitet-finki.pdf | document_date: 2019-09-26 | date_kind: issued | date_precision: day | date_source: document_text | date_confidence: high | current_status: stale_review_required | last_verified: 2026-09-01 | issued: 2019-09-26 | TIER B visual transcription -->
 
 Врз основа на член 65 од Статутот на Факултетот за информатички науки и компјутерско инженерство Скопје (Универзитетски гласник бр. 443/2019) и член 20 од Правилник за обезбедување на квалитет на Универзитетот „Св. Кирил и Методиј“ во Скопје, деканот на Факултетот за информатички науки и компјутерско инженерство Скопје, донесе
 

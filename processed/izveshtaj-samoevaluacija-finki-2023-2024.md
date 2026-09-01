@@ -1,4 +1,4 @@
-<!-- title: Извештај за самоевалуација 2023/2024 (ФИНКИ) | source: izveshtaj-samoevaluacija-finki-2023-2024.pdf | TIER A extraction -->
+<!-- title: Извештај за самоевалуација 2023/2024 (ФИНКИ) | source: izveshtaj-samoevaluacija-finki-2023-2024.pdf | document_date: 2023/2024 | date_kind: coverage_period | date_precision: academic_year | date_source: document_text | date_confidence: high | current_status: informational | last_verified: 2026-09-01 | coverage_period: 2023/2024 | TIER A extraction -->
 
 Прилог  1  - Образец за Извештај од самоевалуација
 До

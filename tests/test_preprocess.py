@@ -3,13 +3,13 @@ import subprocess
 import sys
 from contextlib import AbstractContextManager
 from pathlib import Path
-from types import TracebackType
+from types import ModuleType, TracebackType
 from typing import Self
 from urllib.request import Request
 
 import pytest
 
-from tools import preprocess
+from tools import document_ocr, preprocess
 
 
 class _Response(AbstractContextManager["_Response"]):
@@ -67,6 +67,54 @@ def test_extract_preserves_reviewed_consolidated_document(
     assert [path.name for path in out_dir.iterdir()] == [reviewed.name]
 
 
+def test_extract_preserves_existing_reviewed_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_dir = tmp_path / "raw"
+    out_dir = tmp_path / "processed"
+    raw_dir.mkdir()
+    out_dir.mkdir()
+    (raw_dir / "document.docx").write_bytes(b"not read")
+    reviewed = out_dir / "document.md"
+    reviewed.write_text("reviewed document", encoding="utf-8")
+    monkeypatch.setattr(preprocess, "OUT_DIR", out_dir)
+
+    def fail_if_extracted(path: Path) -> str:
+        raise AssertionError(f"reviewed file was re-extracted from {path}")
+
+    monkeypatch.setattr(preprocess, "docx_to_markdown", fail_if_extracted)
+
+    preprocess.extract_tier_a(raw_dir)
+
+    assert reviewed.read_text(encoding="utf-8") == "reviewed document"
+
+
+def test_ocr_preserves_existing_reviewed_document(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    source = tmp_path / "document.pdf"
+    source.write_bytes(b"not read")
+    reviewed = out_dir / "document.md"
+    reviewed.write_text("reviewed document", encoding="utf-8")
+    anthropic = ModuleType("anthropic")
+
+    class FailAnthropic:
+        def __init__(self) -> None:
+            raise AssertionError("OCR API must not start for an existing output")
+
+    monkeypatch.setattr(anthropic, "Anthropic", FailAnthropic, raising=False)
+    monkeypatch.setitem(sys.modules, "anthropic", anthropic)
+    monkeypatch.setitem(sys.modules, "pypdf", ModuleType("pypdf"))
+
+    document_ocr.ocr_pdf(source, out_dir, "Document", "document")
+
+    assert reviewed.read_text(encoding="utf-8") == "reviewed document"
+
+
 def test_direct_extract_cli_reaches_curated_source_guard(tmp_path: Path) -> None:
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir()
@@ -97,10 +145,13 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
     out_dir.mkdir()
     (out_dir / "document.md").write_text(
         "<!-- title: Document | source: base.pdf | amendments: first.pdf, second.pdf | "
-        "issued: 2013-07-04 | current_status: unverified | TIER A extraction -->\n\n# Член 1\n\nText",
+        "document_date: 2013-07-04 | date_kind: adopted | date_precision: day | "
+        "date_source: document_text | date_confidence: high | current_status: currentness_unresolved | "
+        "last_verified: 2026-09-01 | issued: 2013-07-04 | amended_through: 2025-05-01 | "
+        "source_pages: 3-21 | TIER A extraction -->\n\n# Член 1\n\nText",
         encoding="utf-8",
     )
-    captured: list[dict[str, object]] = []
+    captured: list[dict[str, str | dict[str, str | list[str]]]] = []
 
     def urlopen(request: Request) -> _Response:
         assert request.data is not None
@@ -114,14 +165,22 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
     preprocess.ingest("https://example.test")
 
     assert captured[0]["metadata"] == {
-        "current_status": "unverified",
+        "amended_through": "2025-05-01",
+        "current_status": "currentness_unresolved",
+        "date_confidence": "high",
+        "date_kind": "adopted",
+        "date_precision": "day",
+        "date_source": "document_text",
         "document_date": "2013-07-04",
+        "issued": "2013-07-04",
+        "last_verified": "2026-09-01",
         "r2_key": "documents/base.pdf",
         "r2_keys": [
             "documents/base.pdf",
             "documents/first.pdf",
             "documents/second.pdf",
         ],
+        "source_pages": "3-21",
         "source_file": "base.pdf",
         "source_files": ["base.pdf", "first.pdf", "second.pdf"],
     }

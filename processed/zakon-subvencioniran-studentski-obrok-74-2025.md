@@ -1,4 +1,4 @@
-<!-- title: Закон за субвенциониран студентски оброк (74/2025) | source: zakon-subvencioniran-studentski-obrok-74-2025.pdf | TIER A extraction -->
+<!-- title: Закон за субвенциониран студентски оброк (74/2025) | source: zakon-subvencioniran-studentski-obrok-74-2025.pdf | document_date: 74/2025 | date_kind: published | date_precision: gazette_issue | date_source: document_text | date_confidence: high | current_status: presumed_current | last_verified: 2026-09-01 | amended_through: 74/2025 | TIER A extraction -->
 
 ЗАКОН ЗА СУБВЕНЦИОНИРАН СТУДЕНТСКИ ОБРОК Редакциски пречистен текст1 I. ОПШТИ ОДРЕДБИ Предмет
 

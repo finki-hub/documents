@@ -1,4 +1,4 @@
-<!-- title: Правилник за обезбедување и оценување на квалитетот на наставата (ФИНКИ) | source: pravilnik-kvalitet-nastava-finki.pdf | TIER B visual transcription -->
+<!-- title: Правилник за обезбедување и оценување на квалитетот на наставата (ФИНКИ) | source: pravilnik-kvalitet-nastava-finki.pdf | document_date: 2024-05-16 | date_kind: adopted | date_precision: day | date_source: document_text | date_confidence: high | current_status: current | last_verified: 2026-09-01 | issued: 2024-05-16 | effective_from: 2024-05-16 | TIER B visual transcription -->
 
 Дел. бр. 02-629/2 од 16.05.2024 година.
 

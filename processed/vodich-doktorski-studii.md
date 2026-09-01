@@ -1,4 +1,4 @@
-<!-- title: Водич за студенти на докторски студии (УКИМ) | source: vodich-doktorski-studii.pdf | TIER A extraction -->
+<!-- title: Водич за студенти на докторски студии (УКИМ) | source: vodich-doktorski-studii.pdf | document_date: 2022-04-21 | date_kind: published | date_precision: day | date_source: official_webpage | date_confidence: medium | current_status: informational | last_verified: 2026-09-01 | published: 2022-04-21 | TIER A extraction -->
 
 УНИВЕРЗИТЕТ „СВ. КИРИЛ И МЕТОДИЈ” ВО СКОПЈЕ
 ВОДИЧ
