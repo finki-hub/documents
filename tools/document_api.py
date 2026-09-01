@@ -6,9 +6,19 @@ import urllib.request
 from pathlib import Path
 
 if __package__:
-    from tools.document_metadata import header_value, ingest_metadata, source_filenames
+    from tools.document_metadata import (
+        audit_corpus,
+        header_value,
+        ingest_metadata,
+        source_filenames,
+    )
 else:
-    from document_metadata import header_value, ingest_metadata, source_filenames
+    from document_metadata import (
+        audit_corpus,
+        header_value,
+        ingest_metadata,
+        source_filenames,
+    )
 
 
 def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
@@ -16,6 +26,7 @@ def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
     if not api_key:
         sys.exit("Set API_KEY in the environment to ingest.")
 
+    audit_corpus(out_dir)
     for md_path in sorted(out_dir.glob("*.md")):
         content = md_path.read_text(encoding="utf-8")
         title = header_value(content, "title") or md_path.stem

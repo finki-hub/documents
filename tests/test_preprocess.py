@@ -145,6 +145,7 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
     out_dir.mkdir()
     (out_dir / "document.md").write_text(
         "<!-- title: Document | source: base.pdf | amendments: first.pdf, second.pdf | "
+        "authority_url: https://finki.ukim.mk/official/base.pdf | "
         "document_date: 2013-07-04 | date_kind: adopted | date_precision: day | "
         "date_source: document_text | date_confidence: high | current_status: currentness_unresolved | "
         "last_verified: 2026-09-01 | issued: 2013-07-04 | amended_through: 2025-05-01 | "
@@ -166,6 +167,7 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
 
     assert captured[0]["metadata"] == {
         "amended_through": "2025-05-01",
+        "authority_url": "https://finki.ukim.mk/official/base.pdf",
         "current_status": "currentness_unresolved",
         "date_confidence": "high",
         "date_kind": "adopted",
@@ -184,3 +186,32 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
         "source_file": "base.pdf",
         "source_files": ["base.pdf", "first.pdf", "second.pdf"],
     }
+
+
+def test_ingest_rejects_invalid_corpus_before_network_access(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    (out_dir / "document.md").write_text(
+        "<!-- title: Document | source: document.pdf | "
+        "document_date: 2024-05-16 | date_kind: adopted | date_precision: day | "
+        "date_source: document_text | date_confidence: high | current_status: current | "
+        "last_verified: 2026-09-01 | TIER A extraction -->\n\nText",
+        encoding="utf-8",
+    )
+    requests: list[Request] = []
+
+    def urlopen(request: Request) -> _Response:
+        requests.append(request)
+        return _Response()
+
+    monkeypatch.setattr(preprocess, "OUT_DIR", out_dir)
+    monkeypatch.setenv("API_KEY", "test-key")
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+
+    with pytest.raises(preprocess.MetadataError, match="missing authority_url"):
+        preprocess.ingest("https://example.test")
+
+    assert requests == []
