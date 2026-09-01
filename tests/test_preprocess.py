@@ -97,7 +97,10 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
     out_dir.mkdir()
     (out_dir / "document.md").write_text(
         "<!-- title: Document | source: base.pdf | amendments: first.pdf, second.pdf | "
-        "issued: 2013-07-04 | current_status: unverified | TIER A extraction -->\n\n# Член 1\n\nText",
+        "document_date: 2013-07-04 | date_kind: adopted | date_precision: day | "
+        "date_source: document_text | date_confidence: high | current_status: currentness_unresolved | "
+        "last_verified: 2026-09-01 | issued: 2013-07-04 | amended_through: 2025-05-01 | "
+        "TIER A extraction -->\n\n# Член 1\n\nText",
         encoding="utf-8",
     )
     captured: list[dict[str, object]] = []
@@ -114,8 +117,15 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
     preprocess.ingest("https://example.test")
 
     assert captured[0]["metadata"] == {
-        "current_status": "unverified",
+        "amended_through": "2025-05-01",
+        "current_status": "currentness_unresolved",
+        "date_confidence": "high",
+        "date_kind": "adopted",
+        "date_precision": "day",
+        "date_source": "document_text",
         "document_date": "2013-07-04",
+        "issued": "2013-07-04",
+        "last_verified": "2026-09-01",
         "r2_key": "documents/base.pdf",
         "r2_keys": [
             "documents/base.pdf",
