@@ -63,6 +63,8 @@ def test_audit_rejects_missing_authority_url(tmp_path: Path) -> None:
         ("https://finki.ukim.mk:8443/document.pdf", "invalid authority_url"),
         ("https://finki.ukim.mk:notaport/document.pdf", "invalid authority_url"),
         ("https://finki.ukim.mk:99999/document.pdf", "invalid authority_url"),
+        ("https://finki.ukim.mk:/document.pdf", "invalid authority_url"),
+        ("https://finki.ukim.mk/path with space", "invalid authority_url"),
         ("https://attacker.finki.ukim.mk/document.pdf", "unofficial authority_url"),
         ("https://finki.ukim.mk.evil.example/document.pdf", "unofficial authority_url"),
     ],

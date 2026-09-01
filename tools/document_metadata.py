@@ -168,7 +168,11 @@ def _validate_date(
 
 
 def _validate_authority_url(path: Path, value: str) -> None:
-    if "\\" in value or any(ord(character) < 32 or ord(character) == 127 for character in value):
+    if (
+        "\\" in value
+        or any(character.isspace() for character in value)
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
         raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
     try:
         parsed = urlsplit(value)
@@ -184,6 +188,8 @@ def _validate_authority_url(path: Path, value: str) -> None:
     ):
         raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
     hostname = parsed.hostname.casefold()
+    if parsed.netloc.casefold() != hostname:
+        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
     if hostname not in OFFICIAL_AUTHORITY_HOSTS:
         raise MetadataError(f"{path.name}: unofficial authority_url {value!r}")
 
