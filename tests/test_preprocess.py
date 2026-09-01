@@ -100,10 +100,10 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
         "document_date: 2013-07-04 | date_kind: adopted | date_precision: day | "
         "date_source: document_text | date_confidence: high | current_status: currentness_unresolved | "
         "last_verified: 2026-09-01 | issued: 2013-07-04 | amended_through: 2025-05-01 | "
-        "TIER A extraction -->\n\n# Член 1\n\nText",
+        "source_pages: 3-21 | TIER A extraction -->\n\n# Член 1\n\nText",
         encoding="utf-8",
     )
-    captured: list[dict[str, object]] = []
+    captured: list[dict[str, str | dict[str, str | list[str]]]] = []
 
     def urlopen(request: Request) -> _Response:
         assert request.data is not None
@@ -132,6 +132,7 @@ def test_ingest_preserves_all_sources_and_currentness_metadata(
             "documents/first.pdf",
             "documents/second.pdf",
         ],
+        "source_pages": "3-21",
         "source_file": "base.pdf",
         "source_files": ["base.pdf", "first.pdf", "second.pdf"],
     }

@@ -30,6 +30,7 @@ INGEST_FIELDS: Final = (
     "amended_through",
     "valid_until",
     "coverage_period",
+    "source_pages",
 )
 
 ALLOWED_VALUES: Final = {
