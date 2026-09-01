@@ -1,9 +1,11 @@
 import re
 from collections import Counter
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Final
-from urllib.parse import urlsplit
+from typing import Final, assert_never
+
+from tools.document_authority import authority_url_error
 
 REQUIRED_FIELDS: Final = (
     "title",
@@ -36,16 +38,6 @@ INGEST_FIELDS: Final = (
     "source_pages",
 )
 
-OFFICIAL_AUTHORITY_HOSTS: Final = frozenset(
-    {
-        "azlp.mk",
-        "finki.ukim.mk",
-        "portal.mdt.gov.mk",
-        "slvesnik.com.mk",
-        "ukim.edu.mk",
-    }
-)
-
 ALLOWED_VALUES: Final = {
     "date_kind": frozenset(
         {"adopted", "published", "issued", "coverage_period", "unresolved"}
@@ -76,6 +68,13 @@ ALLOWED_VALUES: Final = {
 
 class MetadataError(ValueError):
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedDocument:
+    path: Path
+    content: str
+    current_status: str
 
 
 def header_fields(content: str, document_name: str = "document") -> dict[str, str]:
@@ -168,37 +167,18 @@ def _validate_date(
 
 
 def _validate_authority_url(path: Path, value: str) -> None:
-    if (
-        "\\" in value
-        or not value.isprintable()
-        or any(character.isspace() for character in value)
-    ):
-        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
-    try:
-        parsed = urlsplit(value)
-        port = parsed.port
-    except ValueError as error:
-        raise MetadataError(f"{path.name}: invalid authority_url {value!r}") from error
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname is None
-        or parsed.username is not None
-        or parsed.password is not None
-        or port is not None
-        or not parsed.netloc.isascii()
-        or parsed.query
-        or parsed.fragment
-    ):
-        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
-    hostname = parsed.hostname.lower()
-    if parsed.netloc.lower() != hostname:
-        raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
-    if hostname not in OFFICIAL_AUTHORITY_HOSTS:
-        raise MetadataError(f"{path.name}: unofficial authority_url {value!r}")
+    match authority_url_error(value):
+        case None:
+            return
+        case "invalid":
+            raise MetadataError(f"{path.name}: invalid authority_url {value!r}")
+        case "unofficial":
+            raise MetadataError(f"{path.name}: unofficial authority_url {value!r}")
+        case unreachable:
+            assert_never(unreachable)
 
 
-def validate_document(path: Path) -> str:
-    content = path.read_text(encoding="utf-8")
+def _validate_document_content(path: Path, content: str) -> str:
     fields = header_fields(content, path.name)
     values: dict[str, str] = {}
     for field in REQUIRED_FIELDS:
@@ -267,14 +247,35 @@ def validate_document(path: Path) -> str:
     return values["current_status"]
 
 
-def audit_corpus(directory: Path, raw_directory: Path | None = None) -> dict[str, int]:
+def validate_document(path: Path) -> str:
+    return _validate_document_content(path, path.read_text(encoding="utf-8"))
+
+
+def validated_corpus(
+    directory: Path,
+    raw_directory: Path | None = None,
+) -> tuple[ValidatedDocument, ...]:
     paths = sorted(directory.glob("*.md"))
     if not paths:
         raise MetadataError(f"{directory}: no Markdown documents found")
+    contents = tuple((path, path.read_text(encoding="utf-8")) for path in paths)
     if raw_directory is not None:
-        for path in paths:
-            content = path.read_text(encoding="utf-8")
+        for path, content in contents:
             for source in source_filenames(content):
                 if not (raw_directory / source).is_file():
                     raise MetadataError(f"{path.name}: missing raw source {source!r}")
-    return dict(sorted(Counter(validate_document(path) for path in paths).items()))
+    return tuple(
+        ValidatedDocument(path, content, _validate_document_content(path, content))
+        for path, content in contents
+    )
+
+
+def audit_corpus(directory: Path, raw_directory: Path | None = None) -> dict[str, int]:
+    return dict(
+        sorted(
+            Counter(
+                document.current_status
+                for document in validated_corpus(directory, raw_directory)
+            ).items()
+        )
+    )
