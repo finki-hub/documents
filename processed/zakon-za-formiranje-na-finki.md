@@ -1,4 +1,4 @@
-<!-- title: Закон за основање на ФИНКИ | source: Zakon_za_formiranje_na_FINKI.pdf | TIER A extraction -->
+<!-- title: Закон за основање на ФИНКИ | source: Zakon_za_formiranje_na_FINKI.pdf | document_date: 2010-12-30 | date_kind: published | date_precision: day | date_source: official_gazette | date_confidence: high | current_status: foundational | last_verified: 2026-09-01 | published: 2010-12-30 | effective_from: 2011-01-07 | TIER A extraction -->
 
 превземено од w w w . p r a v o . o r g . m k ЗАКОН ЗА ОСНОВАЊЕ НА ФАКУЛТЕТ ЗА ИНФОРМАТИЧКИ НАУКИ И КОМПЈУТЕРСКО ИНЖЕНЕРСТВО ВО СОСТАВ НА УНИВЕРЗИТЕТОТ „СВ. КИРИЛ И МЕТОДИЈ" - СКОПЈЕ Службен весник на РМ, бр. 171 од 30.12.2010 година
 
