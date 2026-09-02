@@ -1,0 +1,16 @@
+{
+  "include": [
+    "tools/website_content.py",
+    "tools/website_fetch.py",
+    "tools/website_markdown.py",
+    "tools/website_models.py",
+    "tests/test_website_content.py",
+    "tests/test_website_fetch.py",
+    "tests/test_website_markdown.py",
+    "tests/test_website_models.py"
+  ],
+  "extraPaths": ["."],
+  "typeCheckingMode": "all",
+  "venv": ".venv",
+  "venvPath": "."
+}

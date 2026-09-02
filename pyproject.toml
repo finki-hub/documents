@@ -2,10 +2,17 @@
 name = "finki-hub-documents"
 version = "0.0.0"
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = [
+    "anyio==4.14.2",
+    "httpx2[brotli,http2,zstd]==2.12.0",
+    "markdownify==1.2.3",
+    "pydantic==2.13.5",
+    "selectolax==0.4.11",
+]
 
 [dependency-groups]
 dev = [
+    "basedpyright==1.39.10",
     "langchain-text-splitters==1.1.2",
     "pymupdf==1.28.2",
     "pypdf==6.16.2",

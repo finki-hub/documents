@@ -38,5 +38,8 @@ jobs:
       - name: Check code style
         run: uv run --locked ruff check tools tests
 
+      - name: Check website generator types
+        run: uv run --locked basedpyright
+
       - name: Audit corpus
         run: uv run --locked python tools/preprocess.py audit
