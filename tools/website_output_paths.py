@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import os
+import secrets
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import final, override
+from typing import Final, final, override
 
 from pydantic import ValidationError
 
 from tools.website_models import WebsiteManifest
 
 TreeSignature = tuple[tuple[str, int, int, int, int], ...]
+_TEMPORARY_DIRECTORY_ATTEMPTS: Final = 100
 
 
 @final
@@ -73,9 +76,25 @@ def tree_signature(path: Path) -> TreeSignature | None:
 
 
 @contextmanager
-def hold_directory(path: Path) -> Generator[None]:
+def hold_directory(path: Path) -> Generator[int | None]:
     if os.name != "nt":
-        yield
+        before = identity(path)
+        if before is None or is_link(path):
+            raise OutputSafetyError(path=path, reason="directory changed")
+        try:
+            file_descriptor = os.open(
+                path,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            )
+        except OSError as error:
+            raise OutputSafetyError(path=path, reason="directory changed") from error
+        try:
+            status = os.fstat(file_descriptor)
+            if (status.st_dev, status.st_ino) != before:
+                raise OutputSafetyError(path=path, reason="directory changed")
+            yield file_descriptor
+        finally:
+            os.close(file_descriptor)
         return
 
     import _winapi
@@ -90,9 +109,34 @@ def hold_directory(path: Path) -> Generator[None]:
         0,
     )
     try:
-        yield
+        yield None
     finally:
         _winapi.CloseHandle(handle)
+
+
+def make_temporary_directory(
+    parent: Path,
+    prefix: str,
+    parent_descriptor: int | None,
+) -> Path:
+    if parent_descriptor is None:
+        return Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
+    for _attempt in range(_TEMPORARY_DIRECTORY_ATTEMPTS):
+        name = f"{prefix}{secrets.token_hex(8)}"
+        try:
+            os.mkdir(name, dir_fd=parent_descriptor)
+        except FileExistsError:
+            continue
+        except OSError as error:
+            raise OutputSafetyError(
+                path=parent / name,
+                reason="temporary directory unavailable",
+            ) from error
+        return parent / name
+    raise OutputSafetyError(
+        path=parent,
+        reason="temporary directory unavailable",
+    )
 
 
 def validate_staging(path: Path, expected_identity: tuple[int, int]) -> TreeSignature:
