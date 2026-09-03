@@ -119,3 +119,84 @@ def test_write_output_preserves_recovery_when_rollback_fails(
     recovery_directories = tuple(tmp_path.glob(".website-recovery-*"))
     assert len(recovery_directories) == 1
     assert (recovery_directories[0] / "previous" / "manifest.json").is_file()
+
+
+def test_write_output_does_not_remove_recreated_staging_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    original_rename = os.rename
+    recreated_staging: list[Path] = []
+
+    def recreate_staging_after_install(
+        source: str | Path,
+        destination: str | Path,
+    ) -> None:
+        original_rename(source, destination)
+        source_path = Path(source)
+        if Path(destination) == output_dir and "-recovery-" not in source_path.name:
+            source_path.mkdir()
+            _ = (source_path / "keep.txt").write_text("foreign", encoding="utf-8")
+            recreated_staging.append(source_path)
+
+    monkeypatch.setattr(os, "rename", recreate_staging_after_install)
+
+    write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert len(recreated_staging) == 1
+    assert (recreated_staging[0] / "keep.txt").read_text(encoding="utf-8") == "foreign"
+
+
+def test_write_output_rejects_same_directory_content_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    output_dir.mkdir()
+    sentinel = output_dir / "keep.txt"
+
+    def mutate_output_during_render(document: WebsiteDocument) -> str:
+        _ = sentinel.write_text("foreign", encoding="utf-8")
+        return render_document(document)
+
+    monkeypatch.setattr(website_output, "render_document", mutate_output_during_render)
+
+    with pytest.raises(OutputSafetyError, match="changed during generation"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert sentinel.read_text(encoding="utf-8") == "foreign"
+
+
+def test_write_output_preserves_mismatched_tree_when_rollback_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    original_rename = os.rename
+    owner_backup = tmp_path / "owner-backup"
+
+    def fail_mismatch_rollback(source: str | Path, destination: str | Path) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if source_path == output_dir and destination_path.name == "previous":
+            original_rename(output_dir, owner_backup)
+            output_dir.mkdir()
+            _ = (output_dir / "foreign.txt").write_text("foreign", encoding="utf-8")
+            original_rename(output_dir, destination_path)
+            return
+        if source_path.name == "previous" and destination_path == output_dir:
+            raise OSError("injected mismatch rollback failure")
+        original_rename(source, destination)
+
+    monkeypatch.setattr(os, "rename", fail_mismatch_rollback)
+
+    with pytest.raises(OSError, match="injected mismatch rollback failure"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    recovery_directories = tuple(tmp_path.glob(".website-recovery-*"))
+    assert len(recovery_directories) == 1
+    assert (recovery_directories[0] / "previous" / "foreign.txt").read_text(
+        encoding="utf-8"
+    ) == "foreign"

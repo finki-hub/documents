@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import tempfile
+import time
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
-from typing import final, override
+from typing import Final, final, override
 from urllib.parse import unquote, urlsplit
 
 from pydantic import ValidationError
@@ -21,6 +21,9 @@ from tools.website_models import (
     WebsiteDocument,
     WebsiteManifest,
 )
+
+_RENAME_ATTEMPTS: Final = 3
+_RENAME_DELAY_SECONDS: Final = 0.05
 
 
 @final
@@ -69,7 +72,9 @@ def _is_link(path: Path) -> bool:
 @dataclass(frozen=True, slots=True)
 class _OutputState:
     identity: tuple[int, int] | None
+    parent_identity: tuple[int, int] | None
     path: Path
+    tree_signature: tuple[tuple[str, int, int, int, int], ...] | None
 
 
 def _identity(path: Path) -> tuple[int, int] | None:
@@ -78,6 +83,49 @@ def _identity(path: Path) -> tuple[int, int] | None:
     except FileNotFoundError:
         return None
     return status.st_dev, status.st_ino
+
+
+def _tree_signature(path: Path) -> tuple[tuple[str, int, int, int, int], ...] | None:
+    if _identity(path) is None:
+        return None
+    try:
+        entries = (path, *sorted(path.rglob("*")))
+        return tuple(
+            (
+                entry.relative_to(path).as_posix(),
+                status.st_ino,
+                status.st_mode,
+                status.st_size,
+                status.st_mtime_ns,
+            )
+            for entry in entries
+            for status in (entry.lstat(),)
+        )
+    except OSError as error:
+        raise OutputSafetyError(
+            path=path, reason="changed during generation"
+        ) from error
+
+
+def _rename(source: Path, destination: Path) -> None:
+    source_identity = _identity(source)
+    destination_identity = _identity(destination)
+    for attempt in range(_RENAME_ATTEMPTS):
+        try:
+            os.rename(source, destination)
+            return
+        except PermissionError:
+            if attempt + 1 == _RENAME_ATTEMPTS:
+                raise
+            if (
+                _identity(source) != source_identity
+                or _identity(destination) != destination_identity
+            ):
+                raise OutputSafetyError(
+                    path=source,
+                    reason="changed during rename retry",
+                ) from None
+            time.sleep(_RENAME_DELAY_SECONDS)
 
 
 def _validate_output(output_dir: Path) -> _OutputState:
@@ -90,12 +138,22 @@ def _validate_output(output_dir: Path) -> _OutputState:
         raise OutputSafetyError(path=output_dir, reason="protected path")
     identity = _identity(absolute)
     if identity is None:
-        return _OutputState(identity=None, path=absolute)
+        return _OutputState(
+            identity=None,
+            parent_identity=_identity(absolute.parent),
+            path=absolute,
+            tree_signature=None,
+        )
     if not absolute.is_dir():
         raise OutputSafetyError(path=absolute, reason="target is not a directory")
     entries = tuple(absolute.iterdir())
     if not entries:
-        return _OutputState(identity=identity, path=absolute)
+        return _OutputState(
+            identity=identity,
+            parent_identity=_identity(absolute.parent),
+            path=absolute,
+            tree_signature=_tree_signature(absolute),
+        )
     for path in absolute.rglob("*"):
         if _is_link(path):
             raise OutputSafetyError(path=path, reason="link or junction in output")
@@ -108,40 +166,50 @@ def _validate_output(output_dir: Path) -> _OutputState:
         ) from error
     if manifest.generator != "finki-website-content":
         raise OutputSafetyError(path=absolute, reason="foreign ownership manifest")
-    return _OutputState(identity=identity, path=absolute)
+    return _OutputState(
+        identity=identity,
+        parent_identity=_identity(absolute.parent),
+        path=absolute,
+        tree_signature=_tree_signature(absolute),
+    )
 
 
 def _commit_snapshot(state: _OutputState, snapshot: Path) -> None:
     current_identity = _identity(state.path)
-    if current_identity != state.identity:
+    if (
+        current_identity != state.identity
+        or _identity(state.path.parent) != state.parent_identity
+        or _tree_signature(state.path) != state.tree_signature
+    ):
         raise OutputSafetyError(path=state.path, reason="changed during generation")
     recovery = Path(
         tempfile.mkdtemp(prefix=f".{state.path.name}-recovery-", dir=state.path.parent)
     )
     previous = recovery / "previous"
-    preserve_recovery = False
+    if state.identity is not None:
+        _rename(state.path, previous)
+        if (
+            _identity(previous) != state.identity
+            or _tree_signature(previous) != state.tree_signature
+        ):
+            _rename(previous, state.path)
+            recovery.rmdir()
+            raise OutputSafetyError(
+                path=state.path,
+                reason="changed during generation",
+            )
     try:
+        _rename(snapshot, state.path)
+    except OSError as install_error:
         if state.identity is not None:
-            os.rename(state.path, previous)
-            if _identity(previous) != state.identity:
-                os.rename(previous, state.path)
-                raise OutputSafetyError(
-                    path=state.path,
-                    reason="changed during generation",
-                )
-        try:
-            os.rename(snapshot, state.path)
-        except OSError as install_error:
-            if state.identity is not None:
-                try:
-                    os.rename(previous, state.path)
-                except OSError as rollback_error:
-                    preserve_recovery = True
-                    raise rollback_error from install_error
-            raise
-    finally:
-        if not preserve_recovery:
-            shutil.rmtree(recovery)
+            try:
+                _rename(previous, state.path)
+            except OSError as rollback_error:
+                raise rollback_error from install_error
+        recovery.rmdir()
+        raise
+    if state.identity is None:
+        recovery.rmdir()
 
 
 def write_output(
@@ -152,42 +220,39 @@ def write_output(
     state = _validate_output(output_dir)
     ordered = sorted(documents, key=lambda item: (item.language, item.url))
     state.path.parent.mkdir(parents=True, exist_ok=True)
+    state = replace(state, parent_identity=_identity(state.path.parent))
     temporary = Path(
         tempfile.mkdtemp(prefix=f".{state.path.name}-", dir=state.path.parent)
     )
-    try:
-        entries: list[ManifestEntry] = []
-        rendered_documents: list[str] = []
+    entries: list[ManifestEntry] = []
+    with (temporary / "finki-website.md").open(
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as combined:
         for document in ordered:
             relative_path = _document_relative_path(document)
             destination = temporary / relative_path
             destination.parent.mkdir(parents=True, exist_ok=True)
             rendered = render_document(document)
             _ = destination.write_text(rendered, encoding="utf-8", newline="\n")
+            if entries:
+                _ = combined.write("\n---\n\n")
+            _ = combined.write(f"{rendered.rstrip()}\n")
             entries.append(_manifest_entry(document, relative_path))
-            rendered_documents.append(rendered.rstrip())
-        manifest = WebsiteManifest(
-            base_url=BASE_URL,
-            crawled_pages=metadata.crawled_pages,
-            crawl_truncated=metadata.crawl_truncated,
-            document_count=len(entries),
-            documents=tuple(entries),
-            generator="finki-website-content",
-            rest_totals=dict(sorted(metadata.rest_totals.items())),
-            schema_version=2,
-        )
-        _ = (temporary / "manifest.json").write_text(
-            manifest.model_dump_json(indent=2) + "\n",
-            encoding="utf-8",
-            newline="\n",
-        )
-        combined = "\n\n---\n\n".join(rendered_documents)
-        _ = (temporary / "finki-website.md").write_text(
-            f"{combined}\n" if combined else "",
-            encoding="utf-8",
-            newline="\n",
-        )
-        _commit_snapshot(state, temporary)
-    finally:
-        if temporary.exists():
-            shutil.rmtree(temporary)
+    manifest = WebsiteManifest(
+        base_url=BASE_URL,
+        crawled_pages=metadata.crawled_pages,
+        crawl_truncated=metadata.crawl_truncated,
+        document_count=len(entries),
+        documents=tuple(entries),
+        generator="finki-website-content",
+        rest_totals=dict(sorted(metadata.rest_totals.items())),
+        schema_version=2,
+    )
+    _ = (temporary / "manifest.json").write_text(
+        manifest.model_dump_json(indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    _commit_snapshot(state, temporary)
