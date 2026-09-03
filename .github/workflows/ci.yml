@@ -22,21 +22,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            uv_checksum: "ec7a99cd05e0cd7f80243f135ce1361c76835cb0ee60055d14d20eba8eba1460"
-          - os: windows-latest
-            uv_checksum: "ddbfcee1ac615a0499f6aa97b5ec8ebdf3ee4a7714a48055ec2ba0030e3cf810"
+        os:
+          - ubuntu-latest
+          - windows-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
       - name: Set up uv and Python
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.12.9"
-          checksum: ${{ matrix.uv_checksum }}
           enable-cache: true
           python-version: "3.14"
 
@@ -47,7 +44,7 @@ jobs:
         run: uv run --locked ruff check tools tests
 
       - name: Check website generator types
-        run: uv run --locked basedpyright
+        run: uv run --locked mypy --show-column-numbers --no-color-output
 
       - name: Audit corpus
         run: uv run --locked python tools/preprocess.py audit
