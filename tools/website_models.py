@@ -173,7 +173,10 @@ def _normalized_path(raw_path: str) -> str | None:
 
 
 def _public_url(raw_url: str, base_url: str) -> tuple[str, str] | None:
-    parsed = urlsplit(urljoin(base_url, raw_url))
+    try:
+        parsed = urlsplit(urljoin(base_url, raw_url))
+    except ValueError:
+        return None
     if parsed.scheme not in {"http", "https"}:
         return None
     if (parsed.hostname or "").casefold() not in PUBLIC_HOSTS:

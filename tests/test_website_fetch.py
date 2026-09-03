@@ -19,6 +19,7 @@ def test_crawl_pages_follows_only_canonical_html_routes() -> None:
                 text="""
                 <main><a href="/en/about/">About</a>
                 <a href="https://example.com/ignored">External</a>
+                <a href="http://[">Malformed</a>
                 <a href="/announcements/feed/">Feed</a></main>
                 """,
             )
