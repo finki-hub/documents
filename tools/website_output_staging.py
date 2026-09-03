@@ -19,20 +19,6 @@ def _write_stream(output: IO[str], content: str) -> None:
 
 
 @contextmanager
-def _open_directory(
-    path: str | Path,
-    flags: int,
-    *,
-    dir_fd: int | None = None,
-) -> Generator[int]:
-    file_descriptor = os.open(path, flags, dir_fd=dir_fd)
-    try:
-        yield file_descriptor
-    finally:
-        os.close(file_descriptor)
-
-
-@contextmanager
 def _hold_windows_directory(
     path: Path,
     expected_identity: tuple[int, int] | None = None,
@@ -103,6 +89,44 @@ def _write_windows(
         ) from error
 
 
+def _write_posix_at(
+    directory: int,
+    components: tuple[str, ...],
+    filename: str,
+    content: str,
+    directory_flags: int,
+) -> None:
+    if components:
+        component = components[0]
+        with suppress(FileExistsError):
+            os.mkdir(component, dir_fd=directory)
+        child = os.open(component, directory_flags, dir_fd=directory)
+        try:
+            _write_posix_at(
+                child,
+                components[1:],
+                filename,
+                content,
+                directory_flags,
+            )
+        finally:
+            os.close(child)
+        return
+    file_descriptor = os.open(
+        filename,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=directory,
+    )
+    with os.fdopen(
+        file_descriptor,
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as output:
+        _write_stream(output, content)
+
+
 def _write_posix(
     root: Path,
     relative_path: Path,
@@ -111,31 +135,20 @@ def _write_posix(
 ) -> None:
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
-        with ExitStack() as stack:
-            directory = stack.enter_context(_open_directory(root, directory_flags))
+        directory = os.open(root, directory_flags)
+        try:
             status = os.fstat(directory)
             if (status.st_dev, status.st_ino) != root_identity:
                 raise OutputSafetyError(path=root, reason="staging path changed")
-            for component in relative_path.parent.parts:
-                with suppress(FileExistsError):
-                    os.mkdir(component, dir_fd=directory)
-                child = stack.enter_context(
-                    _open_directory(component, directory_flags, dir_fd=directory)
-                )
-                directory = child
-            file_descriptor = os.open(
+            _write_posix_at(
+                directory,
+                relative_path.parent.parts,
                 relative_path.name,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                0o600,
-                dir_fd=directory,
+                content,
+                directory_flags,
             )
-            with os.fdopen(
-                file_descriptor,
-                "w",
-                encoding="utf-8",
-                newline="\n",
-            ) as output:
-                _write_stream(output, content)
+        finally:
+            os.close(directory)
     except OutputSafetyError:
         raise
     except OSError as error:
