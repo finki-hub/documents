@@ -289,6 +289,22 @@ def test_render_document_normalizes_commonmark_escapes_before_scheme_check() -> 
     assert "data\\:" not in rendered
 
 
+def test_render_document_neutralizes_malformed_link_destination() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click](http://[)",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    assert "http://[" not in render_document(document)
+
+
 def test_render_document_sanitizes_many_unsafe_links_within_resource_budget() -> None:
     document = WebsiteDocument(
         aliases=(),

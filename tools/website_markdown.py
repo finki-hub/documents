@@ -61,15 +61,23 @@ def _escape_markdown_text(value: str) -> str:
 
 
 def _safe_link(raw_url: str, base_url: str) -> str | None:
-    absolute = urljoin(base_url, raw_url)
-    return (
-        absolute if urlsplit(absolute).scheme in {"http", "https", "mailto"} else None
-    )
+    try:
+        absolute = urljoin(base_url, raw_url)
+        return (
+            absolute
+            if urlsplit(absolute).scheme in {"http", "https", "mailto"}
+            else None
+        )
+    except ValueError:
+        return None
 
 
 def _safe_image(raw_url: str, base_url: str) -> str | None:
-    absolute = urljoin(base_url, raw_url)
-    return absolute if urlsplit(absolute).scheme in {"http", "https"} else None
+    try:
+        absolute = urljoin(base_url, raw_url)
+        return absolute if urlsplit(absolute).scheme in {"http", "https"} else None
+    except ValueError:
+        return None
 
 
 def _sanitize_html(value: str, base_url: str) -> str:
