@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import stat
+import sys
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -18,7 +19,7 @@ def _lock_file(file_descriptor: int) -> None:
     deadline = time.monotonic() + _LOCK_TIMEOUT_SECONDS
     while True:
         try:
-            if os.name == "nt":
+            if sys.platform == "win32":
                 import msvcrt
 
                 msvcrt.locking(file_descriptor, msvcrt.LK_NBLCK, 1)
@@ -34,7 +35,7 @@ def _lock_file(file_descriptor: int) -> None:
 
 
 def _unlock_file(file_descriptor: int) -> None:
-    if os.name == "nt":
+    if sys.platform == "win32":
         import msvcrt
 
         _ = os.lseek(file_descriptor, 0, os.SEEK_SET)
@@ -57,7 +58,7 @@ def publication_lock(
         lock_path.name if parent_descriptor is not None else lock_path
     )
     flags = os.O_RDWR | os.O_CREAT
-    if os.name != "nt":
+    if sys.platform != "win32":
         flags |= os.O_NOFOLLOW
     created = False
     try:
