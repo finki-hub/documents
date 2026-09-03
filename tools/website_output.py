@@ -5,6 +5,7 @@ import re
 import shutil
 import tempfile
 from collections.abc import Iterable
+from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
 from typing import final, override
@@ -65,67 +66,82 @@ def _is_link(path: Path) -> bool:
     return path.is_symlink() or path.is_junction()
 
 
-def _validate_output(output_dir: Path) -> None:
-    absolute = output_dir.absolute()
-    if absolute == Path.cwd().absolute() or absolute == Path(absolute.anchor):
-        raise OutputSafetyError(path=output_dir, reason="protected path")
-    for path in (absolute, *absolute.parents):
-        if path.exists() and _is_link(path):
+@dataclass(frozen=True, slots=True)
+class _OutputState:
+    identity: tuple[int, int] | None
+    path: Path
+
+
+def _identity(path: Path) -> tuple[int, int] | None:
+    try:
+        status = path.lstat()
+    except FileNotFoundError:
+        return None
+    return status.st_dev, status.st_ino
+
+
+def _validate_output(output_dir: Path) -> _OutputState:
+    lexical = output_dir.absolute()
+    for path in (lexical, *lexical.parents):
+        if os.path.lexists(path) and _is_link(path):
             raise OutputSafetyError(path=path, reason="link or junction in path")
-    if not output_dir.exists():
-        return
-    if not output_dir.is_dir():
-        raise OutputSafetyError(path=output_dir, reason="target is not a directory")
-    entries = tuple(output_dir.iterdir())
+    absolute = lexical.resolve(strict=False)
+    if absolute == Path.cwd().resolve() or absolute == Path(absolute.anchor):
+        raise OutputSafetyError(path=output_dir, reason="protected path")
+    identity = _identity(absolute)
+    if identity is None:
+        return _OutputState(identity=None, path=absolute)
+    if not absolute.is_dir():
+        raise OutputSafetyError(path=absolute, reason="target is not a directory")
+    entries = tuple(absolute.iterdir())
     if not entries:
-        return
-    for path in output_dir.rglob("*"):
+        return _OutputState(identity=identity, path=absolute)
+    for path in absolute.rglob("*"):
         if _is_link(path):
             raise OutputSafetyError(path=path, reason="link or junction in output")
-    manifest_path = output_dir / "manifest.json"
+    manifest_path = absolute / "manifest.json"
     try:
         manifest = WebsiteManifest.model_validate_json(manifest_path.read_bytes())
     except (OSError, ValidationError) as error:
         raise OutputSafetyError(
-            path=output_dir, reason="missing ownership manifest"
+            path=absolute, reason="missing ownership manifest"
         ) from error
     if manifest.generator != "finki-website-content":
-        raise OutputSafetyError(path=output_dir, reason="foreign ownership manifest")
+        raise OutputSafetyError(path=absolute, reason="foreign ownership manifest")
+    return _OutputState(identity=identity, path=absolute)
 
 
-def _atomic_copy(source: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, pending_name = tempfile.mkstemp(
-        prefix=f".{destination.name}-",
-        dir=destination.parent,
+def _commit_snapshot(state: _OutputState, snapshot: Path) -> None:
+    current_identity = _identity(state.path)
+    if current_identity != state.identity:
+        raise OutputSafetyError(path=state.path, reason="changed during generation")
+    recovery = Path(
+        tempfile.mkdtemp(prefix=f".{state.path.name}-recovery-", dir=state.path.parent)
     )
-    os.close(descriptor)
-    pending = Path(pending_name)
+    previous = recovery / "previous"
+    preserve_recovery = False
     try:
-        _ = shutil.copyfile(source, pending)
-        os.replace(pending, destination)
+        if state.identity is not None:
+            os.rename(state.path, previous)
+            if _identity(previous) != state.identity:
+                os.rename(previous, state.path)
+                raise OutputSafetyError(
+                    path=state.path,
+                    reason="changed during generation",
+                )
+        try:
+            os.rename(snapshot, state.path)
+        except OSError as install_error:
+            if state.identity is not None:
+                try:
+                    os.rename(previous, state.path)
+                except OSError as rollback_error:
+                    preserve_recovery = True
+                    raise rollback_error from install_error
+            raise
     finally:
-        pending.unlink(missing_ok=True)
-
-
-def _install_snapshot(snapshot: Path, output_dir: Path) -> None:
-    wanted = {
-        path.relative_to(snapshot) for path in snapshot.rglob("*") if path.is_file()
-    }
-    manifest = Path("manifest.json")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    for relative_path in sorted(wanted - {manifest}, key=Path.as_posix):
-        _atomic_copy(snapshot / relative_path, output_dir / relative_path)
-    for existing in tuple(output_dir.rglob("*")):
-        if existing.is_file() and existing.relative_to(output_dir) not in wanted:
-            existing.unlink()
-    directories = (path for path in output_dir.rglob("*") if path.is_dir())
-    for directory in sorted(
-        directories, key=lambda path: len(path.parts), reverse=True
-    ):
-        if not any(directory.iterdir()):
-            directory.rmdir()
-    _atomic_copy(snapshot / manifest, output_dir / manifest)
+        if not preserve_recovery:
+            shutil.rmtree(recovery)
 
 
 def write_output(
@@ -133,16 +149,12 @@ def write_output(
     documents: Iterable[WebsiteDocument],
     metadata: GenerationMetadata,
 ) -> None:
-    _validate_output(output_dir)
+    state = _validate_output(output_dir)
     ordered = sorted(documents, key=lambda item: (item.language, item.url))
-    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    state.path.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(
-        tempfile.mkdtemp(prefix=f".{output_dir.name}-", dir=output_dir.parent)
+        tempfile.mkdtemp(prefix=f".{state.path.name}-", dir=state.path.parent)
     )
-    backup = Path(
-        tempfile.mkdtemp(prefix=f".{output_dir.name}-previous-", dir=output_dir.parent)
-    )
-    preserve_recovery = False
     try:
         entries: list[ManifestEntry] = []
         rendered_documents: list[str] = []
@@ -160,7 +172,9 @@ def write_output(
             crawl_truncated=metadata.crawl_truncated,
             document_count=len(entries),
             documents=tuple(entries),
+            generator="finki-website-content",
             rest_totals=dict(sorted(metadata.rest_totals.items())),
+            schema_version=2,
         )
         _ = (temporary / "manifest.json").write_text(
             manifest.model_dump_json(indent=2) + "\n",
@@ -173,26 +187,7 @@ def write_output(
             encoding="utf-8",
             newline="\n",
         )
-        had_output = output_dir.exists()
-        if had_output:
-            _ = shutil.copytree(output_dir, backup, dirs_exist_ok=True)
-        try:
-            _install_snapshot(temporary, output_dir)
-        except OSError as install_error:
-            try:
-                if had_output:
-                    _install_snapshot(backup, output_dir)
-                elif output_dir.exists():
-                    shutil.rmtree(output_dir)
-            except OSError as rollback_error:
-                preserve_recovery = True
-                raise ExceptionGroup(
-                    "website output installation and rollback both failed",
-                    [install_error, rollback_error],
-                ) from install_error
-            raise
+        _commit_snapshot(state, temporary)
     finally:
-        if temporary.exists() and not preserve_recovery:
+        if temporary.exists():
             shutil.rmtree(temporary)
-        if backup.exists() and not preserve_recovery:
-            shutil.rmtree(backup)

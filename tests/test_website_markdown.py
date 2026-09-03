@@ -40,6 +40,31 @@ def test_document_from_page_removes_unsafe_link_targets() -> None:
     assert "click" in document.markdown
 
 
+def test_document_from_page_removes_unsafe_image_targets() -> None:
+    document = document_from_page(
+        """
+        <main><h1>Notice</h1>
+          <img src="javascript:alert(1)" alt="script">
+          <img src="data:text/html,boom" alt="data">
+        </main>
+        """,
+        "https://finki.ukim.mk/notice/",
+    )
+
+    assert "javascript:" not in document.markdown
+    assert "data:text/html" not in document.markdown
+
+
+def test_document_from_page_keeps_encoded_html_inert() -> None:
+    document = document_from_page(
+        "<main><h1>Notice</h1><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></main>",
+        "https://finki.ukim.mk/notice/",
+    )
+
+    assert "<script>" not in document.markdown
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in document.markdown
+
+
 def test_document_from_page_preserves_all_articles_in_main() -> None:
     document = document_from_page(
         """

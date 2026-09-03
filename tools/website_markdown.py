@@ -58,6 +58,11 @@ def _safe_link(raw_url: str, base_url: str) -> str | None:
     )
 
 
+def _safe_image(raw_url: str, base_url: str) -> str | None:
+    absolute = urljoin(base_url, raw_url)
+    return absolute if urlsplit(absolute).scheme in {"http", "https"} else None
+
+
 def _sanitize_html(value: str, base_url: str) -> str:
     parser = HTMLParser(value)
     if parser.root is None:
@@ -71,18 +76,23 @@ def _sanitize_html(value: str, base_url: str) -> str:
             node.attrs["href"] = safe_link
         else:
             del node.attrs["href"]
+    for node in parser.root.css("img[src]"):
+        source = node.attributes.get("src")
+        if source and (safe_image := _safe_image(source, base_url)) is not None:
+            node.attrs["src"] = safe_image
+        else:
+            del node.attrs["src"]
     return parser.root.html or ""
 
 
 def _markdown_from_html(value: str, base_url: str) -> str:
-    return _clean_markdown(
-        markdownify(
-            _sanitize_html(value, base_url),
-            bullets="-",
-            heading_style="ATX",
-            strip=["script", "style", "noscript", "template", "svg"],
-        )
+    converted = markdownify(
+        _sanitize_html(value, base_url),
+        bullets="-",
+        heading_style="ATX",
+        strip=["script", "style", "noscript", "template", "svg"],
     )
+    return _clean_markdown(converted.replace("<", "&lt;").replace(">", "&gt;"))
 
 
 def _content_root(parser: HTMLParser) -> Node:
@@ -135,13 +145,17 @@ def document_from_page(html: str, url: str) -> WebsiteDocument:
     )
 
 
-def document_from_rest(record: RestRecord) -> WebsiteDocument:
+def document_from_rest(
+    record: RestRecord,
+    *,
+    include_excerpt: bool = True,
+) -> WebsiteDocument:
     canonical_url = normalize_url(record.link)
     if canonical_url is None:
         raise WebsiteContentError("Unsupported source URL", record.link)
     content = record.content.rendered if record.content else ""
     markdown = _markdown_from_html(content, canonical_url)
-    if not markdown and record.excerpt:
+    if not markdown and include_excerpt and record.excerpt:
         markdown = _markdown_from_html(record.excerpt.rendered, canonical_url)
     title = html_module.unescape(record.title.rendered if record.title else record.slug)
     return WebsiteDocument(

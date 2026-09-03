@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import socket
+import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Final
 
@@ -10,7 +12,8 @@ import anyio
 import httpx2
 from pydantic import BaseModel, ConfigDict
 
-from tools.website_fetch import build_documents, crawl_pages, fetch_rest_inventory
+from tools.website_fetch import build_documents, crawl_pages
+from tools.website_http import fetch_rest_inventory
 from tools.website_markdown import document_from_rest
 from tools.website_models import BASE_URL, CrawlPlan, GenerationMetadata
 from tools.website_output import write_output
@@ -25,7 +28,13 @@ class CliArgs(BaseModel):
     output: Path
 
 
-async def update_website(output_dir: Path, max_pages: int) -> int:
+@dataclass(frozen=True, slots=True)
+class UpdateResult:
+    document_count: int
+    crawl_truncated: bool
+
+
+async def update_website(output_dir: Path, max_pages: int) -> UpdateResult:
     timeout = httpx2.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
     limits = httpx2.Limits(
         max_connections=4,
@@ -49,7 +58,7 @@ async def update_website(output_dir: Path, max_pages: int) -> int:
         complete_rest_urls = frozenset(
             url
             for url, record in inventory.records_by_url.items()
-            if document_from_rest(record).markdown
+            if document_from_rest(record, include_excerpt=False).markdown
         )
         empty_rest_urls = tuple(
             url for url in inventory.records_by_url if url not in complete_rest_urls
@@ -75,7 +84,10 @@ async def update_website(output_dir: Path, max_pages: int) -> int:
             rest_totals=inventory.totals,
         ),
     )
-    return len(documents)
+    return UpdateResult(
+        document_count=len(documents),
+        crawl_truncated=crawl.truncated,
+    )
 
 
 def _positive_int(value: str) -> int:
@@ -97,11 +109,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = CliArgs.model_validate(vars(build_parser().parse_args(argv)))
 
-    async def run() -> int:
+    async def run() -> UpdateResult:
         return await update_website(args.output, args.max_pages)
 
-    document_count = anyio.run(run)
-    print(f"Generated {document_count} documents in {args.output}")
+    result = anyio.run(run)
+    print(f"Generated {result.document_count} documents in {args.output}")
+    if result.crawl_truncated:
+        print(
+            "WARNING: crawl stopped at --max-pages; output is incomplete",
+            file=sys.stderr,
+        )
     return 0
 
 

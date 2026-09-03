@@ -102,17 +102,17 @@ def test_write_output_restores_owned_snapshot_when_install_fails(
         for path in output_dir.rglob("*")
         if path.is_file()
     }
-    original_replace = os.replace
+    original_rename = os.rename
     failed = False
 
-    def fail_manifest_once(source: str | Path, destination: str | Path) -> None:
+    def fail_snapshot_swap_once(source: str | Path, destination: str | Path) -> None:
         nonlocal failed
-        if not failed and Path(destination).name == "manifest.json":
+        if not failed and Path(destination) == output_dir:
             failed = True
             raise OSError("injected install failure")
-        original_replace(source, destination)
+        original_rename(source, destination)
 
-    monkeypatch.setattr(os, "replace", fail_manifest_once)
+    monkeypatch.setattr(os, "rename", fail_snapshot_swap_once)
 
     with pytest.raises(OSError, match="injected install failure"):
         write_output(
