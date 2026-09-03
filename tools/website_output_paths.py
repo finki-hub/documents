@@ -19,6 +19,11 @@ _WINDOWS_SHARE_READ_WRITE: Final = 0x00000001 | 0x00000002
 _WINDOWS_OPEN_EXISTING: Final = 3
 _WINDOWS_OPEN_DIRECTORY: Final = 0x02000000
 _WINDOWS_OPEN_REPARSE_POINT: Final = 0x00200000
+_REPOSITORY_ROOT: Final = Path(__file__).resolve().parent.parent
+_PROTECTED_OUTPUT_ROOTS: Final = (
+    _REPOSITORY_ROOT / "raw",
+    _REPOSITORY_ROOT / "processed",
+)
 
 
 @final
@@ -198,7 +203,14 @@ def validate_output(output_dir: Path) -> OutputState:
         if os.path.lexists(path) and is_link(path):
             raise OutputSafetyError(path=path, reason="link or junction in path")
     absolute = lexical.resolve(strict=False)
-    if absolute == Path.cwd().resolve() or absolute == Path(absolute.anchor):
+    if (
+        absolute == Path.cwd().resolve()
+        or absolute == Path(absolute.anchor)
+        or any(
+            absolute == root or absolute.is_relative_to(root)
+            for root in _PROTECTED_OUTPUT_ROOTS
+        )
+    ):
         raise OutputSafetyError(path=output_dir, reason="protected path")
     output_identity = identity(absolute)
     if output_identity is None:

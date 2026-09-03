@@ -12,6 +12,7 @@ from tools.website_output_paths import (
     OutputSafetyError,
     OutputState,
     TreeSignature,
+    hold_directory,
     identity,
     is_generator_output,
     make_temporary_directory,
@@ -95,7 +96,8 @@ def _hold_recovery(
     parent_descriptor: int | None,
 ) -> Generator[int | None]:
     if parent_descriptor is None:
-        yield None
+        with hold_directory(recovery):
+            yield None
         return
     try:
         recovery_descriptor = os.open(
@@ -114,7 +116,13 @@ def _hold_recovery(
         os.close(recovery_descriptor)
 
 
-def _remove_recovery(recovery: Path, parent_descriptor: int | None) -> None:
+def _remove_recovery(
+    recovery: Path,
+    parent_descriptor: int | None,
+    expected_identity: tuple[int, int],
+) -> None:
+    if identity(recovery) != expected_identity:
+        raise OutputSafetyError(path=recovery, reason="recovery directory changed")
     if parent_descriptor is None:
         recovery.rmdir()
         return
@@ -125,7 +133,7 @@ def _install_snapshot(
     publication: SnapshotPublication,
     recovery: Path,
     recovery_descriptor: int | None,
-) -> None:
+) -> OutputSafetyError | None:
     state = publication.state
     previous = recovery / "previous"
     if state.identity is not None:
@@ -149,8 +157,7 @@ def _install_snapshot(
                     destination_descriptor=publication.parent_descriptor,
                 )
             )
-            _remove_recovery(recovery, publication.parent_descriptor)
-            raise OutputSafetyError(
+            return OutputSafetyError(
                 path=state.path,
                 reason="changed during generation",
             )
@@ -203,8 +210,7 @@ def _install_snapshot(
             except (OSError, OutputSafetyError) as rollback_error:
                 raise rollback_error from install_error
         raise
-    if state.identity is None:
-        _remove_recovery(recovery, publication.parent_descriptor)
+    return None
 
 
 def commit_snapshot(publication: SnapshotPublication) -> None:
@@ -228,5 +234,12 @@ def commit_snapshot(publication: SnapshotPublication) -> None:
         f".{state.path.name}-recovery-",
         publication.parent_descriptor,
     )
+    recovery_identity = identity(recovery)
+    if recovery_identity is None:
+        raise OutputSafetyError(path=recovery, reason="recovery directory changed")
     with _hold_recovery(recovery, publication.parent_descriptor) as recovery_descriptor:
-        _install_snapshot(publication, recovery, recovery_descriptor)
+        recovered_error = _install_snapshot(publication, recovery, recovery_descriptor)
+    if state.identity is None or recovered_error is not None:
+        _remove_recovery(recovery, publication.parent_descriptor, recovery_identity)
+    if recovered_error is not None:
+        raise recovered_error
