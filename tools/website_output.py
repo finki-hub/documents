@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import tempfile
 from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path
@@ -22,10 +21,11 @@ from tools.website_output_paths import (
     hold_directory,
     identity,
     is_link,
+    make_temporary_directory,
     validate_output,
     validate_staging,
 )
-from tools.website_output_publish import commit_snapshot
+from tools.website_output_publish import SnapshotPublication, commit_snapshot
 from tools.website_output_staging import write_staged_text
 
 __all__ = ["OutputSafetyError", "write_output"]
@@ -58,10 +58,13 @@ def _write_output_locked(
     state: OutputState,
     documents: Iterable[WebsiteDocument],
     metadata: GenerationMetadata,
+    parent_descriptor: int | None,
 ) -> None:
     ordered = sorted(documents, key=lambda item: (item.language, item.url))
-    temporary = Path(
-        tempfile.mkdtemp(prefix=f".{state.path.name}-", dir=state.path.parent)
+    temporary = make_temporary_directory(
+        state.path.parent,
+        f".{state.path.name}-",
+        parent_descriptor,
     )
     temporary_identity = identity(temporary)
     if temporary_identity is None:
@@ -105,10 +108,13 @@ def _write_output_locked(
         )
         temporary_signature = validate_staging(temporary, temporary_identity)
     commit_snapshot(
-        state,
-        temporary,
-        temporary_identity,
-        temporary_signature,
+        SnapshotPublication(
+            state=state,
+            snapshot=temporary,
+            snapshot_identity=temporary_identity,
+            snapshot_signature=temporary_signature,
+            parent_descriptor=parent_descriptor,
+        )
     )
 
 
@@ -125,7 +131,7 @@ def write_output(
         or state.tree_signature != initial.tree_signature
     ):
         raise OutputSafetyError(path=state.path, reason="changed during generation")
-    with hold_directory(state.path.parent):
+    with hold_directory(state.path.parent) as parent_descriptor:
         if (
             is_link(state.path.parent)
             or identity(state.path.parent) != state.parent_identity
@@ -134,14 +140,20 @@ def write_output(
                 path=state.path.parent,
                 reason="link or junction in path",
             )
-        with publication_lock(state.path):
+        with publication_lock(state.path, parent_descriptor):
             locked_state = validate_output(output_dir)
             if (
                 locked_state.identity != state.identity
+                or locked_state.parent_identity != state.parent_identity
                 or locked_state.tree_signature != state.tree_signature
             ):
                 raise OutputSafetyError(
                     path=state.path,
                     reason="changed during generation",
                 )
-            _write_output_locked(locked_state, documents, metadata)
+            _write_output_locked(
+                locked_state,
+                documents,
+                metadata,
+                parent_descriptor,
+            )

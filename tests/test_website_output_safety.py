@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from threading import Event, Thread
@@ -33,6 +35,13 @@ def _document() -> WebsiteDocument:
         wordpress_id=None,
         wordpress_type=None,
     )
+
+
+def _path_at(path: str | Path, directory_descriptor: int | None) -> Path:
+    candidate = Path(path)
+    if directory_descriptor is None or candidate.is_absolute():
+        return candidate
+    return Path(os.readlink(f"/proc/self/fd/{directory_descriptor}")) / candidate
 
 
 def test_manifest_requires_explicit_ownership_fields() -> None:
@@ -108,10 +117,21 @@ def test_write_output_preserves_recovery_when_rollback_fails(
     write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
     original_rename = os.rename
 
-    def fail_install_and_rollback(source: str | Path, destination: str | Path) -> None:
-        if Path(destination) == output_dir:
+    def fail_install_and_rollback(
+        source: str | Path,
+        destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+    ) -> None:
+        if _path_at(destination, dst_dir_fd) == output_dir:
             raise OSError("injected rename failure")
-        original_rename(source, destination)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
 
     monkeypatch.setattr(os, "rename", fail_install_and_rollback)
 
@@ -134,10 +154,19 @@ def test_write_output_does_not_remove_recreated_staging_path(
     def recreate_staging_after_install(
         source: str | Path,
         destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
     ) -> None:
-        original_rename(source, destination)
-        source_path = Path(source)
-        if Path(destination) == output_dir and "-recovery-" not in source_path.name:
+        source_path = _path_at(source, src_dir_fd)
+        destination_path = _path_at(destination, dst_dir_fd)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
+        if destination_path == output_dir and "-recovery-" not in source_path.name:
             source_path.mkdir()
             _ = (source_path / "keep.txt").write_text("foreign", encoding="utf-8")
             recreated_staging.append(source_path)
@@ -179,9 +208,15 @@ def test_write_output_preserves_mismatched_tree_when_rollback_fails(
     original_rename = os.rename
     owner_backup = tmp_path / "owner-backup"
 
-    def fail_mismatch_rollback(source: str | Path, destination: str | Path) -> None:
-        source_path = Path(source)
-        destination_path = Path(destination)
+    def fail_mismatch_rollback(
+        source: str | Path,
+        destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+    ) -> None:
+        source_path = _path_at(source, src_dir_fd)
+        destination_path = _path_at(destination, dst_dir_fd)
         if source_path == output_dir and destination_path.name == "previous":
             original_rename(output_dir, owner_backup)
             output_dir.mkdir()
@@ -190,7 +225,12 @@ def test_write_output_preserves_mismatched_tree_when_rollback_fails(
             return
         if source_path.name == "previous" and destination_path == output_dir:
             raise OSError("injected mismatch rollback failure")
-        original_rename(source, destination)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
 
     monkeypatch.setattr(os, "rename", fail_mismatch_rollback)
 
@@ -242,15 +282,24 @@ def test_write_output_rejects_staging_substitution_after_validation(
     def substitute_during_install(
         source: str | Path,
         destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
     ) -> None:
         nonlocal substituted
-        source_path = Path(source)
-        if not substituted and Path(destination) == output_dir:
+        source_path = _path_at(source, src_dir_fd)
+        destination_path = _path_at(destination, dst_dir_fd)
+        if not substituted and destination_path == output_dir:
             substituted = True
             original_rename(source_path, displaced)
             source_path.mkdir()
             _ = (source_path / "foreign.txt").write_text("foreign", encoding="utf-8")
-        original_rename(source_path, destination)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
 
     monkeypatch.setattr(os, "rename", substitute_during_install)
 
@@ -284,13 +333,21 @@ def test_write_output_does_not_quarantine_concurrent_winner(
     def publish_winner_first(
         source: str | Path,
         destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
     ) -> None:
         nonlocal published
-        if not published and Path(destination) == output_dir:
+        if not published and _path_at(destination, dst_dir_fd) == output_dir:
             published = True
             original_rename(winner_dir, output_dir)
             raise FileExistsError("concurrent winner published")
-        original_rename(source, destination)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
 
     monkeypatch.setattr(os, "rename", publish_winner_first)
 
@@ -321,11 +378,18 @@ def test_write_output_preserves_winner_published_after_staging_move(
     def replace_installed_snapshot(
         source: str | Path,
         destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
     ) -> None:
         nonlocal published
-        source_path = Path(source)
-        destination_path = Path(destination)
-        original_rename(source_path, destination_path)
+        destination_path = _path_at(destination, dst_dir_fd)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
         if not published and destination_path == output_dir:
             published = True
             original_rename(output_dir, displaced)
@@ -383,6 +447,7 @@ def test_write_output_does_not_follow_substituted_staging_child(
     victim.mkdir()
     displaced = tmp_path / "displaced-language"
     original_mkdir = Path.mkdir
+    original_os_mkdir = os.mkdir
     substituted = False
 
     def substitute_language_directory(
@@ -401,7 +466,29 @@ def test_write_output_does_not_follow_substituted_staging_child(
             except OSError:
                 pytest.skip("directory symlinks are unavailable on this runner")
 
-    monkeypatch.setattr(Path, "mkdir", substitute_language_directory)
+    def substitute_posix_language_directory(
+        path: str,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> None:
+        nonlocal substituted
+        original_os_mkdir(path, mode, dir_fd=dir_fd)
+        if not substituted and path == "mk" and dir_fd is not None:
+            substituted = True
+            original_rename = os.rename
+            original_rename(path, displaced, src_dir_fd=dir_fd)
+            os.symlink(
+                victim,
+                path,
+                target_is_directory=True,
+                dir_fd=dir_fd,
+            )
+
+    if os.name == "nt":
+        monkeypatch.setattr(Path, "mkdir", substitute_language_directory)
+    else:
+        monkeypatch.setattr(os, "mkdir", substitute_posix_language_directory)
 
     with pytest.raises(OutputSafetyError, match="staging"):
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
@@ -437,3 +524,36 @@ def test_publication_lock_serializes_publishers(tmp_path: Path) -> None:
     second.join(timeout=2)
     assert not first.is_alive()
     assert not second.is_alive()
+
+
+def test_write_output_rejects_parent_swap_during_lock_acquisition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_parent = tmp_path / "output-parent"
+    output_parent.mkdir()
+    output_dir = output_parent / "website"
+    displaced = tmp_path / "displaced-parent"
+    original_lock = publication_lock
+
+    @contextmanager
+    def unlocked_parent(_path: Path) -> Generator[None]:
+        yield
+
+    @contextmanager
+    def swap_parent_before_lock(
+        path: Path,
+        _parent_descriptor: int | None,
+    ) -> Generator[None]:
+        _ = output_parent.rename(displaced)
+        output_parent.mkdir()
+        with original_lock(path):
+            yield
+
+    monkeypatch.setattr(website_output, "hold_directory", unlocked_parent)
+    monkeypatch.setattr(website_output, "publication_lock", swap_parent_before_lock)
+
+    with pytest.raises(OutputSafetyError, match="changed during generation"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert not output_dir.exists()

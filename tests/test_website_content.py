@@ -23,6 +23,13 @@ from tools.website_models import (
 from tools.website_output import write_output
 
 
+def _path_at(path: str | Path, directory_descriptor: int | None) -> Path:
+    candidate = Path(path)
+    if directory_descriptor is None or candidate.is_absolute():
+        return candidate
+    return Path(os.readlink(f"/proc/self/fd/{directory_descriptor}")) / candidate
+
+
 def _document(url: str, title: str, language: str) -> WebsiteDocument:
     return WebsiteDocument(
         aliases=(),
@@ -114,12 +121,23 @@ def test_write_output_restores_owned_snapshot_when_install_fails(
     original_rename = os.rename
     failed = False
 
-    def fail_snapshot_swap_once(source: str | Path, destination: str | Path) -> None:
+    def fail_snapshot_swap_once(
+        source: str | Path,
+        destination: str | Path,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+    ) -> None:
         nonlocal failed
-        if not failed and Path(destination) == output_dir:
+        if not failed and _path_at(destination, dst_dir_fd) == output_dir:
             failed = True
             raise OSError("injected install failure")
-        original_rename(source, destination)
+        original_rename(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
 
     monkeypatch.setattr(os, "rename", fail_snapshot_swap_once)
 
