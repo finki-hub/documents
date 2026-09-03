@@ -12,7 +12,7 @@ from threading import Event, Thread
 import pytest
 from pydantic import ValidationError
 
-from tools import website_output
+from tools import website_output, website_output_publish
 from tools.website_markdown import render_document
 from tools.website_models import (
     GenerationMetadata,
@@ -85,6 +85,20 @@ def test_write_output_rejects_current_directory_spelled_with_dot_dot() -> None:
             [_document()],
             GenerationMetadata(rest_totals={}),
         )
+
+
+@pytest.mark.parametrize(
+    "output_dir",
+    [
+        Path("raw"),
+        Path("raw/website-contract-probe"),
+        Path("processed"),
+        Path("processed/website-contract-probe"),
+    ],
+)
+def test_write_output_rejects_corpus_directories(output_dir: Path) -> None:
+    with pytest.raises(OutputSafetyError, match="protected path"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
 
 
 def test_write_output_detects_output_replacement_after_validation(
@@ -579,6 +593,18 @@ def test_temporary_output_directories_are_private_with_permissive_umask(
     assert stat.S_IMODE(temporary.stat().st_mode) == 0o700
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
+def test_staged_output_files_are_private_with_permissive_umask(tmp_path: Path) -> None:
+    output_dir = tmp_path / "website"
+    previous_umask = os.umask(0)
+    try:
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    finally:
+        _ = os.umask(previous_umask)
+
+    assert stat.S_IMODE((output_dir / "manifest.json").stat().st_mode) == 0o600
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
 def test_hold_directory_rejects_reparse_substitution_during_open(
     tmp_path: Path,
@@ -649,3 +675,105 @@ def test_hold_directory_rejects_reparse_substitution_during_open(
         hold_directory(parent),
     ):
         pass
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
+def test_write_output_rejects_recovery_junction_substitution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    original_make = make_temporary_directory
+
+    def substitute_recovery(
+        parent: Path,
+        prefix: str,
+        parent_descriptor: int | None,
+    ) -> Path:
+        recovery = original_make(parent, prefix, parent_descriptor)
+        displaced = recovery.with_name(f"{recovery.name}-displaced")
+        _ = recovery.rename(displaced)
+        try:
+            recovery.symlink_to(victim, target_is_directory=True)
+        except OSError:
+            pytest.skip("directory symlinks are unavailable on this runner")
+        return recovery
+
+    monkeypatch.setattr(
+        website_output_publish,
+        "make_temporary_directory",
+        substitute_recovery,
+    )
+
+    with pytest.raises(OutputSafetyError, match="directory changed"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert not (victim / "previous").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows recovery handle lifetime")
+@pytest.mark.parametrize("existing_output", [False, True])
+def test_write_output_closes_recovery_handle_before_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    existing_output: bool,
+) -> None:
+    output_dir = tmp_path / "website"
+    if existing_output:
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    original_rename = os.rename
+    cleanup_observed = False
+
+    if existing_output:
+
+        def mutate_previous_after_move(
+            source: str | Path,
+            destination: str | Path,
+            *,
+            src_dir_fd: int | None = None,
+            dst_dir_fd: int | None = None,
+        ) -> None:
+            original_rename(
+                source,
+                destination,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=dst_dir_fd,
+            )
+            destination_path = _path_at(destination, dst_dir_fd)
+            if destination_path.name == "previous":
+                _ = (destination_path / "changed.txt").write_text(
+                    "changed",
+                    encoding="utf-8",
+                )
+
+        monkeypatch.setattr(os, "rename", mutate_previous_after_move)
+
+    def remove_after_release(
+        recovery: Path,
+        parent_descriptor: int | None,
+        _expected_identity: tuple[int, int],
+    ) -> None:
+        nonlocal cleanup_observed
+        assert parent_descriptor is None
+        displaced = recovery.with_name(f"{recovery.name}-probe")
+        _ = recovery.rename(displaced)
+        _ = displaced.rename(recovery)
+        cleanup_observed = True
+        recovery.rmdir()
+
+    monkeypatch.setattr(
+        website_output_publish, "_remove_recovery", remove_after_release
+    )
+
+    if existing_output:
+        with pytest.raises(OutputSafetyError, match="changed during generation"):
+            write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    else:
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert cleanup_observed
+    assert not tuple(tmp_path.glob(".website-recovery-*"))
