@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
+import anyio
+import httpx2
 import pytest
 
+from tools import website_content
 from tools.website_models import (
+    CrawlPlan,
+    CrawlResult,
     GenerationMetadata,
+    PageSnapshot,
+    RestInventory,
+    RestRecord,
     SourceKind,
     WebsiteDocument,
     WebsiteManifest,
@@ -173,3 +182,62 @@ def test_write_output_records_truncated_crawl_status(tmp_path: Path) -> None:
     )
     assert manifest.crawled_pages == 20
     assert manifest.crawl_truncated is True
+
+
+def test_update_website_prefers_rendered_page_over_empty_rest_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://finki.ukim.mk/notice/"
+    record = RestRecord.model_validate(
+        {
+            "id": 42,
+            "link": url,
+            "slug": "notice",
+            "title": {"rendered": "REST title"},
+            "content": {"rendered": ""},
+            "excerpt": {"rendered": "<p>REST fallback.</p>"},
+            "type": "page",
+        }
+    )
+    captured: list[WebsiteDocument] = []
+
+    async def fake_inventory(_client: httpx2.AsyncClient) -> RestInventory:
+        return RestInventory(records_by_url={url: record}, totals={"pages": 1})
+
+    async def fake_crawl(
+        _client: httpx2.AsyncClient,
+        plan: CrawlPlan,
+    ) -> CrawlResult:
+        assert url in plan.seed_urls
+        return CrawlResult(
+            pages=(
+                PageSnapshot(
+                    final_url=url,
+                    html="<main><h1>Rendered title</h1><p>Rendered body.</p></main>",
+                    links=(),
+                    requested_url=url,
+                    status=200,
+                ),
+            ),
+            requested_count=1,
+            truncated=False,
+        )
+
+    def capture_output(
+        _output_dir: Path,
+        documents: Iterable[WebsiteDocument],
+        _metadata: GenerationMetadata,
+    ) -> None:
+        captured.extend(documents)
+
+    monkeypatch.setattr(website_content, "fetch_rest_inventory", fake_inventory)
+    monkeypatch.setattr(website_content, "crawl_pages", fake_crawl)
+    monkeypatch.setattr(website_content, "write_output", capture_output)
+
+    result = anyio.run(website_content.update_website, tmp_path / "website", 10)
+
+    assert result.document_count == 1
+    assert len(captured) == 1
+    assert captured[0].source_kind is SourceKind.RENDERED
+    assert captured[0].markdown == "Rendered body."

@@ -5,7 +5,6 @@ import socket
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from hashlib import sha256
 from pathlib import Path
 from typing import ClassVar, Final
 from urllib.parse import urlsplit
@@ -48,22 +47,8 @@ def build_documents(
     crawl: CrawlResult,
 ) -> tuple[WebsiteDocument, ...]:
     documents_by_url: dict[str, WebsiteDocument] = {}
-    fingerprints: dict[str, str] = {}
 
     def add(document: WebsiteDocument) -> None:
-        fingerprint = sha256(
-            f"{document.language}\0{document.title}\0{document.markdown}".encode()
-        ).hexdigest()
-        if canonical_url := fingerprints.get(fingerprint):
-            canonical = documents_by_url[canonical_url]
-            documents_by_url[canonical_url] = replace(
-                canonical,
-                aliases=tuple(
-                    sorted({*canonical.aliases, document.url, *document.aliases})
-                ),
-            )
-            return
-        fingerprints[fingerprint] = document.url
         documents_by_url[document.url] = document
 
     redirects = {*crawl.redirects}

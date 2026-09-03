@@ -81,7 +81,7 @@ def test_fetch_rest_inventory_rejects_excessive_pagination() -> None:
     anyio.run(run)
 
 
-def test_build_documents_uses_rendered_fallback_and_deduplicates_aliases() -> None:
+def test_build_documents_preserves_independent_sources_with_equal_content() -> None:
     record = RestRecord.model_validate(
         {
             "id": 7,
@@ -115,9 +115,9 @@ def test_build_documents_uses_rendered_fallback_and_deduplicates_aliases() -> No
         CrawlResult(pages=pages, requested_count=2, truncated=False),
     )
 
-    assert len(documents) == 1
-    assert documents[0].source_kind is SourceKind.RENDERED
-    assert documents[0].aliases == ("https://finki.ukim.mk/team/",)
+    assert len(documents) == 2
+    assert all(document.source_kind is SourceKind.RENDERED for document in documents)
+    assert all(not document.aliases for document in documents)
 
 
 def test_build_documents_uses_excerpt_when_rest_content_has_no_text() -> None:
@@ -212,3 +212,37 @@ def test_build_documents_prefers_record_at_redirect_destination() -> None:
     assert documents[0].wordpress_id == canonical.id
     assert documents[0].markdown == "Canonical content."
     assert documents[0].aliases == (old_url,)
+
+
+def test_build_documents_does_not_emit_fallback_for_rendered_source() -> None:
+    first_url = "https://finki.ukim.mk/a/"
+    fallback_url = "https://finki.ukim.mk/b/"
+    fallback_record = RestRecord.model_validate(
+        {
+            "id": 23,
+            "link": fallback_url,
+            "slug": "b",
+            "title": {"rendered": "Fallback"},
+            "content": {"rendered": ""},
+            "excerpt": {"rendered": "<p>Fallback excerpt.</p>"},
+            "type": "page",
+        }
+    )
+    pages = tuple(
+        PageSnapshot(
+            final_url=url,
+            html="<main><h1>Rendered</h1><p>Same rendered body.</p></main>",
+            links=(),
+            requested_url=url,
+            status=200,
+        )
+        for url in (first_url, fallback_url)
+    )
+
+    documents = build_documents(
+        RestInventory(records_by_url={fallback_url: fallback_record}, totals={}),
+        CrawlResult(pages=pages, requested_count=2, truncated=False),
+    )
+
+    assert {document.url for document in documents} == {first_url, fallback_url}
+    assert all(document.source_kind is SourceKind.RENDERED for document in documents)
