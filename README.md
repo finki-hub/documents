@@ -53,10 +53,10 @@ uv run --locked python -m tools.website_content --output website
 
 The generator combines the public WordPress REST API with a rendered-page crawl because staff listings, archive pages, English pages, subjects, and study programmes are not represented completely by REST records. It follows only canonical `finki.ukim.mk` HTML routes, streams responses before accepting HTML, and limits concurrent requests to four.
 
-Every run replaces the output directory with three deterministic surfaces:
+Every run replaces an empty directory or a prior generator-owned snapshot with three deterministic surfaces. It refuses foreign directories and link-bearing output trees before modifying them:
 
 - `website/documents/{language}/*.md` — one source-attributed Markdown file per canonical page or REST record.
-- `website/manifest.json` — source URLs, aliases, WordPress identities, language, modification metadata, and REST totals.
+- `website/manifest.json` — generator ownership, source URLs, aliases, WordPress identities, language, modification metadata, REST totals, crawled-page count, and whether `--max-pages` truncated the crawl.
 - `website/finki-website.md` — the same documents combined into one portable Markdown file.
 
 Use `--max-pages 20` for a quick network smoke test. For a content refresh, run the full command on a new branch and review `manifest.json`, additions/removals, language balance, and representative rendered-only pages before committing the generated `website/` directory. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
