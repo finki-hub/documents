@@ -231,6 +231,44 @@ def test_document_from_page_neutralizes_escaped_reference_labels() -> None:
     assert "\n\\[a\\]b]: javascript:" in rendered
 
 
+def test_render_document_neutralizes_escaped_inline_link_labels() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[a\\]b](javascript:alert(1))",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    rendered = render_document(document)
+
+    assert "javascript:" not in rendered
+    assert "a\\]b" in rendered
+
+
+def test_render_document_neutralizes_multiline_reference_labels() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click][a\nb]\n\n[a\nb]: javascript:alert(1)",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    rendered = render_document(document)
+
+    assert "\n[a\nb]: javascript:" not in rendered
+    assert "\n\\[a\nb]: javascript:" in rendered
+
+
 def test_document_from_page_neutralizes_markdown_fences() -> None:
     document = document_from_page(
         "<main><h1>Notice</h1><p>```</p><p>following text</p></main>",
