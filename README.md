@@ -59,9 +59,7 @@ Every run replaces an empty directory or a prior generator-owned snapshot with t
 - `website/manifest.json` — generator ownership, source URLs, aliases, WordPress identities, language, modification metadata, REST totals, crawled-page count, and whether `--max-pages` truncated the crawl.
 - `website/finki-website.md` — the same documents combined into one portable Markdown file.
 
-For safety, the generator never recursively deletes temporary paths after they have been exposed in the filesystem. A successful replacement preserves the prior snapshot in a sibling `.website-recovery-*` directory; a failed run may preserve a `.website-*` staging directory. Inspect the current output, then remove those clearly named artifacts manually when they are no longer needed.
-
-A persistent sibling `.website.lock` file serializes publication so concurrent generator runs cannot move or overwrite each other's completed snapshot. It is generated state and remains uncommitted.
+For safety, the generator writes a complete sibling staging snapshot before moving an existing owned snapshot into `.website-recovery-*` and installing the replacement. If installation fails, it restores the prior snapshot when possible and leaves staging or recovery artifacts available for inspection instead of recursively deleting them. The generator is intentionally single-writer; do not run concurrent commands against the same output directory.
 
 Use `--max-pages 20` for a quick network smoke test. For a content refresh, run the full command and review `manifest.json`, additions/removals, language balance, and representative rendered-only pages. Generated `website/` snapshots and their staging/recovery siblings are ignored by Git and must remain uncommitted. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
 
