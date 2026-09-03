@@ -7,6 +7,10 @@ from urllib.parse import urljoin, urlsplit
 from markdownify import markdownify
 from selectolax.parser import HTMLParser, Node
 
+from tools.website_markdown_safety import (
+    neutralize_markdown_blocks,
+    sanitize_markdown_links,
+)
 from tools.website_models import (
     RestRecord,
     SourceKind,
@@ -49,56 +53,6 @@ def _clean_markdown(value: str) -> str:
     cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
-
-
-def _sanitize_markdown_links(value: str) -> str:
-    def replace_unsafe(match: re.Match[str]) -> str:
-        destination = html_module.unescape(match.group("destination")).strip()
-        target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
-        scheme = urlsplit(target).scheme.casefold()
-        image = match.group("image") is not None
-        allowed = {"http", "https"} if image else {"http", "https", "mailto"}
-        return (
-            match.group("label") if scheme and scheme not in allowed else match.group(0)
-        )
-
-    return re.sub(
-        r"(?P<image>!)?\[(?P<label>[^\]\n]*)\]\((?P<destination>[^)\n]*)\)",
-        replace_unsafe,
-        value,
-    )
-
-
-def _neutralize_reference_definition(line: str) -> str:
-    match = re.match(r"(?P<indent>[ ]{0,3})\[", line)
-    if match is None:
-        return line
-    escaped = False
-    for index in range(match.end(), len(line)):
-        character = line[index]
-        if escaped:
-            escaped = False
-        elif character == "\\":
-            escaped = True
-        elif character == "]":
-            return (
-                f"{line[: match.end() - 1]}\\{line[match.end() - 1 :]}"
-                if line[index + 1 :].startswith(":")
-                else line
-            )
-    return line
-
-
-def _neutralize_markdown_blocks(value: str) -> str:
-    value = "".join(
-        _neutralize_reference_definition(line)
-        for line in value.splitlines(keepends=True)
-    )
-    return re.sub(
-        r"(?m)^(?P<indent>[ ]{0,3})(?P<fence>`{3,}|~{3,})",
-        lambda match: f"{match.group('indent')}\\{match.group('fence')}",
-        value,
-    )
 
 
 def _escape_markdown_text(value: str) -> str:
@@ -149,7 +103,7 @@ def _markdown_from_html(value: str, base_url: str) -> str:
     )
     inert_html = converted.replace("<", "&lt;").replace(">", "&gt;")
     return _clean_markdown(
-        _neutralize_markdown_blocks(_sanitize_markdown_links(inert_html))
+        neutralize_markdown_blocks(sanitize_markdown_links(inert_html))
     )
 
 
@@ -247,8 +201,8 @@ def render_document(document: WebsiteDocument) -> str:
     if document.wordpress_type:
         metadata.append(f"wordpress_type: {metadata_value(document.wordpress_type)}")
     safe_title = _escape_markdown_text(document.title)
-    safe_markdown = _neutralize_markdown_blocks(
-        _sanitize_markdown_links(document.markdown)
+    safe_markdown = neutralize_markdown_blocks(
+        sanitize_markdown_links(document.markdown)
     )
     metadata.extend(("-->", "", f"# {safe_title}", "", safe_markdown, ""))
     return "\n".join(metadata)
