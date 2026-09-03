@@ -25,6 +25,11 @@ __all__ = ["OutputSafetyError", "write_output"]
 
 
 def _document_relative_path(document: WebsiteDocument) -> Path:
+    if document.language not in {"en", "mk"}:
+        raise OutputSafetyError(
+            path=Path(document.language),
+            reason="unsupported document language",
+        )
     parsed = urlsplit(document.url)
     identity = unquote(f"{parsed.path}-{parsed.query}").casefold()
     slug = re.sub(r"[^a-z0-9]+", "-", identity).strip("-") or "home"
@@ -48,7 +53,13 @@ def _manifest_entry(document: WebsiteDocument, path: Path) -> ManifestEntry:
 
 
 def _write_staged_text(root: Path, relative_path: Path, content: str) -> None:
-    destination = root / relative_path
+    resolved_root = root.resolve(strict=True)
+    destination = (resolved_root / relative_path).resolve()
+    if not destination.is_relative_to(resolved_root):
+        raise OutputSafetyError(
+            path=destination,
+            reason="staged path escapes temporary directory",
+        )
     destination.parent.mkdir(parents=True, exist_ok=True)
     with destination.open("x", encoding="utf-8", newline="\n") as output:
         _ = output.write(content)
