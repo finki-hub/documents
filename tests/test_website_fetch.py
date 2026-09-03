@@ -245,3 +245,27 @@ def test_crawl_pages_enforces_aggregate_response_byte_limit(
                 )
 
     anyio.run(run)
+
+
+def test_crawl_pages_counts_discarded_response_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(website_fetch, "_MAX_CRAWL_BYTES", 10)
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(
+                lambda _request: httpx2.Response(
+                    200,
+                    headers={"content-type": "application/octet-stream"},
+                    content=b"more than ten bytes",
+                )
+            )
+        ) as client:
+            with pytest.raises(CrawlIncompleteError, match="crawl byte limit exceeded"):
+                _ = await crawl_pages(
+                    client,
+                    CrawlPlan(seed_urls=("https://finki.ukim.mk/file",), max_pages=1),
+                )
+
+    anyio.run(run)
