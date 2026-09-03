@@ -4,7 +4,8 @@ import os
 import re
 import tempfile
 import time
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
@@ -69,6 +70,37 @@ def _is_link(path: Path) -> bool:
     return path.is_symlink() or path.is_junction()
 
 
+def _write_new_text(path: Path, content: str) -> None:
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as output:
+            _ = output.write(content)
+    except OSError as error:
+        raise OutputSafetyError(path=path, reason="staging path changed") from error
+
+
+@contextmanager
+def _hold_staging_directory(path: Path) -> Generator[None]:
+    if os.name != "nt":
+        yield
+        return
+
+    import _winapi
+
+    handle = _winapi.CreateFile(
+        str(path),
+        0,
+        0x00000001 | 0x00000002,
+        0,
+        3,
+        0x02000000,
+        0,
+    )
+    try:
+        yield
+    finally:
+        _winapi.CloseHandle(handle)
+
+
 @dataclass(frozen=True, slots=True)
 class _OutputState:
     identity: tuple[int, int] | None
@@ -104,6 +136,22 @@ def _tree_signature(path: Path) -> tuple[tuple[str, int, int, int, int], ...] | 
     except OSError as error:
         raise OutputSafetyError(
             path=path, reason="changed during generation"
+        ) from error
+
+
+def _validate_staging(path: Path, identity: tuple[int, int]) -> None:
+    if _identity(path) != identity:
+        raise OutputSafetyError(path=path, reason="staging directory changed")
+    try:
+        for entry in path.rglob("*"):
+            if _is_link(entry):
+                raise OutputSafetyError(
+                    path=entry,
+                    reason="link or junction in staging directory",
+                )
+    except OSError as error:
+        raise OutputSafetyError(
+            path=path, reason="staging directory changed"
         ) from error
 
 
@@ -224,35 +272,39 @@ def write_output(
     temporary = Path(
         tempfile.mkdtemp(prefix=f".{state.path.name}-", dir=state.path.parent)
     )
+    temporary_identity = _identity(temporary)
+    if temporary_identity is None:
+        raise OutputSafetyError(path=temporary, reason="staging directory unavailable")
     entries: list[ManifestEntry] = []
-    with (temporary / "finki-website.md").open(
-        "w",
-        encoding="utf-8",
-        newline="\n",
-    ) as combined:
-        for document in ordered:
-            relative_path = _document_relative_path(document)
-            destination = temporary / relative_path
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            rendered = render_document(document)
-            _ = destination.write_text(rendered, encoding="utf-8", newline="\n")
-            if entries:
-                _ = combined.write("\n---\n\n")
-            _ = combined.write(f"{rendered.rstrip()}\n")
-            entries.append(_manifest_entry(document, relative_path))
-    manifest = WebsiteManifest(
-        base_url=BASE_URL,
-        crawled_pages=metadata.crawled_pages,
-        crawl_truncated=metadata.crawl_truncated,
-        document_count=len(entries),
-        documents=tuple(entries),
-        generator="finki-website-content",
-        rest_totals=dict(sorted(metadata.rest_totals.items())),
-        schema_version=2,
-    )
-    _ = (temporary / "manifest.json").write_text(
-        manifest.model_dump_json(indent=2) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
+    with _hold_staging_directory(temporary):
+        with (temporary / "finki-website.md").open(
+            "x",
+            encoding="utf-8",
+            newline="\n",
+        ) as combined:
+            for document in ordered:
+                relative_path = _document_relative_path(document)
+                destination = temporary / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                rendered = render_document(document)
+                _write_new_text(destination, rendered)
+                if entries:
+                    _ = combined.write("\n---\n\n")
+                _ = combined.write(f"{rendered.rstrip()}\n")
+                entries.append(_manifest_entry(document, relative_path))
+        manifest = WebsiteManifest(
+            base_url=BASE_URL,
+            crawled_pages=metadata.crawled_pages,
+            crawl_truncated=metadata.crawl_truncated,
+            document_count=len(entries),
+            documents=tuple(entries),
+            generator="finki-website-content",
+            rest_totals=dict(sorted(metadata.rest_totals.items())),
+            schema_version=2,
+        )
+        _write_new_text(
+            temporary / "manifest.json",
+            manifest.model_dump_json(indent=2) + "\n",
+        )
+        _validate_staging(temporary, temporary_identity)
     _commit_snapshot(state, temporary)

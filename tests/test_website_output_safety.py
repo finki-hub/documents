@@ -200,3 +200,29 @@ def test_write_output_preserves_mismatched_tree_when_rollback_fails(
     assert (recovery_directories[0] / "previous" / "foreign.txt").read_text(
         encoding="utf-8"
     ) == "foreign"
+
+
+def test_write_output_rejects_substituted_staging_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    victim = tmp_path / "victim.txt"
+    _ = victim.write_text("keep", encoding="utf-8")
+
+    def substitute_staging(document: WebsiteDocument) -> str:
+        staging = next(tmp_path.glob(".website-*"))
+        _ = staging.rename(tmp_path / "displaced-staging")
+        (staging / "documents" / "mk").mkdir(parents=True)
+        try:
+            (staging / "manifest.json").symlink_to(victim)
+        except OSError:
+            pytest.skip("symlinks are unavailable on this runner")
+        return render_document(document)
+
+    monkeypatch.setattr(website_output, "render_document", substitute_staging)
+
+    with pytest.raises(OSError):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert victim.read_text(encoding="utf-8") == "keep"
