@@ -3,8 +3,17 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import StrEnum
+from posixpath import normpath
 from typing import ClassVar, Final, Literal
-from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
+from urllib.parse import (
+    parse_qsl,
+    quote,
+    unquote,
+    urlencode,
+    urljoin,
+    urlsplit,
+    urlunsplit,
+)
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
@@ -90,6 +99,7 @@ class CrawlResult:
     pages: tuple[PageSnapshot, ...]
     requested_count: int
     truncated: bool
+    redirects: tuple[tuple[str, str], ...] = ()
 
     def __iter__(self) -> Iterator[PageSnapshot]:
         return iter(self.pages)
@@ -138,25 +148,52 @@ class WebsiteManifest(BaseModel):
     crawl_truncated: bool = False
     document_count: int
     documents: tuple[ManifestEntry, ...]
-    generator: Literal["finki-website-content"] = "finki-website-content"
+    generator: Literal["finki-website-content"]
     rest_totals: dict[str, int]
-    schema_version: int = 2
+    schema_version: Literal[2]
 
 
-def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
+def _normalized_path(raw_path: str) -> str:
+    decoded = unquote(raw_path or "/")
+    normalized = normpath(f"/{decoded.lstrip('/')}")
+    if decoded.endswith("/") and normalized != "/":
+        normalized = f"{normalized}/"
+    return quote(normalized, safe="/!$&'()*+,-.;=:@_~")
+
+
+def _public_url(raw_url: str, base_url: str) -> tuple[str, str] | None:
     parsed = urlsplit(urljoin(base_url, raw_url))
     if parsed.scheme not in {"http", "https"}:
         return None
     if (parsed.hostname or "").casefold() not in PUBLIC_HOSTS:
         return None
-    path = parsed.path or "/"
-    if path.startswith(("/wp-admin", "/wp-json")) or "/feed/" in path:
+    return _normalized_path(parsed.path), parsed.query
+
+
+def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
+    public_url = _public_url(raw_url, base_url)
+    if public_url is None:
+        return None
+    path, raw_query = public_url
+    folded_path = path.casefold()
+    if folded_path.startswith(("/wp-admin", "/wp-json")) or "/feed/" in folded_path:
         return None
     query = urlencode(
-        sorted(
-            (key, value) for key, value in parse_qsl(parsed.query) if key in QUERY_KEYS
-        )
+        sorted((key, value) for key, value in parse_qsl(raw_query) if key in QUERY_KEYS)
     )
+    return urlunsplit(("https", "finki.ukim.mk", path, query, ""))
+
+
+def normalize_rest_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
+    public_url = _public_url(raw_url, base_url)
+    if public_url is None:
+        return None
+    path, query = public_url
+    folded_path = path.casefold().rstrip("/")
+    if folded_path != "/wp-json/wp/v2" and not folded_path.startswith(
+        "/wp-json/wp/v2/"
+    ):
+        return None
     return urlunsplit(("https", "finki.ukim.mk", path, query, ""))
 
 

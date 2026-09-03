@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable
 from dataclasses import replace
 from hashlib import sha256
-from typing import Final, final, override
-from urllib.parse import urlencode, urlsplit
+from typing import final, override
+from urllib.parse import urlsplit
 
 import anyio
 import httpx2
@@ -13,21 +12,15 @@ from selectolax.parser import HTMLParser
 
 from tools.website_http import (
     PAGE_FETCH_POLICY,
-    REST_FETCH_POLICY,
     PublicFetchError,
     fetch_public,
 )
 from tools.website_markdown import document_from_page, document_from_rest
 from tools.website_models import (
-    BASE_URL,
-    REST_RECORDS,
-    REST_TYPES,
-    TEXT_REST_BASES,
     CrawlPlan,
     CrawlResult,
     PageSnapshot,
     RestInventory,
-    RestRecord,
     WebsiteDocument,
     normalize_url,
 )
@@ -58,7 +51,6 @@ _ASSET_SUFFIXES = (
     ".xlsx",
     ".zip",
 )
-_MAX_REST_PAGES: Final = 100
 
 
 @final
@@ -73,47 +65,6 @@ class CrawlIncompleteError(RuntimeError):
     @override
     def __str__(self) -> str:
         return "; ".join(str(failure) for failure in self.failures)
-
-
-async def fetch_rest_inventory(client: httpx2.AsyncClient) -> RestInventory:
-    types_response = await fetch_public(
-        client,
-        f"{BASE_URL}wp-json/wp/v2/types",
-        REST_FETCH_POLICY,
-    )
-    rest_types = REST_TYPES.validate_json(types_response.body)
-    records_by_url: dict[str, RestRecord] = {}
-    totals: dict[str, int] = {}
-    for rest_type in sorted(rest_types.values(), key=lambda item: item.rest_base or ""):
-        rest_base = rest_type.rest_base
-        if rest_base not in TEXT_REST_BASES:
-            continue
-        endpoint = f"{BASE_URL}wp-json/wp/v2/{rest_base}"
-        response = await fetch_public(
-            client,
-            f"{endpoint}?{urlencode({'page': 1, 'per_page': 100})}",
-            REST_FETCH_POLICY,
-        )
-        total_pages = int(response.headers.get("X-WP-TotalPages", "1"))
-        if total_pages > _MAX_REST_PAGES:
-            raise PublicFetchError(
-                reason="REST pagination limit exceeded", url=endpoint
-            )
-        totals[rest_base] = int(response.headers.get("X-WP-Total", "0"))
-        responses = [response]
-        for page in range(2, total_pages + 1):
-            next_response = await fetch_public(
-                client,
-                f"{endpoint}?{urlencode({'page': page, 'per_page': 100})}",
-                REST_FETCH_POLICY,
-            )
-            responses.append(next_response)
-        for page_response in responses:
-            for record in REST_RECORDS.validate_json(page_response.body):
-                canonical_url = normalize_url(record.link)
-                if canonical_url is not None:
-                    records_by_url[canonical_url] = record
-    return RestInventory(records_by_url=records_by_url, totals=totals)
 
 
 def _page_links(html: str, url: str) -> tuple[str, ...]:
@@ -153,11 +104,12 @@ async def crawl_pages(
     client: httpx2.AsyncClient,
     plan: CrawlPlan,
 ) -> CrawlResult:
-    frontier: deque[str] = deque()
+    seed_frontier: deque[str] = deque()
+    discovered_frontier: deque[str] = deque()
     queued: set[str] = set()
     for url in plan.seed_urls:
-        if (normalized := normalize_url(url)) is not None:
-            frontier.append(normalized)
+        if (normalized := normalize_url(url)) is not None and normalized not in queued:
+            seed_frontier.append(normalized)
             queued.add(normalized)
     discovery_only_urls = {
         normalized
@@ -166,10 +118,13 @@ async def crawl_pages(
     }
     visited: set[str] = set()
     snapshots: dict[str, PageSnapshot] = {}
+    redirects: set[tuple[str, str]] = set()
     requested_count = 0
-    while frontier and requested_count < plan.max_pages:
+    while (seed_frontier or discovered_frontier) and requested_count < plan.max_pages:
         batch: list[str] = []
-        while frontier and len(batch) < min(4, plan.max_pages - requested_count):
+        batch_limit = min(4, plan.max_pages - requested_count)
+        while (seed_frontier or discovered_frontier) and len(batch) < batch_limit:
+            frontier = seed_frontier if seed_frontier else discovered_frontier
             url = frontier.popleft()
             queued.discard(url)
             if url in visited:
@@ -204,6 +159,7 @@ async def crawl_pages(
             results,
             key=lambda item: (item.final_url, item.requested_url),
         ):
+            redirects.update((snapshot.final_url, alias) for alias in snapshot.aliases)
             if snapshot.requested_url not in discovery_only_urls:
                 if existing := snapshots.get(snapshot.final_url):
                     snapshots[snapshot.final_url] = replace(
@@ -214,20 +170,21 @@ async def crawl_pages(
                 else:
                     snapshots[snapshot.final_url] = snapshot
             discovered.update(snapshot.links)
-        for link in sorted(discovered, reverse=True):
+        for link in sorted(discovered):
             if link not in visited and link not in queued:
-                frontier.appendleft(link)
+                discovered_frontier.append(link)
                 queued.add(link)
     return CrawlResult(
         pages=tuple(snapshots[url] for url in sorted(snapshots)),
         requested_count=requested_count,
-        truncated=bool(frontier),
+        truncated=bool(seed_frontier or discovered_frontier),
+        redirects=tuple(sorted(redirects)),
     )
 
 
 def build_documents(
     inventory: RestInventory,
-    pages: Iterable[PageSnapshot],
+    crawl: CrawlResult,
 ) -> tuple[WebsiteDocument, ...]:
     documents_by_url: dict[str, WebsiteDocument] = {}
     fingerprints: dict[str, str] = {}
@@ -248,15 +205,53 @@ def build_documents(
         fingerprints[fingerprint] = document.url
         documents_by_url[document.url] = document
 
+    redirects = {*crawl.redirects}
+    redirects.update(
+        (page.final_url, alias) for page in crawl.pages for alias in page.aliases
+    )
+    aliases_by_url: dict[str, set[str]] = {}
+    final_by_alias = {alias: final_url for final_url, alias in redirects}
+    for final_url, alias in redirects:
+        aliases_by_url.setdefault(final_url, set()).add(alias)
+
+    rest_fallbacks: list[WebsiteDocument] = []
     for _url, record in sorted(inventory.records_by_url.items()):
-        document = document_from_rest(record)
+        document = document_from_rest(record, include_excerpt=False)
+        final_url = final_by_alias.get(document.url, document.url)
+        aliases = aliases_by_url.get(final_url, set())
+        if final_url != document.url:
+            aliases.add(document.url)
+        document = replace(
+            document,
+            aliases=tuple(sorted(aliases)),
+            url=final_url,
+        )
         if document.markdown:
             add(document)
-    for page in sorted(pages, key=lambda item: item.final_url):
-        if (
-            page.final_url in documents_by_url
-            or "pg=" in urlsplit(page.final_url).query
-        ):
+        else:
+            fallback = replace(
+                document_from_rest(record),
+                aliases=document.aliases,
+                url=document.url,
+            )
+            if fallback.markdown:
+                rest_fallbacks.append(fallback)
+    for page in sorted(crawl.pages, key=lambda item: item.final_url):
+        if existing := documents_by_url.get(page.final_url):
+            documents_by_url[page.final_url] = replace(
+                existing,
+                aliases=tuple(
+                    sorted(
+                        {
+                            *existing.aliases,
+                            *page.aliases,
+                            *aliases_by_url.get(page.final_url, set()),
+                        }
+                    )
+                ),
+            )
+            continue
+        if "pg=" in urlsplit(page.final_url).query:
             continue
         document = replace(
             document_from_page(page.html, page.final_url),
@@ -264,4 +259,7 @@ def build_documents(
         )
         if len(f"{document.title} {document.markdown}".strip()) >= 20:
             add(document)
+    for fallback in rest_fallbacks:
+        if fallback.url not in documents_by_url:
+            add(fallback)
     return tuple(documents_by_url[url] for url in sorted(documents_by_url))

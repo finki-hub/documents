@@ -2,14 +2,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, final, override
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import urlencode
 
 import httpx2
 
-from tools.website_models import PUBLIC_HOSTS, normalize_url
+from tools.website_models import (
+    BASE_URL,
+    REST_RECORDS,
+    REST_TYPES,
+    TEXT_REST_BASES,
+    RestInventory,
+    RestRecord,
+    normalize_rest_url,
+    normalize_url,
+)
 
 _REDIRECT_STATUSES: Final = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS: Final = 5
+_MAX_REST_PAGES: Final = 100
+_MAX_REST_BYTES: Final = 200_000_000
+_MAX_REST_RECORDS: Final = 100_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,17 +66,15 @@ REST_FETCH_POLICY: Final = FetchPolicy(allow_rest=True, max_bytes=20_000_000)
 
 
 def _safe_url(raw_url: str, base_url: str, policy: FetchPolicy) -> str:
-    if not policy.allow_rest:
-        normalized = normalize_url(raw_url, base_url)
-        if normalized is None:
-            raise PublicFetchError(reason="unsafe public URL", url=raw_url)
-        return normalized
-    parsed = urlsplit(urljoin(base_url, raw_url))
-    if parsed.scheme not in {"http", "https"}:
-        raise PublicFetchError(reason="unsafe URL scheme", url=raw_url)
-    if (parsed.hostname or "").casefold() not in PUBLIC_HOSTS:
-        raise PublicFetchError(reason="unsafe public host", url=raw_url)
-    return urlunsplit(("https", "finki.ukim.mk", parsed.path or "/", parsed.query, ""))
+    normalized = (
+        normalize_rest_url(raw_url, base_url)
+        if policy.allow_rest
+        else normalize_url(raw_url, base_url)
+    )
+    if normalized is None:
+        reason = "unsafe REST URL" if policy.allow_rest else "unsafe public URL"
+        raise PublicFetchError(reason=reason, url=raw_url)
+    return normalized
 
 
 async def _read_body(response: httpx2.Response, policy: FetchPolicy) -> bytes:
@@ -141,3 +151,53 @@ async def fetch_public(
                 )
     except httpx2.HTTPError as error:
         raise PublicFetchError(reason=type(error).__name__, url=current_url) from error
+
+
+async def fetch_rest_inventory(client: httpx2.AsyncClient) -> RestInventory:
+    types_response = await fetch_public(
+        client,
+        f"{BASE_URL}wp-json/wp/v2/types",
+        REST_FETCH_POLICY,
+    )
+    rest_types = REST_TYPES.validate_json(types_response.body)
+    records_by_url: dict[str, RestRecord] = {}
+    totals: dict[str, int] = {}
+    fetched_bases: set[str] = set()
+    received_bytes = len(types_response.body)
+    received_records = 0
+    for rest_type in sorted(rest_types.values(), key=lambda item: item.rest_base or ""):
+        rest_base = rest_type.rest_base
+        if rest_base not in TEXT_REST_BASES or rest_base in fetched_bases:
+            continue
+        fetched_bases.add(rest_base)
+        endpoint = f"{BASE_URL}wp-json/wp/v2/{rest_base}"
+        response = await fetch_public(
+            client,
+            f"{endpoint}?{urlencode({'page': 1, 'per_page': 100})}",
+            REST_FETCH_POLICY,
+        )
+        total_pages = int(response.headers.get("X-WP-TotalPages", "1"))
+        if total_pages > _MAX_REST_PAGES:
+            raise PublicFetchError(
+                reason="REST pagination limit exceeded", url=endpoint
+            )
+        totals[rest_base] = int(response.headers.get("X-WP-Total", "0"))
+        for page in range(1, total_pages + 1):
+            if page > 1:
+                response = await fetch_public(
+                    client,
+                    f"{endpoint}?{urlencode({'page': page, 'per_page': 100})}",
+                    REST_FETCH_POLICY,
+                )
+            received_bytes += len(response.body)
+            page_records = REST_RECORDS.validate_json(response.body)
+            received_records += len(page_records)
+            if received_bytes > _MAX_REST_BYTES or received_records > _MAX_REST_RECORDS:
+                raise PublicFetchError(
+                    reason="REST inventory limit exceeded", url=endpoint
+                )
+            for record in page_records:
+                canonical_url = normalize_url(record.link)
+                if canonical_url is not None:
+                    records_by_url[canonical_url] = record
+    return RestInventory(records_by_url=records_by_url, totals=totals)

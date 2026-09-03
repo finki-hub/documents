@@ -6,8 +6,15 @@ import anyio
 import httpx2
 import pytest
 
-from tools.website_fetch import build_documents, fetch_rest_inventory
-from tools.website_models import PageSnapshot, RestInventory, RestRecord, SourceKind
+from tools.website_fetch import build_documents
+from tools.website_http import fetch_rest_inventory
+from tools.website_models import (
+    CrawlResult,
+    PageSnapshot,
+    RestInventory,
+    RestRecord,
+    SourceKind,
+)
 
 
 def test_fetch_rest_inventory_paginates_viewable_text_types() -> None:
@@ -103,7 +110,10 @@ def test_build_documents_uses_rendered_fallback_and_deduplicates_aliases() -> No
         ),
     )
 
-    documents = build_documents(inventory, pages)
+    documents = build_documents(
+        inventory,
+        CrawlResult(pages=pages, requested_count=2, truncated=False),
+    )
 
     assert len(documents) == 1
     assert documents[0].source_kind is SourceKind.RENDERED
@@ -124,6 +134,9 @@ def test_build_documents_uses_excerpt_when_rest_content_has_no_text() -> None:
     )
     inventory = RestInventory(records_by_url={record.link: record}, totals={})
 
-    documents = build_documents(inventory, ())
+    documents = build_documents(
+        inventory,
+        CrawlResult(pages=(), requested_count=0, truncated=False),
+    )
 
     assert documents[0].markdown == "Useful summary."
