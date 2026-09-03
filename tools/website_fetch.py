@@ -11,6 +11,7 @@ from selectolax.parser import HTMLParser
 
 from tools.website_http import (
     PAGE_FETCH_POLICY,
+    NonPublicRedirectError,
     PublicFetchError,
     fetch_public,
 )
@@ -47,7 +48,7 @@ _ASSET_SUFFIXES = (
     ".xlsx",
     ".zip",
 )
-_MAX_CRAWL_BYTES: Final = 250_000_000
+_MAX_CRAWL_BYTES: Final = 1_000_000_000
 _MAX_CRAWL_URLS: Final = 100_000
 
 
@@ -153,6 +154,8 @@ async def crawl_pages(
         ) -> None:
             try:
                 output.append(await _fetch_page(client, url))
+            except NonPublicRedirectError:
+                return
             except PublicFetchError as error:
                 output_failures.append(error)
 

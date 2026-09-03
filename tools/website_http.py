@@ -41,9 +41,8 @@ class PublicResponse:
     url: str
 
 
-@final
 class PublicFetchError(RuntimeError):
-    __slots__ = ("reason", "url")
+    __slots__: tuple[str, str] = ("reason", "url")
     reason: str
     url: str
 
@@ -55,6 +54,11 @@ class PublicFetchError(RuntimeError):
     @override
     def __str__(self) -> str:
         return f"{self.reason}: {self.url}"
+
+
+@final
+class NonPublicRedirectError(PublicFetchError):
+    pass
 
 
 PAGE_FETCH_POLICY: Final = FetchPolicy(
@@ -130,7 +134,13 @@ async def fetch_public(
                             reason="redirect limit exceeded",
                             url=current_url,
                         )
-                    current_url = _safe_url(location, current_url, policy)
+                    try:
+                        current_url = _safe_url(location, current_url, policy)
+                    except PublicFetchError as error:
+                        raise NonPublicRedirectError(
+                            reason=error.reason,
+                            url=error.url,
+                        ) from error
                     continue
                 if (
                     response.status_code >= 400
