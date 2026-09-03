@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import sys
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -501,7 +502,7 @@ def test_write_output_does_not_follow_substituted_staging_child(
                 dir_fd=dir_fd,
             )
 
-    if os.name == "nt":
+    if sys.platform == "win32":
         monkeypatch.setattr(Path, "mkdir", substitute_language_directory)
     else:
         monkeypatch.setattr(os, "mkdir", substitute_posix_language_directory)
@@ -575,7 +576,7 @@ def test_write_output_rejects_parent_swap_during_lock_acquisition(
     assert not output_dir.exists()
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX directory permissions")
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX directory permissions")
 def test_temporary_output_directories_are_private_with_permissive_umask(
     tmp_path: Path,
 ) -> None:
@@ -593,7 +594,7 @@ def test_temporary_output_directories_are_private_with_permissive_umask(
     assert stat.S_IMODE(temporary.stat().st_mode) == 0o700
 
 
-@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file permissions")
 def test_staged_output_files_are_private_with_permissive_umask(tmp_path: Path) -> None:
     output_dir = tmp_path / "website"
     previous_umask = os.umask(0)
@@ -605,11 +606,12 @@ def test_staged_output_files_are_private_with_permissive_umask(tmp_path: Path) -
     assert stat.S_IMODE((output_dir / "manifest.json").stat().st_mode) == 0o600
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
 def test_hold_directory_rejects_reparse_substitution_during_open(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    if sys.platform != "win32":
+        pytest.skip("Windows reparse-point handles")
     import _winapi
 
     parent = tmp_path / "parent"
@@ -678,7 +680,7 @@ def test_hold_directory_rejects_reparse_substitution_during_open(
         hold_substituted_parent()
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows reparse-point handles")
 def test_write_output_rejects_recovery_junction_substitution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -715,7 +717,7 @@ def test_write_output_rejects_recovery_junction_substitution(
     assert not (victim / "previous").exists()
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows recovery handle lifetime")
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows recovery handle lifetime")
 @pytest.mark.parametrize("existing_output", [False, True])
 def test_write_output_closes_recovery_handle_before_cleanup(
     tmp_path: Path,

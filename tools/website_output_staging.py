@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Generator
 from contextlib import ExitStack, contextmanager, suppress
 from pathlib import Path
@@ -23,6 +24,8 @@ def _hold_windows_directory(
     path: Path,
     expected_identity: tuple[int, int] | None = None,
 ) -> Generator[None]:
+    if sys.platform != "win32":
+        raise RuntimeError("Windows directory handles require Windows")
     import _winapi
     import msvcrt
 
@@ -96,6 +99,8 @@ def _write_posix_at(
     content: str,
     directory_flags: int,
 ) -> None:
+    if sys.platform == "win32":
+        raise RuntimeError("descriptor-relative writes require POSIX")
     if components:
         component = components[0]
         with suppress(FileExistsError):
@@ -133,6 +138,8 @@ def _write_posix(
     content: str,
     root_identity: tuple[int, int],
 ) -> None:
+    if sys.platform == "win32":
+        raise RuntimeError("descriptor-relative writes require POSIX")
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
         directory = os.open(root, directory_flags)
@@ -166,7 +173,7 @@ def write_staged_text(
 ) -> None:
     if relative_path.is_absolute() or ".." in relative_path.parts:
         raise OutputSafetyError(path=relative_path, reason="invalid staging path")
-    if os.name == "nt":
+    if sys.platform == "win32":
         _write_windows(root, relative_path, content, root_identity)
         return
     _write_posix(root, relative_path, content, root_identity)

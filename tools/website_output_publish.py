@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -99,6 +100,8 @@ def _hold_recovery(
         with hold_directory(recovery):
             yield None
         return
+    if sys.platform == "win32":
+        raise RuntimeError("directory descriptors require POSIX")
     try:
         recovery_descriptor = os.open(
             recovery.name,

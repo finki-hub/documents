@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import sys
 import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -86,7 +87,7 @@ def tree_signature(path: Path) -> TreeSignature | None:
 
 @contextmanager
 def hold_directory(path: Path) -> Generator[int | None]:
-    if os.name != "nt":
+    if sys.platform != "win32":
         before = identity(path)
         if before is None or is_link(path):
             raise OutputSafetyError(path=path, reason="directory changed")
