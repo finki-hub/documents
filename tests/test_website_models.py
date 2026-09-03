@@ -17,6 +17,7 @@ def test_normalize_url_rejects_non_content_routes() -> None:
     assert normalize_url("https://example.com/page", "https://finki.ukim.mk/") is None
     assert normalize_url("/wp-json/wp/v2/pages", "https://finki.ukim.mk/") is None
     assert normalize_url("/announcements/feed/", "https://finki.ukim.mk/") is None
+    assert normalize_url("http://[") is None
 
 
 @pytest.mark.parametrize(
