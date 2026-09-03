@@ -198,3 +198,31 @@ def test_render_document_neutralizes_markdown_syntax_from_untrusted_text() -> No
     assert "![track](" not in rendered
     assert "click" in rendered
     assert "track" in rendered
+
+
+def test_document_from_page_neutralizes_reference_link_definitions() -> None:
+    document = document_from_page(
+        (
+            "<main><h1>Notice</h1><p>[click][target]</p>"
+            "<p>[target]: javascript:alert(1)</p></main>"
+        ),
+        "https://finki.ukim.mk/notice/",
+    )
+
+    rendered = render_document(document)
+
+    assert "\n[target]: javascript:" not in rendered
+    assert "\n\\[target]: javascript:" in rendered
+    assert "click" in rendered
+
+
+def test_document_from_page_neutralizes_markdown_fences() -> None:
+    document = document_from_page(
+        "<main><h1>Notice</h1><p>```</p><p>following text</p></main>",
+        "https://finki.ukim.mk/notice/",
+    )
+
+    rendered = render_document(document)
+
+    assert not any(line.startswith("```") for line in rendered.splitlines())
+    assert "following text" in rendered

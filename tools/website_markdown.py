@@ -69,6 +69,19 @@ def _sanitize_markdown_links(value: str) -> str:
     )
 
 
+def _neutralize_markdown_blocks(value: str) -> str:
+    value = re.sub(
+        r"(?m)^(?P<indent>[ ]{0,3})\[(?P<label>[^\]\r\n]+)\]:",
+        lambda match: f"{match.group('indent')}\\[{match.group('label')}]:",
+        value,
+    )
+    return re.sub(
+        r"(?m)^(?P<indent>[ ]{0,3})(?P<fence>`{3,}|~{3,})",
+        lambda match: f"{match.group('indent')}\\{match.group('fence')}",
+        value,
+    )
+
+
 def _escape_markdown_text(value: str) -> str:
     escaped = html_module.escape(value, quote=False).replace("\\", "\\\\")
     return re.sub(r"([`*_{}\[\]()#+.!|-])", r"\\\1", escaped)
@@ -116,7 +129,9 @@ def _markdown_from_html(value: str, base_url: str) -> str:
         strip=["script", "style", "noscript", "template", "svg"],
     )
     inert_html = converted.replace("<", "&lt;").replace(">", "&gt;")
-    return _clean_markdown(_sanitize_markdown_links(inert_html))
+    return _clean_markdown(
+        _neutralize_markdown_blocks(_sanitize_markdown_links(inert_html))
+    )
 
 
 def _content_root(parser: HTMLParser) -> Node:
@@ -213,6 +228,8 @@ def render_document(document: WebsiteDocument) -> str:
     if document.wordpress_type:
         metadata.append(f"wordpress_type: {metadata_value(document.wordpress_type)}")
     safe_title = _escape_markdown_text(document.title)
-    safe_markdown = _sanitize_markdown_links(document.markdown)
+    safe_markdown = _neutralize_markdown_blocks(
+        _sanitize_markdown_links(document.markdown)
+    )
     metadata.extend(("-->", "", f"# {safe_title}", "", safe_markdown, ""))
     return "\n".join(metadata)
