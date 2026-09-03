@@ -5,7 +5,8 @@ import httpx2
 import pytest
 
 from tools import website_http
-from tools.website_fetch import build_documents, crawl_pages
+from tools.website_content import build_documents
+from tools.website_fetch import crawl_pages
 from tools.website_http import (
     PAGE_FETCH_POLICY,
     PublicFetchError,

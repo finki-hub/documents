@@ -6,7 +6,7 @@ import anyio
 import httpx2
 import pytest
 
-from tools.website_fetch import build_documents
+from tools.website_content import build_documents
 from tools.website_http import fetch_rest_inventory
 from tools.website_models import (
     CrawlResult,
@@ -140,3 +140,75 @@ def test_build_documents_uses_excerpt_when_rest_content_has_no_text() -> None:
     )
 
     assert documents[0].markdown == "Useful summary."
+
+
+def test_build_documents_uses_rest_excerpt_when_rendered_page_is_title_only() -> None:
+    url = "https://finki.ukim.mk/title-only/"
+    record = RestRecord.model_validate(
+        {
+            "id": 20,
+            "link": url,
+            "slug": "title-only",
+            "title": {"rendered": "A sufficiently long title"},
+            "content": {"rendered": ""},
+            "excerpt": {"rendered": "<p>Useful REST summary.</p>"},
+            "type": "page",
+        }
+    )
+    page = PageSnapshot(
+        final_url=url,
+        html="<main><h1>A sufficiently long title</h1></main>",
+        links=(),
+        requested_url=url,
+        status=200,
+    )
+
+    documents = build_documents(
+        RestInventory(records_by_url={url: record}, totals={}),
+        CrawlResult(pages=(page,), requested_count=1, truncated=False),
+    )
+
+    assert documents[0].source_kind is SourceKind.REST
+    assert documents[0].markdown == "Useful REST summary."
+
+
+def test_build_documents_prefers_record_at_redirect_destination() -> None:
+    final_url = "https://finki.ukim.mk/a-new/"
+    old_url = "https://finki.ukim.mk/z-old/"
+    canonical = RestRecord.model_validate(
+        {
+            "id": 21,
+            "link": final_url,
+            "slug": "a-new",
+            "title": {"rendered": "Canonical"},
+            "content": {"rendered": "<p>Canonical content.</p>"},
+            "type": "page",
+        }
+    )
+    redirected = RestRecord.model_validate(
+        {
+            "id": 22,
+            "link": old_url,
+            "slug": "z-old",
+            "title": {"rendered": "Stale"},
+            "content": {"rendered": "<p>Stale content.</p>"},
+            "type": "page",
+        }
+    )
+
+    documents = build_documents(
+        RestInventory(
+            records_by_url={final_url: canonical, old_url: redirected},
+            totals={},
+        ),
+        CrawlResult(
+            pages=(),
+            requested_count=0,
+            truncated=False,
+            redirects=((final_url, old_url),),
+        ),
+    )
+
+    assert documents[0].wordpress_id == canonical.id
+    assert documents[0].markdown == "Canonical content."
+    assert documents[0].aliases == (old_url,)

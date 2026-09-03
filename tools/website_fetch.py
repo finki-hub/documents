@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import replace
-from hashlib import sha256
-from typing import final, override
+from typing import Final, final, override
 from urllib.parse import urlsplit
 
 import anyio
@@ -15,13 +14,10 @@ from tools.website_http import (
     PublicFetchError,
     fetch_public,
 )
-from tools.website_markdown import document_from_page, document_from_rest
 from tools.website_models import (
     CrawlPlan,
     CrawlResult,
     PageSnapshot,
-    RestInventory,
-    WebsiteDocument,
     normalize_url,
 )
 
@@ -51,6 +47,8 @@ _ASSET_SUFFIXES = (
     ".xlsx",
     ".zip",
 )
+_MAX_CRAWL_BYTES: Final = 250_000_000
+_MAX_CRAWL_URLS: Final = 100_000
 
 
 @final
@@ -97,6 +95,7 @@ async def _fetch_page(
         requested_url=requested_url,
         status=response.status,
         aliases=aliases,
+        size_bytes=len(response.body),
     )
 
 
@@ -120,6 +119,7 @@ async def crawl_pages(
     snapshots: dict[str, PageSnapshot] = {}
     redirects: set[tuple[str, str]] = set()
     requested_count = 0
+    received_bytes = 0
     while (seed_frontier or discovered_frontier) and requested_count < plan.max_pages:
         batch: list[str] = []
         batch_limit = min(4, plan.max_pages - requested_count)
@@ -154,6 +154,16 @@ async def crawl_pages(
                 _ = tasks.start_soon(fetch, url, results, failures)
         if failures:
             raise CrawlIncompleteError(tuple(failures))
+        received_bytes += sum(snapshot.size_bytes for snapshot in results)
+        if received_bytes > _MAX_CRAWL_BYTES:
+            raise CrawlIncompleteError(
+                (
+                    PublicFetchError(
+                        reason="crawl byte limit exceeded",
+                        url=results[-1].final_url,
+                    ),
+                )
+            )
         discovered: set[str] = set()
         for snapshot in sorted(
             results,
@@ -172,6 +182,10 @@ async def crawl_pages(
             discovered.update(snapshot.links)
         for link in sorted(discovered):
             if link not in visited and link not in queued:
+                if len(visited) + len(queued) >= _MAX_CRAWL_URLS:
+                    raise CrawlIncompleteError(
+                        (PublicFetchError(reason="crawl URL limit exceeded", url=link),)
+                    )
                 discovered_frontier.append(link)
                 queued.add(link)
     return CrawlResult(
@@ -180,86 +194,3 @@ async def crawl_pages(
         truncated=bool(seed_frontier or discovered_frontier),
         redirects=tuple(sorted(redirects)),
     )
-
-
-def build_documents(
-    inventory: RestInventory,
-    crawl: CrawlResult,
-) -> tuple[WebsiteDocument, ...]:
-    documents_by_url: dict[str, WebsiteDocument] = {}
-    fingerprints: dict[str, str] = {}
-
-    def add(document: WebsiteDocument) -> None:
-        fingerprint = sha256(
-            f"{document.language}\0{document.title}\0{document.markdown}".encode()
-        ).hexdigest()
-        if canonical_url := fingerprints.get(fingerprint):
-            canonical = documents_by_url[canonical_url]
-            documents_by_url[canonical_url] = replace(
-                canonical,
-                aliases=tuple(
-                    sorted({*canonical.aliases, document.url, *document.aliases})
-                ),
-            )
-            return
-        fingerprints[fingerprint] = document.url
-        documents_by_url[document.url] = document
-
-    redirects = {*crawl.redirects}
-    redirects.update(
-        (page.final_url, alias) for page in crawl.pages for alias in page.aliases
-    )
-    aliases_by_url: dict[str, set[str]] = {}
-    final_by_alias = {alias: final_url for final_url, alias in redirects}
-    for final_url, alias in redirects:
-        aliases_by_url.setdefault(final_url, set()).add(alias)
-
-    rest_fallbacks: list[WebsiteDocument] = []
-    for _url, record in sorted(inventory.records_by_url.items()):
-        document = document_from_rest(record, include_excerpt=False)
-        final_url = final_by_alias.get(document.url, document.url)
-        aliases = aliases_by_url.get(final_url, set())
-        if final_url != document.url:
-            aliases.add(document.url)
-        document = replace(
-            document,
-            aliases=tuple(sorted(aliases)),
-            url=final_url,
-        )
-        if document.markdown:
-            add(document)
-        else:
-            fallback = replace(
-                document_from_rest(record),
-                aliases=document.aliases,
-                url=document.url,
-            )
-            if fallback.markdown:
-                rest_fallbacks.append(fallback)
-    for page in sorted(crawl.pages, key=lambda item: item.final_url):
-        if existing := documents_by_url.get(page.final_url):
-            documents_by_url[page.final_url] = replace(
-                existing,
-                aliases=tuple(
-                    sorted(
-                        {
-                            *existing.aliases,
-                            *page.aliases,
-                            *aliases_by_url.get(page.final_url, set()),
-                        }
-                    )
-                ),
-            )
-            continue
-        if "pg=" in urlsplit(page.final_url).query:
-            continue
-        document = replace(
-            document_from_page(page.html, page.final_url),
-            aliases=page.aliases,
-        )
-        if len(f"{document.title} {document.markdown}".strip()) >= 20:
-            add(document)
-    for fallback in rest_fallbacks:
-        if fallback.url not in documents_by_url:
-            add(fallback)
-    return tuple(documents_by_url[url] for url in sorted(documents_by_url))
