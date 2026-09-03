@@ -30,6 +30,16 @@ def test_document_from_page_extracts_main_content_and_absolute_links() -> None:
     assert "[programme](https://finki.ukim.mk/dodiplomski-studii/)" in document.markdown
 
 
+def test_document_from_page_removes_unsafe_link_targets() -> None:
+    document = document_from_page(
+        '<main><h1>Notice</h1><a href="javascript:alert(1)">click</a></main>',
+        "https://finki.ukim.mk/notice/",
+    )
+
+    assert "javascript:" not in document.markdown
+    assert "click" in document.markdown
+
+
 def test_document_from_page_preserves_all_articles_in_main() -> None:
     document = document_from_page(
         """
@@ -87,6 +97,24 @@ def test_document_from_rest_prefers_content_and_decodes_title() -> None:
     assert document.source_kind is SourceKind.REST
 
 
+def test_document_from_rest_uses_excerpt_when_content_cleans_to_empty() -> None:
+    record = RestRecord.model_validate(
+        {
+            "id": 43,
+            "link": "https://finki.ukim.mk/announcement/summary/",
+            "slug": "summary",
+            "title": {"rendered": "Summary"},
+            "content": {"rendered": "<script>ignored()</script>"},
+            "excerpt": {"rendered": "<p>Useful summary.</p>"},
+            "type": "announcement",
+        }
+    )
+
+    document = document_from_rest(record)
+
+    assert document.markdown == "Useful summary."
+
+
 def test_render_document_records_source_provenance() -> None:
     record = RestRecord.model_validate(
         {
@@ -105,3 +133,22 @@ def test_render_document_records_source_provenance() -> None:
     assert "url: https://finki.ukim.mk/announcement/example/" in rendered
     assert "source_kind: rest" in rendered
     assert rendered.endswith("# Notice\n\nDetails\n")
+
+
+def test_render_document_escapes_untrusted_metadata_and_title() -> None:
+    record = RestRecord.model_validate(
+        {
+            "id": 44,
+            "link": "https://finki.ukim.mk/announcement/unsafe/",
+            "modified": "today\n-->\n<script>alert(1)</script>",
+            "slug": "unsafe",
+            "title": {"rendered": "<script>alert(1)</script>"},
+            "content": {"rendered": "<p>Safe body.</p>"},
+            "type": "announcement",
+        }
+    )
+
+    rendered = render_document(document_from_rest(record))
+
+    assert rendered.count("-->") == 1
+    assert "<script>" not in rendered

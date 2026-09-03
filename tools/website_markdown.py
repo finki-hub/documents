@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import html as html_module
 import re
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from markdownify import markdownify
 from selectolax.parser import HTMLParser, Node
@@ -51,10 +51,33 @@ def _clean_markdown(value: str) -> str:
     return cleaned.strip()
 
 
-def _markdown_from_html(value: str) -> str:
+def _safe_link(raw_url: str, base_url: str) -> str | None:
+    absolute = urljoin(base_url, raw_url)
+    return (
+        absolute if urlsplit(absolute).scheme in {"http", "https", "mailto"} else None
+    )
+
+
+def _sanitize_html(value: str, base_url: str) -> str:
+    parser = HTMLParser(value)
+    if parser.root is None:
+        return ""
+    for selector in _REMOVED_SELECTORS:
+        for node in parser.root.css(selector):
+            node.decompose()
+    for node in parser.root.css("a[href]"):
+        href = node.attributes.get("href")
+        if href and (safe_link := _safe_link(href, base_url)) is not None:
+            node.attrs["href"] = safe_link
+        else:
+            del node.attrs["href"]
+    return parser.root.html or ""
+
+
+def _markdown_from_html(value: str, base_url: str) -> str:
     return _clean_markdown(
         markdownify(
-            value,
+            _sanitize_html(value, base_url),
             bullets="-",
             heading_style="ATX",
             strip=["script", "style", "noscript", "template", "svg"],
@@ -96,17 +119,13 @@ def document_from_page(html: str, url: str) -> WebsiteDocument:
     title = _title(parser, root, url)
     for heading in root.css("h1"):
         heading.decompose()
-    for node in root.css("a[href]"):
-        href = node.attributes.get("href")
-        if href:
-            node.attrs["href"] = urljoin(url, href)
     canonical_url = normalize_url(url)
     if canonical_url is None:
         raise WebsiteContentError("Unsupported source URL", url)
     return WebsiteDocument(
         aliases=(),
         language=language_for_url(canonical_url),
-        markdown=_markdown_from_html(root.html or ""),
+        markdown=_markdown_from_html(root.html or "", canonical_url),
         modified=None,
         source_kind=SourceKind.RENDERED,
         title=title,
@@ -120,14 +139,15 @@ def document_from_rest(record: RestRecord) -> WebsiteDocument:
     canonical_url = normalize_url(record.link)
     if canonical_url is None:
         raise WebsiteContentError("Unsupported source URL", record.link)
-    body = record.content.rendered if record.content else ""
-    if not body and record.excerpt:
-        body = record.excerpt.rendered
+    content = record.content.rendered if record.content else ""
+    markdown = _markdown_from_html(content, canonical_url)
+    if not markdown and record.excerpt:
+        markdown = _markdown_from_html(record.excerpt.rendered, canonical_url)
     title = html_module.unescape(record.title.rendered if record.title else record.slug)
     return WebsiteDocument(
         aliases=(),
         language=language_for_url(canonical_url),
-        markdown=_markdown_from_html(body),
+        markdown=markdown,
         modified=record.modified,
         source_kind=SourceKind.REST,
         title=title,
@@ -138,17 +158,22 @@ def document_from_rest(record: RestRecord) -> WebsiteDocument:
 
 
 def render_document(document: WebsiteDocument) -> str:
+    def metadata_value(value: str) -> str:
+        flattened = " ".join(value.splitlines())
+        return flattened.replace("<", "&lt;").replace(">", "&gt;")
+
     metadata = [
         "<!-- finki-website-source",
-        f"url: {document.url}",
-        f"language: {document.language}",
-        f"source_kind: {document.source_kind.value}",
+        f"url: {metadata_value(document.url)}",
+        f"language: {metadata_value(document.language)}",
+        f"source_kind: {metadata_value(document.source_kind.value)}",
     ]
     if document.modified:
-        metadata.append(f"modified: {document.modified}")
+        metadata.append(f"modified: {metadata_value(document.modified)}")
     if document.wordpress_id is not None:
         metadata.append(f"wordpress_id: {document.wordpress_id}")
     if document.wordpress_type:
-        metadata.append(f"wordpress_type: {document.wordpress_type}")
-    metadata.extend(("-->", "", f"# {document.title}", "", document.markdown, ""))
+        metadata.append(f"wordpress_type: {metadata_value(document.wordpress_type)}")
+    safe_title = html_module.escape(document.title, quote=False)
+    metadata.extend(("-->", "", f"# {safe_title}", "", document.markdown, ""))
     return "\n".join(metadata)
