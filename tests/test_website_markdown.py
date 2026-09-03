@@ -309,6 +309,27 @@ def test_render_document_sanitizes_many_unsafe_links_within_resource_budget() ->
     assert "javascript:" not in rendered
 
 
+def test_render_document_bounds_nested_destination_inspection() -> None:
+    nested = "[x](" * 8_000 + "javascript:run" + ")" * 8_000
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown=nested,
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    started = perf_counter()
+    rendered = render_document(document)
+
+    assert perf_counter() - started < 5
+    assert "javascript:" not in rendered
+
+
 def test_render_document_handles_many_unmatched_brackets() -> None:
     document = WebsiteDocument(
         aliases=(),
