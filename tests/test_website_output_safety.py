@@ -15,10 +15,14 @@ from tools.website_models import (
 from tools.website_output import OutputSafetyError, write_output
 
 
-def _document(title: str = "Notice") -> WebsiteDocument:
+def _document(
+    title: str = "Notice",
+    *,
+    language: str = "mk",
+) -> WebsiteDocument:
     return WebsiteDocument(
         aliases=(),
-        language="mk",
+        language=language,
         markdown=f"Content for {title}.",
         modified=None,
         source_kind=SourceKind.RENDERED,
@@ -82,6 +86,21 @@ def test_write_output_rejects_current_directory_spelled_with_dot_dot() -> None:
 def test_write_output_rejects_corpus_directories(output_dir: Path) -> None:
     with pytest.raises(OutputSafetyError, match="protected path"):
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+
+@pytest.mark.parametrize("language", ["../../escaped", "/absolute", "C:\\absolute"])
+def test_write_output_rejects_unsafe_document_language(
+    tmp_path: Path,
+    language: str,
+) -> None:
+    with pytest.raises(OutputSafetyError, match="unsupported document language"):
+        write_output(
+            tmp_path / "website",
+            [_document(language=language)],
+            GenerationMetadata(rest_totals={}),
+        )
+
+    assert not (tmp_path / "escaped").exists()
 
 
 def test_successful_replacement_preserves_previous_snapshot(tmp_path: Path) -> None:
