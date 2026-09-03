@@ -132,7 +132,7 @@ def test_crawl_pages_uses_rest_documents_for_rendered_link_discovery() -> None:
     anyio.run(run)
 
 
-def test_crawl_pages_rejects_redirects_outside_public_hosts() -> None:
+def test_crawl_pages_skips_redirects_outside_public_hosts() -> None:
     requested_hosts: list[str] = []
 
     def handler(request: httpx2.Request) -> httpx2.Response:
@@ -150,11 +150,11 @@ def test_crawl_pages_rejects_redirects_outside_public_hosts() -> None:
             follow_redirects=True,
             transport=httpx2.MockTransport(handler),
         ) as client:
-            with pytest.raises(RuntimeError):
-                _ = await crawl_pages(
-                    client,
-                    CrawlPlan(seed_urls=("https://finki.ukim.mk/redirect/",)),
-                )
+            pages = await crawl_pages(
+                client,
+                CrawlPlan(seed_urls=("https://finki.ukim.mk/redirect/",)),
+            )
+        assert not pages.pages
         assert requested_hosts == ["finki.ukim.mk"]
 
     anyio.run(run)
