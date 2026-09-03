@@ -75,7 +75,11 @@ def sanitize_markdown_links(value: str) -> str:
         destination = _unescape_commonmark(destination)
         destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
         target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
-        scheme = urlsplit(target).scheme.casefold()
+        try:
+            scheme = urlsplit(target).scheme.casefold()
+        except ValueError:
+            replacements.append((destination_start + 1, destination_end))
+            continue
         image = (
             label_start > 0
             and value[label_start - 1] == "!"
