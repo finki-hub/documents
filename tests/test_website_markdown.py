@@ -250,6 +250,40 @@ def test_render_document_neutralizes_escaped_inline_link_labels() -> None:
     assert "a\\]b" in rendered
 
 
+def test_render_document_normalizes_controls_before_scheme_check() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click](jav&#x09;ascript:alert(1))",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    rendered = render_document(document)
+
+    assert "javascript:" not in rendered.replace("&#x09;", "")
+
+
+def test_render_document_handles_many_unmatched_brackets() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[" * 20_000,
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    assert render_document(document).endswith(f"{'[' * 20_000}\n")
+
+
 def test_render_document_neutralizes_multiline_reference_labels() -> None:
     document = WebsiteDocument(
         aliases=(),

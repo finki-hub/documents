@@ -12,42 +12,40 @@ def _is_escaped(value: str, index: int) -> bool:
     return backslashes % 2 == 1
 
 
-def _closing_delimiter(
+def _delimiter_pairs(
     value: str,
-    start: int,
     opening: str,
     closing: str,
-) -> int | None:
-    depth = 1
-    for index in range(start + 1, len(value)):
-        if _is_escaped(value, index):
+) -> dict[int, int]:
+    stack: list[int] = []
+    pairs: dict[int, int] = {}
+    escaped = False
+    for index, character in enumerate(value):
+        if escaped:
+            escaped = False
             continue
-        if value[index] == opening:
-            depth += 1
-        elif value[index] == closing:
-            depth -= 1
-            if depth == 0:
-                return index
-    return None
+        if character == "\\":
+            escaped = True
+        elif character == opening:
+            stack.append(index)
+        elif character == closing and stack:
+            pairs[stack.pop()] = index
+    return pairs
 
 
 def sanitize_markdown_links(value: str) -> str:
-    output: list[str] = []
-    cursor = 0
-    scan = 0
-    while (label_start := value.find("[", scan)) >= 0:
-        if _is_escaped(value, label_start):
-            scan = label_start + 1
+    replacements: list[tuple[int, int]] = []
+    brackets = _delimiter_pairs(value, "[", "]")
+    parentheses = _delimiter_pairs(value, "(", ")")
+    for label_start, label_end in brackets.items():
+        destination_start = label_end + 1
+        if value[destination_start : destination_start + 1] != "(":
             continue
-        label_end = _closing_delimiter(value, label_start, "[", "]")
-        if label_end is None or value[label_end + 1 : label_end + 2] != "(":
-            scan = label_start + 1
-            continue
-        destination_end = _closing_delimiter(value, label_end + 1, "(", ")")
+        destination_end = parentheses.get(destination_start)
         if destination_end is None:
-            scan = label_end + 1
             continue
         destination = html.unescape(value[label_end + 2 : destination_end]).strip()
+        destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
         target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
         scheme = urlsplit(target).scheme.casefold()
         image = (
@@ -57,18 +55,15 @@ def sanitize_markdown_links(value: str) -> str:
         )
         allowed = {"http", "https"} if image else {"http", "https", "mailto"}
         if scheme and scheme not in allowed:
-            markup_start = label_start - 1 if image else label_start
-            output.extend(
-                (value[cursor:markup_start], value[label_start + 1 : label_end])
-            )
-            cursor = destination_end + 1
-        scan = destination_end + 1
-    output.append(value[cursor:])
-    return "".join(output)
+            replacements.append((destination_start + 1, destination_end))
+    for start, end in sorted(replacements, reverse=True):
+        value = f"{value[:start]}#{value[end:]}"
+    return value
 
 
 def _neutralize_reference_definitions(value: str) -> str:
     openings: set[int] = set()
+    brackets = _delimiter_pairs(value, "[", "]")
     line_start = 0
     while line_start < len(value):
         opening = line_start
@@ -77,7 +72,7 @@ def _neutralize_reference_definitions(value: str) -> str:
                 break
             opening += 1
         if opening < len(value) and value[opening] == "[":
-            closing = _closing_delimiter(value, opening, "[", "]")
+            closing = brackets.get(opening)
             if closing is not None and value[closing + 1 : closing + 2] == ":":
                 openings.add(opening)
         newline = value.find("\n", line_start)
