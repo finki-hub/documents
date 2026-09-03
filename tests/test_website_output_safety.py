@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -21,6 +22,7 @@ from tools.website_models import (
 )
 from tools.website_output import OutputSafetyError, write_output
 from tools.website_output_lock import publication_lock
+from tools.website_output_paths import hold_directory, make_temporary_directory
 
 
 def _document() -> WebsiteDocument:
@@ -557,3 +559,93 @@ def test_write_output_rejects_parent_swap_during_lock_acquisition(
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
 
     assert not output_dir.exists()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX directory permissions")
+def test_temporary_output_directories_are_private_with_permissive_umask(
+    tmp_path: Path,
+) -> None:
+    with hold_directory(tmp_path) as parent_descriptor:
+        previous_umask = os.umask(0)
+        try:
+            temporary = make_temporary_directory(
+                tmp_path,
+                ".website-",
+                parent_descriptor,
+            )
+        finally:
+            _ = os.umask(previous_umask)
+
+    assert stat.S_IMODE(temporary.stat().st_mode) == 0o700
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
+def test_hold_directory_rejects_reparse_substitution_during_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import _winapi
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    displaced = tmp_path / "displaced-parent"
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    probe = tmp_path / "probe"
+    try:
+        probe.symlink_to(victim, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable on this runner")
+    probe.unlink()
+    original_create_file = _winapi.CreateFile
+    substituted = False
+
+    def substitute_during_open(
+        path: str,
+        desired_access: int,
+        share_mode: int,
+        security_attributes: int,
+        creation_disposition: int,
+        flags_and_attributes: int,
+        template_file: int,
+    ) -> int:
+        nonlocal substituted
+        if Path(path) != parent or substituted:
+            return original_create_file(
+                path,
+                desired_access,
+                share_mode,
+                security_attributes,
+                creation_disposition,
+                flags_and_attributes,
+                template_file,
+            )
+        substituted = True
+        _ = parent.rename(displaced)
+        parent.symlink_to(victim, target_is_directory=True)
+        handle = original_create_file(
+            path,
+            desired_access,
+            share_mode,
+            security_attributes,
+            creation_disposition,
+            flags_and_attributes,
+            template_file,
+        )
+        try:
+            parent.unlink()
+            _ = displaced.rename(parent)
+        except OSError:
+            _winapi.CloseHandle(handle)
+            parent.unlink()
+            _ = displaced.rename(parent)
+            raise
+        return handle
+
+    monkeypatch.setattr(_winapi, "CreateFile", substitute_during_open)
+
+    with (
+        pytest.raises(OutputSafetyError, match="directory changed"),
+        hold_directory(parent),
+    ):
+        pass

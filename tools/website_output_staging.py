@@ -24,6 +24,7 @@ def _hold_windows_directory(
     expected_identity: tuple[int, int] | None = None,
 ) -> Generator[None]:
     import _winapi
+    import msvcrt
 
     before = identity(path)
     if before is None or is_link(path):
@@ -41,15 +42,22 @@ def _hold_windows_directory(
     except OSError as error:
         raise OutputSafetyError(path=path, reason="staging path changed") from error
     try:
+        file_descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+    except OSError as error:
+        _winapi.CloseHandle(handle)
+        raise OutputSafetyError(path=path, reason="staging path changed") from error
+    try:
+        status = os.fstat(file_descriptor)
         if (
-            identity(path) != before
+            (status.st_dev, status.st_ino) != before
+            or identity(path) != before
             or is_link(path)
             or (expected_identity is not None and before != expected_identity)
         ):
             raise OutputSafetyError(path=path, reason="staging path changed")
         yield
     finally:
-        _winapi.CloseHandle(handle)
+        os.close(file_descriptor)
 
 
 def _write_windows(
