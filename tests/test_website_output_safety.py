@@ -298,3 +298,76 @@ def test_write_output_does_not_quarantine_concurrent_winner(
 
     assert (output_dir / "manifest.json").is_file()
     assert "# Winner" in (output_dir / "finki-website.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("existing_output", [False, True])
+def test_write_output_preserves_winner_published_after_staging_move(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    existing_output: bool,
+) -> None:
+    output_dir = tmp_path / "website"
+    winner_dir = tmp_path / "winner"
+    displaced = tmp_path / "displaced-install"
+    if existing_output:
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    winner = replace(_document(), markdown="Winner.", title="Winner")
+    write_output(winner_dir, [winner], GenerationMetadata(rest_totals={}))
+    original_rename = os.rename
+    published = False
+
+    def replace_installed_snapshot(
+        source: str | Path,
+        destination: str | Path,
+    ) -> None:
+        nonlocal published
+        source_path = Path(source)
+        destination_path = Path(destination)
+        original_rename(source_path, destination_path)
+        if not published and destination_path == output_dir:
+            published = True
+            original_rename(output_dir, displaced)
+            original_rename(winner_dir, output_dir)
+
+    monkeypatch.setattr(os, "rename", replace_installed_snapshot)
+
+    with pytest.raises(OutputSafetyError, match="staging"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert (output_dir / "manifest.json").is_file()
+    assert "# Winner" in (output_dir / "finki-website.md").read_text(encoding="utf-8")
+    assert (displaced / "manifest.json").is_file()
+
+
+def test_write_output_rejects_parent_link_substitution_during_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_parent = tmp_path / "missing-parent"
+    output_dir = output_parent / "website"
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    displaced = tmp_path / "displaced-parent"
+    original_mkdir = Path.mkdir
+
+    def substitute_created_parent(
+        path: Path,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
+        original_mkdir(path, mode, parents, exist_ok)
+        if path == output_parent:
+            _ = path.rename(displaced)
+            try:
+                path.symlink_to(victim, target_is_directory=True)
+            except OSError:
+                pytest.skip("directory symlinks are unavailable on this runner")
+
+    monkeypatch.setattr(Path, "mkdir", substitute_created_parent)
+
+    with pytest.raises(OutputSafetyError, match="link or junction"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert not (victim / "website").exists()
