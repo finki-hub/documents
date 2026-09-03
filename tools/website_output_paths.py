@@ -15,6 +15,10 @@ from tools.website_models import WebsiteManifest
 
 TreeSignature = tuple[tuple[str, int, int, int, int], ...]
 _TEMPORARY_DIRECTORY_ATTEMPTS: Final = 100
+_WINDOWS_SHARE_READ_WRITE: Final = 0x00000001 | 0x00000002
+_WINDOWS_OPEN_EXISTING: Final = 3
+_WINDOWS_OPEN_DIRECTORY: Final = 0x02000000
+_WINDOWS_OPEN_REPARSE_POINT: Final = 0x00200000
 
 
 @final
@@ -98,20 +102,39 @@ def hold_directory(path: Path) -> Generator[int | None]:
         return
 
     import _winapi
+    import msvcrt
 
-    handle = _winapi.CreateFile(
-        str(path),
-        0,
-        0x00000001 | 0x00000002,
-        0,
-        3,
-        0x02000000,
-        0,
-    )
+    before = identity(path)
+    if before is None or is_link(path):
+        raise OutputSafetyError(path=path, reason="directory changed")
     try:
+        handle = _winapi.CreateFile(
+            str(path),
+            0,
+            _WINDOWS_SHARE_READ_WRITE,
+            0,
+            _WINDOWS_OPEN_EXISTING,
+            _WINDOWS_OPEN_DIRECTORY | _WINDOWS_OPEN_REPARSE_POINT,
+            0,
+        )
+    except OSError as error:
+        raise OutputSafetyError(path=path, reason="directory changed") from error
+    try:
+        file_descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY)
+    except OSError as error:
+        _winapi.CloseHandle(handle)
+        raise OutputSafetyError(path=path, reason="directory changed") from error
+    try:
+        status = os.fstat(file_descriptor)
+        if (
+            (status.st_dev, status.st_ino) != before
+            or identity(path) != before
+            or is_link(path)
+        ):
+            raise OutputSafetyError(path=path, reason="directory changed")
         yield None
     finally:
-        _winapi.CloseHandle(handle)
+        os.close(file_descriptor)
 
 
 def make_temporary_directory(
@@ -124,7 +147,7 @@ def make_temporary_directory(
     for _attempt in range(_TEMPORARY_DIRECTORY_ATTEMPTS):
         name = f"{prefix}{secrets.token_hex(8)}"
         try:
-            os.mkdir(name, dir_fd=parent_descriptor)
+            os.mkdir(name, mode=0o700, dir_fd=parent_descriptor)
         except FileExistsError:
             continue
         except OSError as error:
