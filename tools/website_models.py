@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import ClassVar, Final
+from typing import ClassVar, Final, Literal
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 from pydantic import BaseModel, ConfigDict, TypeAdapter
@@ -74,13 +75,32 @@ class PageSnapshot:
     links: tuple[str, ...]
     requested_url: str
     status: int
+    aliases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class CrawlPlan:
     seed_urls: tuple[str, ...]
-    excluded_urls: frozenset[str] = frozenset()
+    discovery_only_urls: frozenset[str] = frozenset()
     max_pages: int = 10_000
+
+
+@dataclass(frozen=True, slots=True)
+class CrawlResult:
+    pages: tuple[PageSnapshot, ...]
+    requested_count: int
+    truncated: bool
+
+    def __iter__(self) -> Iterator[PageSnapshot]:
+        return iter(self.pages)
+
+
+class GenerationMetadata(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
+
+    crawled_pages: int = 0
+    crawl_truncated: bool = False
+    rest_totals: dict[str, int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,10 +134,13 @@ class WebsiteManifest(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True)
 
     base_url: str
+    crawled_pages: int = 0
+    crawl_truncated: bool = False
     document_count: int
     documents: tuple[ManifestEntry, ...]
+    generator: Literal["finki-website-content"] = "finki-website-content"
     rest_totals: dict[str, int]
-    schema_version: int = 1
+    schema_version: int = 2
 
 
 def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
@@ -130,7 +153,9 @@ def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
     if path.startswith(("/wp-admin", "/wp-json")) or "/feed/" in path:
         return None
     query = urlencode(
-        sorted((key, value) for key, value in parse_qsl(parsed.query) if key in QUERY_KEYS)
+        sorted(
+            (key, value) for key, value in parse_qsl(parsed.query) if key in QUERY_KEYS
+        )
     )
     return urlunsplit(("https", "finki.ukim.mk", path, query, ""))
 
