@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -261,3 +262,39 @@ def test_write_output_rejects_staging_substitution_after_validation(
     assert (recovery / "rejected" / "foreign.txt").read_text(encoding="utf-8") == (
         "foreign"
     )
+
+
+@pytest.mark.parametrize("existing_output", [False, True])
+def test_write_output_does_not_quarantine_concurrent_winner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    existing_output: bool,
+) -> None:
+    output_dir = tmp_path / "website"
+    winner_dir = tmp_path / "winner"
+    if existing_output:
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+    winner = replace(_document(), markdown="Winner.", title="Winner")
+    write_output(winner_dir, [winner], GenerationMetadata(rest_totals={}))
+    original_rename = os.rename
+    published = False
+
+    def publish_winner_first(
+        source: str | Path,
+        destination: str | Path,
+    ) -> None:
+        nonlocal published
+        if not published and Path(destination) == output_dir:
+            published = True
+            original_rename(winner_dir, output_dir)
+            raise FileExistsError("concurrent winner published")
+        original_rename(source, destination)
+
+    monkeypatch.setattr(os, "rename", publish_winner_first)
+
+    with pytest.raises(FileExistsError, match="concurrent winner published"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert (output_dir / "manifest.json").is_file()
+    assert "# Winner" in (output_dir / "finki-website.md").read_text(encoding="utf-8")
