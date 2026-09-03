@@ -4,7 +4,9 @@ import anyio
 import httpx2
 import pytest
 
-from tools.website_fetch import build_documents, crawl_pages
+from tools import website_fetch
+from tools.website_content import build_documents
+from tools.website_fetch import CrawlIncompleteError, crawl_pages
 from tools.website_models import CrawlPlan, RestInventory
 
 
@@ -217,5 +219,29 @@ def test_crawl_pages_preserves_same_host_redirect_as_alias() -> None:
         documents = build_documents(RestInventory(records_by_url={}, totals={}), pages)
         assert documents[0].url == canonical_url
         assert documents[0].aliases == (requested_url,)
+
+    anyio.run(run)
+
+
+def test_crawl_pages_enforces_aggregate_response_byte_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(website_fetch, "_MAX_CRAWL_BYTES", 10)
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(
+                lambda _request: httpx2.Response(
+                    200,
+                    headers={"content-type": "text/html"},
+                    text="<main>More than ten bytes.</main>",
+                )
+            )
+        ) as client:
+            with pytest.raises(CrawlIncompleteError, match="crawl byte limit exceeded"):
+                _ = await crawl_pages(
+                    client,
+                    CrawlPlan(seed_urls=("https://finki.ukim.mk/",), max_pages=1),
+                )
 
     anyio.run(run)
