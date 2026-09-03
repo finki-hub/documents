@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import html
 import re
+import string
+from typing import Final
 from urllib.parse import urlsplit
+
+_COMMONMARK_ESCAPABLE: Final = frozenset(string.punctuation)
 
 
 def _is_escaped(value: str, index: int) -> bool:
@@ -33,6 +37,23 @@ def _delimiter_pairs(
     return pairs
 
 
+def _unescape_commonmark(value: str) -> str:
+    output: list[str] = []
+    cursor = 0
+    while cursor < len(value):
+        character = value[cursor]
+        if (
+            character == "\\"
+            and cursor + 1 < len(value)
+            and value[cursor + 1] in _COMMONMARK_ESCAPABLE
+        ):
+            cursor += 1
+            character = value[cursor]
+        output.append(character)
+        cursor += 1
+    return "".join(output)
+
+
 def sanitize_markdown_links(value: str) -> str:
     replacements: list[tuple[int, int]] = []
     brackets = _delimiter_pairs(value, "[", "]")
@@ -45,6 +66,7 @@ def sanitize_markdown_links(value: str) -> str:
         if destination_end is None:
             continue
         destination = html.unescape(value[label_end + 2 : destination_end]).strip()
+        destination = _unescape_commonmark(destination)
         destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
         target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
         scheme = urlsplit(target).scheme.casefold()
@@ -56,9 +78,15 @@ def sanitize_markdown_links(value: str) -> str:
         allowed = {"http", "https"} if image else {"http", "https", "mailto"}
         if scheme and scheme not in allowed:
             replacements.append((destination_start + 1, destination_end))
-    for start, end in sorted(replacements, reverse=True):
-        value = f"{value[:start]}#{value[end:]}"
-    return value
+    output: list[str] = []
+    cursor = 0
+    for start, end in sorted(replacements):
+        if start < cursor:
+            continue
+        output.extend((value[cursor:start], "#"))
+        cursor = end
+    output.append(value[cursor:])
+    return "".join(output)
 
 
 def _neutralize_reference_definitions(value: str) -> str:

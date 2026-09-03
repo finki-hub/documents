@@ -1,3 +1,5 @@
+from time import perf_counter
+
 from tools.website_markdown import (
     document_from_page,
     document_from_rest,
@@ -266,6 +268,45 @@ def test_render_document_normalizes_controls_before_scheme_check() -> None:
     rendered = render_document(document)
 
     assert "javascript:" not in rendered.replace("&#x09;", "")
+
+
+def test_render_document_normalizes_commonmark_escapes_before_scheme_check() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click](javascript\\:alert(1)) ![image](data\\:image/png;base64,x)",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    rendered = render_document(document)
+
+    assert "javascript\\:" not in rendered
+    assert "data\\:" not in rendered
+
+
+def test_render_document_sanitizes_many_unsafe_links_within_resource_budget() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click](javascript:run) " * 80_000,
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="Notice",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    started = perf_counter()
+    rendered = render_document(document)
+
+    assert perf_counter() - started < 5
+    assert "javascript:" not in rendered
 
 
 def test_render_document_handles_many_unmatched_brackets() -> None:
