@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import os
-import secrets
-import sys
 import tempfile
-from collections.abc import Generator
-from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, final, override
 
@@ -14,12 +9,6 @@ from pydantic import ValidationError
 
 from tools.website_models import WebsiteManifest
 
-TreeSignature = tuple[tuple[str, int, int, int, int], ...]
-_TEMPORARY_DIRECTORY_ATTEMPTS: Final = 100
-_WINDOWS_SHARE_READ_WRITE: Final = 0x00000001 | 0x00000002
-_WINDOWS_OPEN_EXISTING: Final = 3
-_WINDOWS_OPEN_DIRECTORY: Final = 0x02000000
-_WINDOWS_OPEN_REPARSE_POINT: Final = 0x00200000
 _REPOSITORY_ROOT: Final = Path(__file__).resolve().parent.parent
 _PROTECTED_OUTPUT_ROOTS: Final = (
     _REPOSITORY_ROOT / "raw",
@@ -43,152 +32,22 @@ class OutputSafetyError(RuntimeError):
         return f"unsafe output directory ({self.reason}): {self.path}"
 
 
-@dataclass(frozen=True, slots=True)
-class OutputState:
-    identity: tuple[int, int] | None
-    parent_identity: tuple[int, int] | None
-    path: Path
-    tree_signature: TreeSignature | None
-
-
-def is_link(path: Path) -> bool:
+def _is_link(path: Path) -> bool:
     return path.is_symlink() or path.is_junction()
 
 
-def identity(path: Path) -> tuple[int, int] | None:
-    try:
-        status = path.lstat()
-    except FileNotFoundError:
-        return None
-    return status.st_dev, status.st_ino
-
-
-def tree_signature(path: Path) -> TreeSignature | None:
-    if identity(path) is None:
-        return None
-    try:
-        entries = (path, *sorted(path.rglob("*")))
-        return tuple(
-            (
-                entry.relative_to(path).as_posix(),
-                status.st_ino,
-                status.st_mode,
-                status.st_size,
-                status.st_mtime_ns,
-            )
-            for entry in entries
-            for status in (entry.lstat(),)
-        )
-    except OSError as error:
-        raise OutputSafetyError(
-            path=path, reason="changed during generation"
-        ) from error
-
-
-@contextmanager
-def hold_directory(path: Path) -> Generator[int | None]:
-    if sys.platform != "win32":
-        before = identity(path)
-        if before is None or is_link(path):
-            raise OutputSafetyError(path=path, reason="directory changed")
-        try:
-            file_descriptor = os.open(
-                path,
-                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-            )
-        except OSError as error:
-            raise OutputSafetyError(path=path, reason="directory changed") from error
-        try:
-            status = os.fstat(file_descriptor)
-            if (status.st_dev, status.st_ino) != before:
-                raise OutputSafetyError(path=path, reason="directory changed")
-            yield file_descriptor
-        finally:
-            os.close(file_descriptor)
-        return
-
-    import _winapi
-    import msvcrt
-
-    before = identity(path)
-    if before is None or is_link(path):
-        raise OutputSafetyError(path=path, reason="directory changed")
-    try:
-        handle = _winapi.CreateFile(
-            str(path),
-            0,
-            _WINDOWS_SHARE_READ_WRITE,
-            0,
-            _WINDOWS_OPEN_EXISTING,
-            _WINDOWS_OPEN_DIRECTORY | _WINDOWS_OPEN_REPARSE_POINT,
-            0,
-        )
-    except OSError as error:
-        raise OutputSafetyError(path=path, reason="directory changed") from error
-    try:
-        file_descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY)
-    except OSError as error:
-        _winapi.CloseHandle(handle)
-        raise OutputSafetyError(path=path, reason="directory changed") from error
-    try:
-        status = os.fstat(file_descriptor)
-        if (
-            (status.st_dev, status.st_ino) != before
-            or identity(path) != before
-            or is_link(path)
-        ):
-            raise OutputSafetyError(path=path, reason="directory changed")
-        yield None
-    finally:
-        os.close(file_descriptor)
-
-
-def make_temporary_directory(
-    parent: Path,
-    prefix: str,
-    parent_descriptor: int | None,
-) -> Path:
-    if parent_descriptor is None:
-        return Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
-    for _attempt in range(_TEMPORARY_DIRECTORY_ATTEMPTS):
-        name = f"{prefix}{secrets.token_hex(8)}"
-        try:
-            os.mkdir(name, mode=0o700, dir_fd=parent_descriptor)
-        except FileExistsError:
-            continue
-        except OSError as error:
-            raise OutputSafetyError(
-                path=parent / name,
-                reason="temporary directory unavailable",
-            ) from error
-        return parent / name
-    raise OutputSafetyError(
-        path=parent,
-        reason="temporary directory unavailable",
-    )
-
-
-def validate_staging(path: Path, expected_identity: tuple[int, int]) -> TreeSignature:
-    if identity(path) != expected_identity:
-        raise OutputSafetyError(path=path, reason="staging directory changed")
+def _reject_links(path: Path, reason: str) -> None:
+    if _is_link(path):
+        raise OutputSafetyError(path=path, reason=reason)
     try:
         for entry in path.rglob("*"):
-            if is_link(entry):
-                raise OutputSafetyError(
-                    path=entry,
-                    reason="link or junction in staging directory",
-                )
+            if _is_link(entry):
+                raise OutputSafetyError(path=entry, reason=reason)
     except OSError as error:
-        raise OutputSafetyError(
-            path=path, reason="staging directory changed"
-        ) from error
-    signature = tree_signature(path)
-    if signature is None:
-        raise OutputSafetyError(path=path, reason="staging directory changed")
-    return signature
+        raise OutputSafetyError(path=path, reason=reason) from error
 
 
-def is_generator_output(path: Path) -> bool:
+def _is_generator_output(path: Path) -> bool:
     try:
         manifest = WebsiteManifest.model_validate_json(
             (path / "manifest.json").read_bytes()
@@ -198,55 +57,48 @@ def is_generator_output(path: Path) -> bool:
     return manifest.generator == "finki-website-content"
 
 
-def validate_output(output_dir: Path) -> OutputState:
+def make_temporary_directory(parent: Path, prefix: str) -> Path:
+    try:
+        return Path(tempfile.mkdtemp(prefix=prefix, dir=parent))
+    except OSError as error:
+        raise OutputSafetyError(
+            path=parent,
+            reason="temporary directory unavailable",
+        ) from error
+
+
+def validate_staging(path: Path) -> None:
+    if not path.is_dir():
+        raise OutputSafetyError(path=path, reason="staging directory unavailable")
+    _reject_links(path, "link or junction in staging directory")
+    if not _is_generator_output(path):
+        raise OutputSafetyError(path=path, reason="invalid staging manifest")
+
+
+def validate_output(output_dir: Path) -> Path:
     lexical = output_dir.absolute()
-    for path in (lexical, *lexical.parents):
-        if os.path.lexists(path) and is_link(path):
-            raise OutputSafetyError(path=path, reason="link or junction in path")
-    absolute = lexical.resolve(strict=False)
+    for candidate in (lexical, *lexical.parents):
+        if os.path.lexists(candidate) and _is_link(candidate):
+            raise OutputSafetyError(path=candidate, reason="link or junction in path")
+
+    output = lexical.resolve(strict=False)
     if (
-        absolute == Path.cwd().resolve()
-        or absolute == Path(absolute.anchor)
+        output == Path.cwd().resolve()
+        or output == Path(output.anchor)
         or any(
-            absolute == root or absolute.is_relative_to(root)
+            output == root or output.is_relative_to(root)
             for root in _PROTECTED_OUTPUT_ROOTS
         )
     ):
         raise OutputSafetyError(path=output_dir, reason="protected path")
-    output_identity = identity(absolute)
-    if output_identity is None:
-        return OutputState(
-            identity=None,
-            parent_identity=identity(absolute.parent),
-            path=absolute,
-            tree_signature=None,
-        )
-    if not absolute.is_dir():
-        raise OutputSafetyError(path=absolute, reason="target is not a directory")
-    entries = tuple(absolute.iterdir())
-    if not entries:
-        return OutputState(
-            identity=output_identity,
-            parent_identity=identity(absolute.parent),
-            path=absolute,
-            tree_signature=tree_signature(absolute),
-        )
-    for path in absolute.rglob("*"):
-        if is_link(path):
-            raise OutputSafetyError(path=path, reason="link or junction in output")
-    try:
-        manifest = WebsiteManifest.model_validate_json(
-            (absolute / "manifest.json").read_bytes()
-        )
-    except (OSError, ValidationError) as error:
-        raise OutputSafetyError(
-            path=absolute, reason="missing ownership manifest"
-        ) from error
-    if manifest.generator != "finki-website-content":
-        raise OutputSafetyError(path=absolute, reason="foreign ownership manifest")
-    return OutputState(
-        identity=output_identity,
-        parent_identity=identity(absolute.parent),
-        path=absolute,
-        tree_signature=tree_signature(absolute),
-    )
+    if not os.path.lexists(output):
+        return output
+    if not output.is_dir():
+        raise OutputSafetyError(path=output, reason="target is not a directory")
+    if not any(output.iterdir()):
+        return output
+
+    _reject_links(output, "link or junction in output")
+    if not _is_generator_output(output):
+        raise OutputSafetyError(path=output, reason="missing ownership manifest")
+    return output

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -21,13 +20,6 @@ from tools.website_models import (
     WebsiteManifest,
 )
 from tools.website_output import write_output
-
-
-def _path_at(path: str | Path, directory_descriptor: int | None) -> Path:
-    candidate = Path(path)
-    if directory_descriptor is None or candidate.is_absolute():
-        return candidate
-    return Path(os.readlink(f"/proc/self/fd/{directory_descriptor}")) / candidate
 
 
 def _document(url: str, title: str, language: str) -> WebsiteDocument:
@@ -118,28 +110,20 @@ def test_write_output_restores_owned_snapshot_when_install_fails(
         for path in output_dir.rglob("*")
         if path.is_file()
     }
-    original_rename = os.rename
+    original_rename = Path.rename
     failed = False
 
     def fail_snapshot_swap_once(
-        source: str | Path,
+        source: Path,
         destination: str | Path,
-        *,
-        src_dir_fd: int | None = None,
-        dst_dir_fd: int | None = None,
-    ) -> None:
+    ) -> Path:
         nonlocal failed
-        if not failed and _path_at(destination, dst_dir_fd) == output_dir:
+        if not failed and Path(destination) == output_dir:
             failed = True
             raise OSError("injected install failure")
-        original_rename(
-            source,
-            destination,
-            src_dir_fd=src_dir_fd,
-            dst_dir_fd=dst_dir_fd,
-        )
+        return original_rename(source, destination)
 
-    monkeypatch.setattr(os, "rename", fail_snapshot_swap_once)
+    monkeypatch.setattr(Path, "rename", fail_snapshot_swap_once)
 
     with pytest.raises(OSError, match="injected install failure"):
         write_output(

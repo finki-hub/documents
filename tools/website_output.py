@@ -14,27 +14,20 @@ from tools.website_models import (
     WebsiteDocument,
     WebsiteManifest,
 )
-from tools.website_output_lock import publication_lock
 from tools.website_output_paths import (
     OutputSafetyError,
-    OutputState,
-    hold_directory,
-    identity,
-    is_link,
     make_temporary_directory,
     validate_output,
     validate_staging,
 )
-from tools.website_output_publish import SnapshotPublication, commit_snapshot
-from tools.website_output_staging import write_staged_text
 
 __all__ = ["OutputSafetyError", "write_output"]
 
 
 def _document_relative_path(document: WebsiteDocument) -> Path:
     parsed = urlsplit(document.url)
-    identity_text = unquote(f"{parsed.path}-{parsed.query}").casefold()
-    slug = re.sub(r"[^a-z0-9]+", "-", identity_text).strip("-") or "home"
+    identity = unquote(f"{parsed.path}-{parsed.query}").casefold()
+    slug = re.sub(r"[^a-z0-9]+", "-", identity).strip("-") or "home"
     slug = slug[:80].rstrip("-")
     digest = sha256(document.url.encode()).hexdigest()[:10]
     return Path("documents", document.language, f"{slug}-{digest}.md")
@@ -54,68 +47,80 @@ def _manifest_entry(document: WebsiteDocument, path: Path) -> ManifestEntry:
     )
 
 
-def _write_output_locked(
-    state: OutputState,
+def _write_staged_text(root: Path, relative_path: Path, content: str) -> None:
+    destination = root / relative_path
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with destination.open("x", encoding="utf-8", newline="\n") as output:
+        _ = output.write(content)
+
+
+def _stage_output(
+    output: Path,
     documents: Iterable[WebsiteDocument],
     metadata: GenerationMetadata,
-    parent_descriptor: int | None,
-) -> None:
+) -> Path:
+    staging = make_temporary_directory(output.parent, f".{output.name}-")
     ordered = sorted(documents, key=lambda item: (item.language, item.url))
-    temporary = make_temporary_directory(
-        state.path.parent,
-        f".{state.path.name}-",
-        parent_descriptor,
-    )
-    temporary_identity = identity(temporary)
-    if temporary_identity is None:
-        raise OutputSafetyError(path=temporary, reason="staging directory unavailable")
     entries: list[ManifestEntry] = []
     rendered_documents: list[str] = []
-    with hold_directory(temporary):
-        for document in ordered:
-            relative_path = _document_relative_path(document)
-            rendered = render_document(document)
-            write_staged_text(
-                temporary,
-                relative_path,
-                rendered,
-                temporary_identity,
-            )
-            rendered_documents.append(rendered.rstrip())
-            entries.append(_manifest_entry(document, relative_path))
-        combined = "\n---\n\n".join(rendered_documents)
-        write_staged_text(
-            temporary,
-            Path("finki-website.md"),
-            f"{combined}\n" if combined else "",
-            temporary_identity,
-        )
-        manifest = WebsiteManifest(
-            base_url=BASE_URL,
-            crawled_pages=metadata.crawled_pages,
-            crawl_truncated=metadata.crawl_truncated,
-            document_count=len(entries),
-            documents=tuple(entries),
-            generator="finki-website-content",
-            rest_totals=dict(sorted(metadata.rest_totals.items())),
-            schema_version=2,
-        )
-        write_staged_text(
-            temporary,
-            Path("manifest.json"),
-            manifest.model_dump_json(indent=2) + "\n",
-            temporary_identity,
-        )
-        temporary_signature = validate_staging(temporary, temporary_identity)
-    commit_snapshot(
-        SnapshotPublication(
-            state=state,
-            snapshot=temporary,
-            snapshot_identity=temporary_identity,
-            snapshot_signature=temporary_signature,
-            parent_descriptor=parent_descriptor,
-        )
+
+    for document in ordered:
+        relative_path = _document_relative_path(document)
+        rendered = render_document(document)
+        _write_staged_text(staging, relative_path, rendered)
+        rendered_documents.append(rendered.rstrip())
+        entries.append(_manifest_entry(document, relative_path))
+
+    combined = "\n---\n\n".join(rendered_documents)
+    _write_staged_text(
+        staging,
+        Path("finki-website.md"),
+        f"{combined}\n" if combined else "",
     )
+    manifest = WebsiteManifest(
+        base_url=BASE_URL,
+        crawled_pages=metadata.crawled_pages,
+        crawl_truncated=metadata.crawl_truncated,
+        document_count=len(entries),
+        documents=tuple(entries),
+        generator="finki-website-content",
+        rest_totals=dict(sorted(metadata.rest_totals.items())),
+        schema_version=2,
+    )
+    _write_staged_text(
+        staging,
+        Path("manifest.json"),
+        manifest.model_dump_json(indent=2) + "\n",
+    )
+    validate_staging(staging)
+    return staging
+
+
+def _publish_snapshot(output: Path, staging: Path) -> None:
+    recovery: Path | None = None
+    previous: Path | None = None
+    if output.exists():
+        recovery = make_temporary_directory(
+            output.parent,
+            f".{output.name}-recovery-",
+        )
+        previous = recovery / "previous"
+        _ = output.rename(previous)
+
+    try:
+        _ = staging.rename(output)
+    except OSError:
+        if previous is not None and not output.exists():
+            try:
+                _ = previous.rename(output)
+            except OSError as rollback_error:
+                raise OutputSafetyError(
+                    path=output,
+                    reason="install failed; previous snapshot preserved in recovery",
+                ) from rollback_error
+            if recovery is not None:
+                recovery.rmdir()
+        raise
 
 
 def write_output(
@@ -123,37 +128,9 @@ def write_output(
     documents: Iterable[WebsiteDocument],
     metadata: GenerationMetadata,
 ) -> None:
-    initial = validate_output(output_dir)
-    initial.path.parent.mkdir(parents=True, exist_ok=True)
-    state = validate_output(output_dir)
-    if (
-        state.identity != initial.identity
-        or state.tree_signature != initial.tree_signature
-    ):
-        raise OutputSafetyError(path=state.path, reason="changed during generation")
-    with hold_directory(state.path.parent) as parent_descriptor:
-        if (
-            is_link(state.path.parent)
-            or identity(state.path.parent) != state.parent_identity
-        ):
-            raise OutputSafetyError(
-                path=state.path.parent,
-                reason="link or junction in path",
-            )
-        with publication_lock(state.path, parent_descriptor):
-            locked_state = validate_output(output_dir)
-            if (
-                locked_state.identity != state.identity
-                or locked_state.parent_identity != state.parent_identity
-                or locked_state.tree_signature != state.tree_signature
-            ):
-                raise OutputSafetyError(
-                    path=state.path,
-                    reason="changed during generation",
-                )
-            _write_output_locked(
-                locked_state,
-                documents,
-                metadata,
-                parent_descriptor,
-            )
+    output = validate_output(output_dir)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output = validate_output(output)
+    staging = _stage_output(output, documents, metadata)
+    _ = validate_output(output)
+    _publish_snapshot(output, staging)
