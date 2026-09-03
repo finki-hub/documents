@@ -133,7 +133,7 @@ async def crawl_pages(
         batch: list[str] = []
         batch_limit = min(4, plan.max_pages - requested_count)
         while (seed_frontier or discovered_frontier) and len(batch) < batch_limit:
-            frontier = seed_frontier if seed_frontier else discovered_frontier
+            frontier = seed_frontier or discovered_frontier
             url = frontier.popleft()
             queued.discard(url)
             if url in visited:

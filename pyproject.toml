@@ -23,3 +23,42 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "B905",    # Existing utility code predates strict zip length checks.
+    "C901",    # Bounded state-machine branches are clearer kept together.
+    "COM812",  # Conflicts with Ruff's formatter.
+    "CPY001",  # This repository does not require per-file copyright headers.
+    "D",       # Repository modules use names and types rather than API docstrings.
+    "E501",    # Ruff's formatter intentionally leaves some long lines intact.
+    "EM101",   # Typed project exceptions carry contextual literal reasons.
+    "EM102",   # Typed project exceptions carry contextual formatted reasons.
+    "FBT001",  # Existing command helpers expose narrow boolean flags.
+    "FBT002",  # Existing command helpers expose narrow boolean defaults.
+    "INP001",  # tools/ is intentionally an implicit namespace package.
+    "PERF401", # Existing corpus utility favors an explicit accumulation loop.
+    "PLC0415", # Platform-specific modules must be imported conditionally.
+    "PLR0911", # Bounded parsers use early returns for rejected inputs.
+    "PLR0912", # Crawl and CLI state machines retain explicit branches.
+    "PLR0913", # Existing utility interface compatibility is preserved.
+    "PLR0915", # Crawl state remains local to one bounded operation.
+    "PLR0917", # Existing utility interface compatibility is preserved.
+    "PLR2004", # Protocol and corpus constants are readable at their use sites.
+    "PLW2901", # Existing corpus utility normalizes loop-local text in place.
+    "PTH",     # os APIs are required for descriptor-relative and legacy I/O.
+    "RET504",  # Existing corpus utility keeps the final normalized value named.
+    "RUF001",  # Macedonian Cyrillic is intentional source content.
+    "RUF003",  # Macedonian Cyrillic is intentional documentation text.
+    "RUF043",  # Existing pytest regexes intentionally match broad error text.
+    "S101",    # Assertions are the pytest contract.
+    "S310",    # Existing URL callers validate trusted protocols separately.
+    "S603",    # Existing subprocess arguments are fixed and shell-free.
+    "T201",    # CLI commands intentionally write user-facing terminal output.
+    "TC002",   # Runtime frameworks inspect selected third-party annotations.
+    "TC003",   # Runtime annotations remain directly importable and readable.
+    "TRY003",  # Typed project exceptions own contextual reason fields.
+    "TRY300",  # Retry loops keep success exits adjacent to the operation.
+    "TRY301",  # Transaction rollback must catch local typed failures.
+]
