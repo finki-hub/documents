@@ -226,3 +226,38 @@ def test_write_output_rejects_substituted_staging_directory(
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
 
     assert victim.read_text(encoding="utf-8") == "keep"
+
+
+def test_write_output_rejects_staging_substitution_after_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    displaced = tmp_path / "displaced-staging"
+    original_rename = os.rename
+    substituted = False
+
+    def substitute_during_install(
+        source: str | Path,
+        destination: str | Path,
+    ) -> None:
+        nonlocal substituted
+        source_path = Path(source)
+        if not substituted and Path(destination) == output_dir:
+            substituted = True
+            original_rename(source_path, displaced)
+            source_path.mkdir()
+            _ = (source_path / "foreign.txt").write_text("foreign", encoding="utf-8")
+        original_rename(source_path, destination)
+
+    monkeypatch.setattr(os, "rename", substitute_during_install)
+
+    with pytest.raises(OutputSafetyError, match="staging"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert not output_dir.exists()
+    assert (displaced / "manifest.json").is_file()
+    recovery = next(tmp_path.glob(".website-recovery-*"))
+    assert (recovery / "rejected" / "foreign.txt").read_text(encoding="utf-8") == (
+        "foreign"
+    )

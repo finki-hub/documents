@@ -25,6 +25,7 @@ from tools.website_models import (
 
 _RENAME_ATTEMPTS: Final = 3
 _RENAME_DELAY_SECONDS: Final = 0.05
+_TreeSignature = tuple[tuple[str, int, int, int, int], ...]
 
 
 @final
@@ -106,7 +107,7 @@ class _OutputState:
     identity: tuple[int, int] | None
     parent_identity: tuple[int, int] | None
     path: Path
-    tree_signature: tuple[tuple[str, int, int, int, int], ...] | None
+    tree_signature: _TreeSignature | None
 
 
 def _identity(path: Path) -> tuple[int, int] | None:
@@ -117,7 +118,7 @@ def _identity(path: Path) -> tuple[int, int] | None:
     return status.st_dev, status.st_ino
 
 
-def _tree_signature(path: Path) -> tuple[tuple[str, int, int, int, int], ...] | None:
+def _tree_signature(path: Path) -> _TreeSignature | None:
     if _identity(path) is None:
         return None
     try:
@@ -139,7 +140,7 @@ def _tree_signature(path: Path) -> tuple[tuple[str, int, int, int, int], ...] | 
         ) from error
 
 
-def _validate_staging(path: Path, identity: tuple[int, int]) -> None:
+def _validate_staging(path: Path, identity: tuple[int, int]) -> _TreeSignature:
     if _identity(path) != identity:
         raise OutputSafetyError(path=path, reason="staging directory changed")
     try:
@@ -153,14 +154,36 @@ def _validate_staging(path: Path, identity: tuple[int, int]) -> None:
         raise OutputSafetyError(
             path=path, reason="staging directory changed"
         ) from error
+    signature = _tree_signature(path)
+    if signature is None:
+        raise OutputSafetyError(path=path, reason="staging directory changed")
+    return signature
 
 
-def _rename(source: Path, destination: Path) -> None:
+def _rename(
+    source: Path,
+    destination: Path,
+    *,
+    expected_source_identity: tuple[int, int] | None = None,
+) -> None:
     source_identity = _identity(source)
+    if (
+        expected_source_identity is not None
+        and source_identity != expected_source_identity
+    ):
+        raise OutputSafetyError(path=source, reason="staging directory changed")
     destination_identity = _identity(destination)
     for attempt in range(_RENAME_ATTEMPTS):
         try:
             os.rename(source, destination)
+            if (
+                expected_source_identity is not None
+                and _identity(destination) != expected_source_identity
+            ):
+                raise OutputSafetyError(
+                    path=destination,
+                    reason="staging directory changed during install",
+                )
             return
         except PermissionError:
             if attempt + 1 == _RENAME_ATTEMPTS:
@@ -222,7 +245,17 @@ def _validate_output(output_dir: Path) -> _OutputState:
     )
 
 
-def _commit_snapshot(state: _OutputState, snapshot: Path) -> None:
+def _commit_snapshot(
+    state: _OutputState,
+    snapshot: Path,
+    snapshot_identity: tuple[int, int],
+    snapshot_signature: _TreeSignature,
+) -> None:
+    if (
+        _identity(snapshot) != snapshot_identity
+        or _tree_signature(snapshot) != snapshot_signature
+    ):
+        raise OutputSafetyError(path=snapshot, reason="staging directory changed")
     current_identity = _identity(state.path)
     if (
         current_identity != state.identity
@@ -247,14 +280,32 @@ def _commit_snapshot(state: _OutputState, snapshot: Path) -> None:
                 reason="changed during generation",
             )
     try:
-        _rename(snapshot, state.path)
-    except OSError as install_error:
+        _rename(
+            snapshot,
+            state.path,
+            expected_source_identity=snapshot_identity,
+        )
+        if _tree_signature(state.path) != snapshot_signature:
+            raise OutputSafetyError(
+                path=state.path,
+                reason="staging directory changed during install",
+            )
+    except (OSError, OutputSafetyError) as install_error:
+        rejected = recovery / "rejected"
+        if _identity(state.path) is not None:
+            try:
+                _rename(state.path, rejected)
+            except (OSError, OutputSafetyError) as quarantine_error:
+                raise quarantine_error from install_error
         if state.identity is not None:
             try:
-                _rename(previous, state.path)
-            except OSError as rollback_error:
+                _rename(
+                    previous,
+                    state.path,
+                    expected_source_identity=state.identity,
+                )
+            except (OSError, OutputSafetyError) as rollback_error:
                 raise rollback_error from install_error
-        recovery.rmdir()
         raise
     if state.identity is None:
         recovery.rmdir()
@@ -306,5 +357,10 @@ def write_output(
             temporary / "manifest.json",
             manifest.model_dump_json(indent=2) + "\n",
         )
-        _validate_staging(temporary, temporary_identity)
-    _commit_snapshot(state, temporary)
+        temporary_signature = _validate_staging(temporary, temporary_identity)
+    _commit_snapshot(
+        state,
+        temporary,
+        temporary_identity,
+        temporary_signature,
+    )
