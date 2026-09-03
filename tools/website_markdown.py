@@ -69,11 +69,30 @@ def _sanitize_markdown_links(value: str) -> str:
     )
 
 
+def _neutralize_reference_definition(line: str) -> str:
+    match = re.match(r"(?P<indent>[ ]{0,3})\[", line)
+    if match is None:
+        return line
+    escaped = False
+    for index in range(match.end(), len(line)):
+        character = line[index]
+        if escaped:
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == "]":
+            return (
+                f"{line[: match.end() - 1]}\\{line[match.end() - 1 :]}"
+                if line[index + 1 :].startswith(":")
+                else line
+            )
+    return line
+
+
 def _neutralize_markdown_blocks(value: str) -> str:
-    value = re.sub(
-        r"(?m)^(?P<indent>[ ]{0,3})\[(?P<label>[^\]\r\n]+)\]:",
-        lambda match: f"{match.group('indent')}\\[{match.group('label')}]:",
-        value,
+    value = "".join(
+        _neutralize_reference_definition(line)
+        for line in value.splitlines(keepends=True)
     )
     return re.sub(
         r"(?m)^(?P<indent>[ ]{0,3})(?P<fence>`{3,}|~{3,})",

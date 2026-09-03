@@ -216,6 +216,21 @@ def test_document_from_page_neutralizes_reference_link_definitions() -> None:
     assert "click" in rendered
 
 
+def test_document_from_page_neutralizes_escaped_reference_labels() -> None:
+    document = document_from_page(
+        (
+            "<main><h1>Notice</h1><p>[click][a\\]b]</p>"
+            "<p>[a\\]b]: javascript:alert(1)</p></main>"
+        ),
+        "https://finki.ukim.mk/notice/",
+    )
+
+    rendered = render_document(document)
+
+    assert "\n[a\\]b]: javascript:" not in rendered
+    assert "\n\\[a\\]b]: javascript:" in rendered
+
+
 def test_document_from_page_neutralizes_markdown_fences() -> None:
     document = document_from_page(
         "<main><h1>Notice</h1><p>```</p><p>following text</p></main>",
