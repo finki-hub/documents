@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Final, final, override
 from urllib.parse import urlsplit
 
@@ -65,6 +65,12 @@ class CrawlIncompleteError(RuntimeError):
         return "; ".join(str(failure) for failure in self.failures)
 
 
+@dataclass(frozen=True, slots=True)
+class _PageFetchResult:
+    size_bytes: int
+    snapshot: PageSnapshot | None
+
+
 def _page_links(html: str, url: str) -> tuple[str, ...]:
     parser = HTMLParser(html)
     links: set[str] = set()
@@ -80,22 +86,25 @@ def _page_links(html: str, url: str) -> tuple[str, ...]:
 async def _fetch_page(
     client: httpx2.AsyncClient,
     requested_url: str,
-) -> PageSnapshot | None:
+) -> _PageFetchResult:
     response = await fetch_public(client, requested_url, PAGE_FETCH_POLICY)
     if response.status in PAGE_FETCH_POLICY.missing_statuses:
-        return None
+        return _PageFetchResult(size_bytes=len(response.body), snapshot=None)
     if "text/html" not in response.content_type:
-        return None
+        return _PageFetchResult(size_bytes=len(response.body), snapshot=None)
     html = response.body.decode(response.encoding, errors="replace")
     aliases = (requested_url,) if requested_url != response.url else ()
-    return PageSnapshot(
-        final_url=response.url,
-        html=html,
-        links=_page_links(html, response.url),
-        requested_url=requested_url,
-        status=response.status,
-        aliases=aliases,
+    return _PageFetchResult(
         size_bytes=len(response.body),
+        snapshot=PageSnapshot(
+            final_url=response.url,
+            html=html,
+            links=_page_links(html, response.url),
+            requested_url=requested_url,
+            status=response.status,
+            aliases=aliases,
+            size_bytes=len(response.body),
+        ),
     )
 
 
@@ -134,36 +143,38 @@ async def crawl_pages(
         if not batch:
             continue
         requested_count += len(batch)
-        results: list[PageSnapshot] = []
+        outcomes: list[_PageFetchResult] = []
         failures: list[PublicFetchError] = []
 
         async def fetch(
             url: str,
-            output: list[PageSnapshot],
+            output: list[_PageFetchResult],
             output_failures: list[PublicFetchError],
         ) -> None:
             try:
-                if snapshot := await _fetch_page(client, url):
-                    output.append(snapshot)
+                output.append(await _fetch_page(client, url))
             except PublicFetchError as error:
                 output_failures.append(error)
 
         async with anyio.create_task_group() as tasks:
             for url in batch:
                 visited.add(url)
-                _ = tasks.start_soon(fetch, url, results, failures)
+                _ = tasks.start_soon(fetch, url, outcomes, failures)
         if failures:
             raise CrawlIncompleteError(tuple(failures))
-        received_bytes += sum(snapshot.size_bytes for snapshot in results)
+        received_bytes += sum(outcome.size_bytes for outcome in outcomes)
         if received_bytes > _MAX_CRAWL_BYTES:
             raise CrawlIncompleteError(
                 (
                     PublicFetchError(
                         reason="crawl byte limit exceeded",
-                        url=results[-1].final_url,
+                        url=batch[-1],
                     ),
                 )
             )
+        results = [
+            outcome.snapshot for outcome in outcomes if outcome.snapshot is not None
+        ]
         discovered: set[str] = set()
         for snapshot in sorted(
             results,
