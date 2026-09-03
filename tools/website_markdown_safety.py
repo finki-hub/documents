@@ -56,6 +56,7 @@ def _unescape_commonmark(value: str) -> str:
 
 def sanitize_markdown_links(value: str) -> str:
     replacements: list[tuple[int, int]] = []
+    inspected_characters = 0
     brackets = _delimiter_pairs(value, "[", "]")
     parentheses = _delimiter_pairs(value, "(", ")")
     for label_start, label_end in brackets.items():
@@ -65,6 +66,11 @@ def sanitize_markdown_links(value: str) -> str:
         destination_end = parentheses.get(destination_start)
         if destination_end is None:
             continue
+        destination_length = destination_end - destination_start - 1
+        if inspected_characters + destination_length > len(value):
+            replacements.append((destination_start + 1, destination_end))
+            continue
+        inspected_characters += destination_length
         destination = html.unescape(value[label_end + 2 : destination_end]).strip()
         destination = _unescape_commonmark(destination)
         destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
