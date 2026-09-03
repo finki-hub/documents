@@ -1,54 +1,11 @@
 from __future__ import annotations
 
-from urllib.parse import parse_qs
-
 import anyio
 import httpx2
+import pytest
 
-from tools.website_fetch import build_documents, crawl_pages, fetch_rest_inventory
-from tools.website_models import (
-    CrawlPlan,
-    PageSnapshot,
-    RestInventory,
-    RestRecord,
-    SourceKind,
-)
-
-
-def test_fetch_rest_inventory_paginates_viewable_text_types() -> None:
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        if request.url.path.endswith("/types"):
-            return httpx2.Response(
-                200,
-                json={
-                    "announcement": {"rest_base": "announcement"},
-                    "attachment": {"rest_base": "media"},
-                },
-            )
-        page = parse_qs(request.url.query.decode())["page"][0]
-        identifier = 1 if page == "1" else 2
-        return httpx2.Response(
-            200,
-            headers={"X-WP-Total": "2", "X-WP-TotalPages": "2"},
-            json=[
-                {
-                    "id": identifier,
-                    "link": f"https://finki.ukim.mk/announcement/{identifier}/",
-                    "slug": str(identifier),
-                    "title": {"rendered": f"Notice {identifier}"},
-                    "content": {"rendered": f"<p>Body {identifier}</p>"},
-                    "type": "announcement",
-                }
-            ],
-        )
-
-    async def run() -> None:
-        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
-            inventory = await fetch_rest_inventory(client)
-        assert inventory.totals == {"announcement": 2}
-        assert sorted(record.id for record in inventory.records_by_url.values()) == [1, 2]
-
-    anyio.run(run)
+from tools.website_fetch import build_documents, crawl_pages
+from tools.website_models import CrawlPlan, RestInventory
 
 
 def test_crawl_pages_follows_only_canonical_html_routes() -> None:
@@ -70,7 +27,9 @@ def test_crawl_pages_follows_only_canonical_html_routes() -> None:
         )
 
     async def run() -> None:
-        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
             pages = await crawl_pages(
                 client,
                 CrawlPlan(seed_urls=("https://finki.ukim.mk/",)),
@@ -92,7 +51,9 @@ def test_crawl_pages_preserves_explicit_seed_priority() -> None:
         )
 
     async def run() -> None:
-        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
             pages = await crawl_pages(
                 client,
                 CrawlPlan(
@@ -108,68 +69,153 @@ def test_crawl_pages_preserves_explicit_seed_priority() -> None:
     anyio.run(run)
 
 
-def test_crawl_pages_does_not_fetch_excluded_rest_documents() -> None:
-    requested_paths: list[str] = []
-
-    def handler(request: httpx2.Request) -> httpx2.Response:
-        requested_paths.append(request.url.path)
+def test_crawl_pages_reports_when_page_limit_truncates_frontier() -> None:
+    def handler(_request: httpx2.Request) -> httpx2.Response:
         return httpx2.Response(
             200,
             headers={"content-type": "text/html; charset=UTF-8"},
-            text='<main><a href="/en/about/">About</a></main>',
+            text='<main><a href="/next/">Next</a></main>',
         )
 
     async def run() -> None:
-        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as client:
-            _ = await crawl_pages(
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            result = await crawl_pages(
                 client,
-                CrawlPlan(
-                    seed_urls=(
-                        "https://finki.ukim.mk/announcement/rest-backed/",
-                        "https://finki.ukim.mk/en/",
-                    ),
-                    excluded_urls=frozenset(
-                        {"https://finki.ukim.mk/announcement/rest-backed/"}
-                    ),
-                ),
+                CrawlPlan(seed_urls=("https://finki.ukim.mk/",), max_pages=1),
             )
-        assert "/announcement/rest-backed/" not in requested_paths
-        assert "/en/" in requested_paths
+        assert result.requested_count == 1
+        assert result.truncated is True
 
     anyio.run(run)
 
 
-def test_build_documents_uses_rendered_fallback_and_deduplicates_aliases() -> None:
-    record = RestRecord.model_validate(
-        {
-            "id": 7,
-            "link": "https://finki.ukim.mk/kadar/",
-            "slug": "kadar",
-            "title": {"rendered": "Кадар"},
-            "content": {"rendered": ""},
-            "type": "page",
-        }
-    )
-    inventory = RestInventory(records_by_url={record.link: record}, totals={"pages": 1})
-    pages = (
-        PageSnapshot(
-            final_url=record.link,
-            html="<main><h1>Кадар</h1><p>Професори и соработници.</p></main>",
-            links=(),
-            requested_url=record.link,
-            status=200,
-        ),
-        PageSnapshot(
-            final_url="https://finki.ukim.mk/team/",
-            html="<main><h1>Кадар</h1><p>Професори и соработници.</p></main>",
-            links=(),
-            requested_url="https://finki.ukim.mk/team/",
-            status=200,
-        ),
-    )
+def test_crawl_pages_uses_rest_documents_for_rendered_link_discovery() -> None:
+    requested_paths: list[str] = []
 
-    documents = build_documents(inventory, pages)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested_paths.append(request.url.path)
+        if request.url.path == "/announcement/rest-backed/":
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/html; charset=UTF-8"},
+                text='<main><a href="/rendered-only/">Rendered only</a></main>',
+            )
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html; charset=UTF-8"},
+            text="<main><h1>Rendered only</h1><p>Unique content.</p></main>",
+        )
 
-    assert len(documents) == 1
-    assert documents[0].source_kind is SourceKind.RENDERED
-    assert documents[0].aliases == ("https://finki.ukim.mk/team/",)
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            pages = await crawl_pages(
+                client,
+                CrawlPlan(
+                    seed_urls=("https://finki.ukim.mk/announcement/rest-backed/",),
+                    discovery_only_urls=frozenset(
+                        {"https://finki.ukim.mk/announcement/rest-backed/"}
+                    ),
+                ),
+            )
+        assert requested_paths == ["/announcement/rest-backed/", "/rendered-only/"]
+        assert [page.final_url for page in pages] == [
+            "https://finki.ukim.mk/rendered-only/"
+        ]
+
+    anyio.run(run)
+
+
+def test_crawl_pages_rejects_redirects_outside_public_hosts() -> None:
+    requested_hosts: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested_hosts.append(request.url.host)
+        if request.url.host == "finki.ukim.mk":
+            return httpx2.Response(302, headers={"location": "https://example.com/"})
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text="<main>External content.</main>",
+        )
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            follow_redirects=True,
+            transport=httpx2.MockTransport(handler),
+        ) as client:
+            with pytest.raises(RuntimeError):
+                _ = await crawl_pages(
+                    client,
+                    CrawlPlan(seed_urls=("https://finki.ukim.mk/redirect/",)),
+                )
+        assert requested_hosts == ["finki.ukim.mk"]
+
+    anyio.run(run)
+
+
+def test_crawl_pages_fails_when_a_page_returns_server_error() -> None:
+    def handler(_request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(503)
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            with pytest.raises(RuntimeError):
+                _ = await crawl_pages(
+                    client,
+                    CrawlPlan(seed_urls=("https://finki.ukim.mk/unavailable/",)),
+                )
+
+    anyio.run(run)
+
+
+def test_crawl_pages_rejects_oversized_html_response() -> None:
+    def handler(_request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            content=b"x" * 5_000_001,
+        )
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            with pytest.raises(RuntimeError):
+                _ = await crawl_pages(
+                    client,
+                    CrawlPlan(seed_urls=("https://finki.ukim.mk/oversized/",)),
+                )
+
+    anyio.run(run)
+
+
+def test_crawl_pages_preserves_same_host_redirect_as_alias() -> None:
+    requested_url = "https://finki.ukim.mk/old-page/"
+    canonical_url = "https://finki.ukim.mk/new-page/"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path == "/old-page/":
+            return httpx2.Response(301, headers={"location": canonical_url})
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text="<main><h1>New page</h1><p>Canonical content.</p></main>",
+        )
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            follow_redirects=True,
+            transport=httpx2.MockTransport(handler),
+        ) as client:
+            pages = await crawl_pages(client, CrawlPlan(seed_urls=(requested_url,)))
+        documents = build_documents(RestInventory(records_by_url={}, totals={}), pages)
+        assert documents[0].url == canonical_url
+        assert documents[0].aliases == (requested_url,)
+
+    anyio.run(run)
