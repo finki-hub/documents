@@ -51,6 +51,29 @@ def _clean_markdown(value: str) -> str:
     return cleaned.strip()
 
 
+def _sanitize_markdown_links(value: str) -> str:
+    def replace_unsafe(match: re.Match[str]) -> str:
+        destination = html_module.unescape(match.group("destination")).strip()
+        target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
+        scheme = urlsplit(target).scheme.casefold()
+        image = match.group("image") is not None
+        allowed = {"http", "https"} if image else {"http", "https", "mailto"}
+        return (
+            match.group("label") if scheme and scheme not in allowed else match.group(0)
+        )
+
+    return re.sub(
+        r"(?P<image>!)?\[(?P<label>[^\]\n]*)\]\((?P<destination>[^)\n]*)\)",
+        replace_unsafe,
+        value,
+    )
+
+
+def _escape_markdown_text(value: str) -> str:
+    escaped = html_module.escape(value, quote=False).replace("\\", "\\\\")
+    return re.sub(r"([`*_{}\[\]()#+.!|-])", r"\\\1", escaped)
+
+
 def _safe_link(raw_url: str, base_url: str) -> str | None:
     absolute = urljoin(base_url, raw_url)
     return (
@@ -92,7 +115,8 @@ def _markdown_from_html(value: str, base_url: str) -> str:
         heading_style="ATX",
         strip=["script", "style", "noscript", "template", "svg"],
     )
-    return _clean_markdown(converted.replace("<", "&lt;").replace(">", "&gt;"))
+    inert_html = converted.replace("<", "&lt;").replace(">", "&gt;")
+    return _clean_markdown(_sanitize_markdown_links(inert_html))
 
 
 def _content_root(parser: HTMLParser) -> Node:
@@ -188,6 +212,7 @@ def render_document(document: WebsiteDocument) -> str:
         metadata.append(f"wordpress_id: {document.wordpress_id}")
     if document.wordpress_type:
         metadata.append(f"wordpress_type: {metadata_value(document.wordpress_type)}")
-    safe_title = html_module.escape(document.title, quote=False)
-    metadata.extend(("-->", "", f"# {safe_title}", "", document.markdown, ""))
+    safe_title = _escape_markdown_text(document.title)
+    safe_markdown = _sanitize_markdown_links(document.markdown)
+    metadata.extend(("-->", "", f"# {safe_title}", "", safe_markdown, ""))
     return "\n".join(metadata)

@@ -3,7 +3,7 @@ from tools.website_markdown import (
     document_from_rest,
     render_document,
 )
-from tools.website_models import RestRecord, SourceKind
+from tools.website_models import RestRecord, SourceKind, WebsiteDocument
 
 
 def test_document_from_page_extracts_main_content_and_absolute_links() -> None:
@@ -177,3 +177,24 @@ def test_render_document_escapes_untrusted_metadata_and_title() -> None:
 
     assert rendered.count("-->") == 1
     assert "<script>" not in rendered
+
+
+def test_render_document_neutralizes_markdown_syntax_from_untrusted_text() -> None:
+    document = WebsiteDocument(
+        aliases=(),
+        language="mk",
+        markdown="[click](javascript:alert(1))",
+        modified=None,
+        source_kind=SourceKind.RENDERED,
+        title="![track](https://example.invalid/pixel)",
+        url="https://finki.ukim.mk/notice/",
+        wordpress_id=None,
+        wordpress_type=None,
+    )
+
+    rendered = render_document(document)
+
+    assert "[click](javascript:" not in rendered
+    assert "![track](" not in rendered
+    assert "click" in rendered
+    assert "track" in rendered
