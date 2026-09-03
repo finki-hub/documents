@@ -292,12 +292,12 @@ def _commit_snapshot(
             )
     except (OSError, OutputSafetyError) as install_error:
         rejected = recovery / "rejected"
-        if _identity(state.path) is not None:
+        if _identity(snapshot) is None and _identity(state.path) is not None:
             try:
                 _rename(state.path, rejected)
             except (OSError, OutputSafetyError) as quarantine_error:
                 raise quarantine_error from install_error
-        if state.identity is not None:
+        if state.identity is not None and _identity(state.path) is None:
             try:
                 _rename(
                     previous,
