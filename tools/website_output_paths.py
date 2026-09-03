@@ -72,14 +72,6 @@ def tree_signature(path: Path) -> TreeSignature | None:
         ) from error
 
 
-def write_new_text(path: Path, content: str) -> None:
-    try:
-        with path.open("x", encoding="utf-8", newline="\n") as output:
-            _ = output.write(content)
-    except OSError as error:
-        raise OutputSafetyError(path=path, reason="staging path changed") from error
-
-
 @contextmanager
 def hold_directory(path: Path) -> Generator[None]:
     if os.name != "nt":

@@ -111,7 +111,11 @@ def commit_snapshot(
         )
         if should_quarantine:
             try:
-                _rename(state.path, recovery / "rejected")
+                _rename(
+                    state.path,
+                    recovery / "rejected",
+                    expected_source_identity=installed_identity,
+                )
             except (OSError, OutputSafetyError) as quarantine_error:
                 raise quarantine_error from install_error
         if state.identity is not None and identity(state.path) is None:
