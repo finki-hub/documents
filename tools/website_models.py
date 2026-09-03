@@ -20,6 +20,9 @@ from pydantic import BaseModel, ConfigDict, TypeAdapter
 BASE_URL: Final = "https://finki.ukim.mk/"
 PUBLIC_HOSTS: Final = frozenset({"finki.ukim.mk", "www.finki.ukim.mk"})
 QUERY_KEYS: Final = frozenset({"kat", "pg"})
+NON_CONTENT_SEGMENTS: Final = frozenset(
+    {"feed", "trackback", "wp-admin", "wp-json", "wp-login.php"}
+)
 TEXT_REST_BASES: Final = frozenset(
     {
         "announcement",
@@ -85,6 +88,7 @@ class PageSnapshot:
     requested_url: str
     status: int
     aliases: tuple[str, ...] = ()
+    size_bytes: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,8 +157,15 @@ class WebsiteManifest(BaseModel):
     schema_version: Literal[2]
 
 
-def _normalized_path(raw_path: str) -> str:
-    decoded = unquote(raw_path or "/")
+def _normalized_path(raw_path: str) -> str | None:
+    decoded = raw_path or "/"
+    for _ in range(5):
+        next_decoded = unquote(decoded)
+        if next_decoded == decoded:
+            break
+        decoded = next_decoded
+    else:
+        return None
     normalized = normpath(f"/{decoded.lstrip('/')}")
     if decoded.endswith("/") and normalized != "/":
         normalized = f"{normalized}/"
@@ -167,7 +178,8 @@ def _public_url(raw_url: str, base_url: str) -> tuple[str, str] | None:
         return None
     if (parsed.hostname or "").casefold() not in PUBLIC_HOSTS:
         return None
-    return _normalized_path(parsed.path), parsed.query
+    path = _normalized_path(parsed.path)
+    return (path, parsed.query) if path is not None else None
 
 
 def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
@@ -175,8 +187,10 @@ def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
     if public_url is None:
         return None
     path, raw_query = public_url
-    folded_path = path.casefold()
-    if folded_path.startswith(("/wp-admin", "/wp-json")) or "/feed/" in folded_path:
+    segments = frozenset(
+        unquote(segment).casefold() for segment in path.split("/") if segment
+    )
+    if segments & NON_CONTENT_SEGMENTS:
         return None
     query = urlencode(
         sorted((key, value) for key, value in parse_qsl(raw_query) if key in QUERY_KEYS)
