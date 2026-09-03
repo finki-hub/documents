@@ -19,6 +19,20 @@ def _write_stream(output: IO[str], content: str) -> None:
 
 
 @contextmanager
+def _open_directory(
+    path: str | Path,
+    flags: int,
+    *,
+    dir_fd: int | None = None,
+) -> Generator[int]:
+    file_descriptor = os.open(path, flags, dir_fd=dir_fd)
+    try:
+        yield file_descriptor
+    finally:
+        os.close(file_descriptor)
+
+
+@contextmanager
 def _hold_windows_directory(
     path: Path,
     expected_identity: tuple[int, int] | None = None,
@@ -98,16 +112,16 @@ def _write_posix(
     directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
         with ExitStack() as stack:
-            directory = os.open(root, directory_flags)
-            _ = stack.callback(os.close, directory)
+            directory = stack.enter_context(_open_directory(root, directory_flags))
             status = os.fstat(directory)
             if (status.st_dev, status.st_ino) != root_identity:
                 raise OutputSafetyError(path=root, reason="staging path changed")
             for component in relative_path.parent.parts:
                 with suppress(FileExistsError):
                     os.mkdir(component, dir_fd=directory)
-                child = os.open(component, directory_flags, dir_fd=directory)
-                _ = stack.callback(os.close, child)
+                child = stack.enter_context(
+                    _open_directory(component, directory_flags, dir_fd=directory)
+                )
                 directory = child
             file_descriptor = os.open(
                 relative_path.name,

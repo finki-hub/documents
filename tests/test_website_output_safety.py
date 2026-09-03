@@ -670,11 +670,12 @@ def test_hold_directory_rejects_reparse_substitution_during_open(
 
     monkeypatch.setattr(_winapi, "CreateFile", substitute_during_open)
 
-    with (
-        pytest.raises(OutputSafetyError, match="directory changed"),
-        hold_directory(parent),
-    ):
-        pass
+    def hold_substituted_parent() -> None:
+        with hold_directory(parent):
+            pass
+
+    with pytest.raises(OutputSafetyError, match="directory changed"):
+        hold_substituted_parent()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows reparse-point handles")
