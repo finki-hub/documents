@@ -61,6 +61,8 @@ Every run replaces an empty directory or a prior generator-owned snapshot with t
 
 For safety, the generator never recursively deletes temporary paths after they have been exposed in the filesystem. A successful replacement preserves the prior snapshot in a sibling `.website-recovery-*` directory; a failed run may preserve a `.website-*` staging directory. Inspect the current output, then remove those clearly named artifacts manually when they are no longer needed.
 
+A persistent sibling `.website.lock` file serializes publication so concurrent generator runs cannot move or overwrite each other's completed snapshot. It is generated state and remains uncommitted.
+
 Use `--max-pages 20` for a quick network smoke test. For a content refresh, run the full command and review `manifest.json`, additions/removals, language balance, and representative rendered-only pages. Generated `website/` snapshots and their staging/recovery siblings are ignored by Git and must remain uncommitted. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
 
 Website output is informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync` until the chat-bot has a dedicated website-ingestion contract.

@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import replace
 from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 from pydantic import ValidationError
@@ -17,6 +18,7 @@ from tools.website_models import (
     WebsiteManifest,
 )
 from tools.website_output import OutputSafetyError, write_output
+from tools.website_output_lock import publication_lock
 
 
 def _document() -> WebsiteDocument:
@@ -36,8 +38,7 @@ def _document() -> WebsiteDocument:
 def test_manifest_requires_explicit_ownership_fields() -> None:
     with pytest.raises(ValidationError):
         _ = WebsiteManifest.model_validate_json(
-            '{"base_url":"https://finki.ukim.mk/","document_count":0,'
-            + '"documents":[],"rest_totals":{}}'
+            '{"base_url":"https://finki.ukim.mk/","document_count":0,"documents":[],"rest_totals":{}}'
         )
 
 
@@ -223,7 +224,7 @@ def test_write_output_rejects_substituted_staging_directory(
 
     monkeypatch.setattr(website_output, "render_document", substitute_staging)
 
-    with pytest.raises(OSError):
+    with pytest.raises(OutputSafetyError, match="staging"):
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
 
     assert victim.read_text(encoding="utf-8") == "keep"
@@ -371,3 +372,68 @@ def test_write_output_rejects_parent_link_substitution_during_creation(
         write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
 
     assert not (victim / "website").exists()
+
+
+def test_write_output_does_not_follow_substituted_staging_child(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_dir = tmp_path / "website"
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    displaced = tmp_path / "displaced-language"
+    original_mkdir = Path.mkdir
+    substituted = False
+
+    def substitute_language_directory(
+        path: Path,
+        mode: int = 0o777,
+        parents: bool = False,
+        exist_ok: bool = False,
+    ) -> None:
+        nonlocal substituted
+        original_mkdir(path, mode, parents, exist_ok)
+        if not substituted and path.name == "mk" and path.parent.name == "documents":
+            substituted = True
+            _ = path.rename(displaced)
+            try:
+                path.symlink_to(victim, target_is_directory=True)
+            except OSError:
+                pytest.skip("directory symlinks are unavailable on this runner")
+
+    monkeypatch.setattr(Path, "mkdir", substitute_language_directory)
+
+    with pytest.raises(OutputSafetyError, match="staging"):
+        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+
+    assert not tuple(victim.iterdir())
+
+
+def test_publication_lock_serializes_publishers(tmp_path: Path) -> None:
+    output_dir = tmp_path / "website"
+    first_entered = Event()
+    release_first = Event()
+    second_entered = Event()
+
+    def hold_first_lock() -> None:
+        with publication_lock(output_dir):
+            first_entered.set()
+            _ = release_first.wait(timeout=5)
+
+    def enter_second_lock() -> None:
+        with publication_lock(output_dir):
+            second_entered.set()
+
+    first = Thread(target=hold_first_lock)
+    second = Thread(target=enter_second_lock)
+    first.start()
+    assert first_entered.wait(timeout=2)
+    second.start()
+
+    assert not second_entered.wait(timeout=0.1)
+    release_first.set()
+    assert second_entered.wait(timeout=2)
+    first.join(timeout=2)
+    second.join(timeout=2)
+    assert not first.is_alive()
+    assert not second.is_alive()

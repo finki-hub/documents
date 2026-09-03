@@ -15,6 +15,7 @@ from tools.website_models import (
     WebsiteDocument,
     WebsiteManifest,
 )
+from tools.website_output_lock import publication_lock
 from tools.website_output_paths import (
     OutputSafetyError,
     OutputState,
@@ -23,9 +24,9 @@ from tools.website_output_paths import (
     is_link,
     validate_output,
     validate_staging,
-    write_new_text,
 )
 from tools.website_output_publish import commit_snapshot
+from tools.website_output_staging import write_staged_text
 
 __all__ = ["OutputSafetyError", "write_output"]
 
@@ -66,22 +67,26 @@ def _write_output_locked(
     if temporary_identity is None:
         raise OutputSafetyError(path=temporary, reason="staging directory unavailable")
     entries: list[ManifestEntry] = []
+    rendered_documents: list[str] = []
     with hold_directory(temporary):
-        with (temporary / "finki-website.md").open(
-            "x",
-            encoding="utf-8",
-            newline="\n",
-        ) as combined:
-            for document in ordered:
-                relative_path = _document_relative_path(document)
-                destination = temporary / relative_path
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                rendered = render_document(document)
-                write_new_text(destination, rendered)
-                if entries:
-                    _ = combined.write("\n---\n\n")
-                _ = combined.write(f"{rendered.rstrip()}\n")
-                entries.append(_manifest_entry(document, relative_path))
+        for document in ordered:
+            relative_path = _document_relative_path(document)
+            rendered = render_document(document)
+            write_staged_text(
+                temporary,
+                relative_path,
+                rendered,
+                temporary_identity,
+            )
+            rendered_documents.append(rendered.rstrip())
+            entries.append(_manifest_entry(document, relative_path))
+        combined = "\n---\n\n".join(rendered_documents)
+        write_staged_text(
+            temporary,
+            Path("finki-website.md"),
+            f"{combined}\n" if combined else "",
+            temporary_identity,
+        )
         manifest = WebsiteManifest(
             base_url=BASE_URL,
             crawled_pages=metadata.crawled_pages,
@@ -92,9 +97,11 @@ def _write_output_locked(
             rest_totals=dict(sorted(metadata.rest_totals.items())),
             schema_version=2,
         )
-        write_new_text(
-            temporary / "manifest.json",
+        write_staged_text(
+            temporary,
+            Path("manifest.json"),
             manifest.model_dump_json(indent=2) + "\n",
+            temporary_identity,
         )
         temporary_signature = validate_staging(temporary, temporary_identity)
     commit_snapshot(
@@ -127,4 +134,14 @@ def write_output(
                 path=state.path.parent,
                 reason="link or junction in path",
             )
-        _write_output_locked(state, documents, metadata)
+        with publication_lock(state.path):
+            locked_state = validate_output(output_dir)
+            if (
+                locked_state.identity != state.identity
+                or locked_state.tree_signature != state.tree_signature
+            ):
+                raise OutputSafetyError(
+                    path=state.path,
+                    reason="changed during generation",
+                )
+            _write_output_locked(locked_state, documents, metadata)

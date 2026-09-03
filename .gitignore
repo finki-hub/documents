@@ -13,5 +13,6 @@ __pycache__/
 
 # Generated website snapshots
 website/
+.website.lock
 .website-*/
 .website-recovery-*/
