@@ -1,0 +1,32 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/subject/m23_w_051/
+language: en
+source_kind: rendered
+-->
+
+# Machine Learning in Smart Energy Grids
+
+|  |  |  |
+| --- | --- | --- |
+| 1. | Course Title | Machine Learning in Smart Energy Grids  Machine learning in smart grids |
+| 2. | Code | m23\_w\_051 |
+| 3. | Study Programme | — |
+| 4. | Organizer of the study programme (unit, institute, department or division) | Faculty of Computer Science and Engineering |
+| 5. | Degree level (first, second, third cycle) | Second cycle |
+| 6. | Academic year / semester | 9 / Winter |
+| 7. | Number of ECTS credits | 6 |
+| 8. | Teacher | Alexandra Dedinec |
+| 9. | Prerequisites for enrolling in the course | — |
+| 10. | Objectives of the course programme (competences) | The goal of the course is to:  • претстават основните концепти на smart grid  • анализираат моменталните технологии во smart grid  • простудира примената на машинското учење врз електроенергетските системи  • анализираат методологии за дизајнирање на интелигентни мрежи |
+| 11. | Course content | Content  1. Што е Smart grid?  2. Основи на електроенергетски системи  3. Вовед во информациски и комуникациски технологии во smart grid  4. Машинско учење во smart grid  5. Методи за оптимизација и предвидување на дистрибуирани извори на енергија  6. Технологии за зачувување на енергија и оптимална интеграција на електрични возила  7. Demand side management and forecasting, demand response и demand pricing  8. Smart metering технологии.  9. Системи за подобрување на надежноста на дистрибутивната и преносната мрежа  10. Студии на случаи на smart grid |
+| 12. | Learning methods | NULL |
+| 13. | Total available time | 6 ECTS x 30 hours = 180 hours |
+| 14. | Distribution of available time | 45 + 15 + 30 + 50 + 40 = 180 hours |
+| 15. | Forms of teaching activities | |  |  |  | | --- | --- | --- | | 15.1. | Lectures - theoretical instruction | 45 hours | | 15.2. | Exercises (laboratory, auditory), seminars, teamwork | 15 hours | |
+| 16. | Other forms of activities | |  |  |  | | --- | --- | --- | | 16.1. | Project assignments | 50 hours | | 16.2. | Independent assignments | 30 hours | | 16.3. | Home study | 40 hours | |
+| 17. | Assessment method | |  |  |  | | --- | --- | --- | | 17.1. | Tests | 45 points | | 17.2. | Seminar paper / project (presentation: written and oral) | 50 points | | 17.3. | Activities and learning | 10 points | | 17.4. | Final exam | 0 points | |
+| 18. | Grading criteria (points / grade) | |  |  | | --- | --- | | up to 50 points | 5 (five) (F) | | from 51 to 60 points | 6 (six) (E) | | from 61 to 70 points | 7 (seven) (D) | | from 71 to 80 points | 8 (eight) (C) | | from 81 to 90 points | 9 (nine) (B) | | from 91 to 100 points | 10 (ten) (A) | |
+| 19. | Requirement for obtaining a signature and taking the final exam | Activities 15 and 16 |
+| 20. | Language of instruction | NULL |
+| 21. | Method for monitoring the quality of teaching | NULL |
+| 22. | Literature | |  |  | | --- | --- | | 22.1. | **Required literature** 1. Salman K. Salman | Introduction to the Smart Grid: Concepts, Technologies and Evolution | Institution of Engineering and Technology | 2017 2. Anish Jindal, Neeraj Kumar, Gagangeet Singh Aujla | Internet of Energy for Smart Cities Machine Learning Models and Techniques | CRC Press | 2021 | | 22.2. | **Additional literature** No. Author Title Publisher Year | |

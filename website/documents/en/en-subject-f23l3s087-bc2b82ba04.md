@@ -1,0 +1,32 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/subject/F23L3S087/
+language: en
+source_kind: rendered
+-->
+
+# Introduction to Network Science
+
+|  |  |  |
+| --- | --- | --- |
+| 1. | Course Title | Introduction to Network Science  Introduction to network science |
+| 2. | Code | F23L3S087 |
+| 3. | Study Programme | — |
+| 4. | Organizer of the study programme (unit, institute, department or division) | Faculty of Computer Science and Engineering |
+| 5. | Degree level (first, second, third cycle) | First Cycle |
+| 6. | Academic year / semester | 6 / Summer |
+| 7. | Number of ECTS credits | 6 |
+| 8. | Teacher | Igor Mishkovski, Miroslav Mirchev |
+| 9. | Prerequisites for enrolling in the course | Probability and Statistics or Fundamentals of Information Theory or Mathematics 3 or Business Statistics |
+| 10. | Objectives of the course programme (competences) | Introduction to the fundamental concepts of network science and their application to real-world data. Equipping students to analyze the properties and dynamic processes in real-world complex networks and to model and visualize them. Study of basic methods for community detection, robustness assessment, optimization, data mining, and prediction in complex networks. |
+| 11. | Course content | Lectures:  1. Introduction to network science and an overview of, for example, social, information, biological, and techno-technological networks. Properties of real complex networks: small-world effect, node transitivity, preferential attachment.  2. Models of real networks: Erdös-Rényi, Barabási-Albert, Watts-Strogatz.  3. Centrality measures and ranking algorithms. Robustness of complex networks.  4. Network structural properties. Measures of node and whole graph similarity. Assortativity and disassortativity. Paradoxes in social networks.  5. Discovery of communities and graphlets in complex networks  6. Dynamic processes in complex networks: spread of influences, information, and contagions, consensus, synchronization  7. Machine Learning in Graphs. Node Classification and Link Prediction.  8. Representation and traversal of nodes and graphs.  9. Basic concepts of graph neural networks. Graph Convolutional Networks (GCN).  10. General Architecture of Graph Neural Networks. GCN, GraphSAGE, GAT (Graph Attention Networks)  11. Application of Graph Neural Networks. Graph Expansion. Prediction with Graph Neural Networks. Training Graph Neural Networks.  12. Heterogeneous graphs. Multilayer graphs. Knowledge graphs.    Practical Classes:  1. Topological analysis and visualization of real networks. Using tools to analyze and visualize properties of massive real-world network data.  2. Generation of networks according to models, comparison of the properties of real networks with the generated networks  3. Use of metrics and algorithms for ranking links and nodes (degree, betweenness, closeness, PageRank, hits, rich club). Determining global robustness of real-world networks.  4. Examination of structural properties in real networks. Verification of assortativity and disassortativity. Detection of paradoxes in online social network data.  5. Comparing and implementing different algorithms for community and graphlet detection using data from real networks.  6. Modeling and simulation of dynamic processes in complex networks. Discovery of new models based on data from real networks.  7. Machine Learning in Graphs. Node Classification and Link Prediction.  8. Representation and traversal of nodes and graphs.  9. Basic concepts of graph neural networks. Graph Convolutional Networks (GCN).  10. General Architecture of Graph Neural Networks. GCN, GraphSAGE, GAT (Graph Attention Networks)  11. Application of Graph Neural Networks. Graph Expansion. Prediction with Graph Neural Networks. Training Graph Neural Networks.  12. Heterogeneous graphs. Multilayer graphs. Knowledge graphs. |
+| 12. | Learning methods | Lectures supported by slide presentations, interactive lectures, practical classes (using equipment and software packages), teamwork, case studies, guest lecturers, independent preparation and defence of a project assignment and seminar paper, and learning in an electronic environment (forums and consultations). |
+| 13. | Total available time | 6 ECTS x 30 hours = 180 hours |
+| 14. | Distribution of available time | 30 + 45 + 15 + 15 + 75 = 180 hours |
+| 15. | Forms of teaching activities | |  |  |  | | --- | --- | --- | | 15.1. | Lectures - theoretical instruction | 30 hours | | 15.2. | Exercises (laboratory, auditory), seminars, teamwork | 45 hours | |
+| 16. | Other forms of activities | |  |  |  | | --- | --- | --- | | 16.1. | Project assignments | 15 hours | | 16.2. | Independent assignments | 15 hours | | 16.3. | Home study | 75 hours | |
+| 17. | Assessment method | |  |  |  | | --- | --- | --- | | 17.1. | Tests | 10 points | | 17.2. | Seminar paper / project (presentation: written and oral) | 15 points | | 17.3. | Activities and learning | 10 points | | 17.4. | Final exam | 50 points | |
+| 18. | Grading criteria (points / grade) | |  |  | | --- | --- | | up to 50 points | 5 (five) (F) | | from 51 to 60 points | 6 (six) (E) | | from 61 to 70 points | 7 (seven) (D) | | from 71 to 80 points | 8 (eight) (C) | | from 81 to 90 points | 9 (nine) (B) | | from 91 to 100 points | 10 (ten) (A) | |
+| 19. | Requirement for obtaining a signature and taking the final exam | Activities 15.1 and 15.2 completed |
+| 20. | Language of instruction | Macedonian and English |
+| 21. | Method for monitoring the quality of teaching | internal evaluation and survey mechanism |
+| 22. | Literature | |  |  | | --- | --- | | 22.1. | **Required literature** 1. Barabási, Albert-László | Network science | Cambridge University Press | 2016 2. Lewis, Ted G. | Network science: Theory and applications | John Wiley & Sons | 2011 3. Newman, Mark | Networks: an introduction | Oxford University Press | 2010 4. David Easley and Jon Kleinberg | Networks, Crowds, and Markets: Reasoning About a Highly Connected World | Cambridge University Press | 2010 5. Guido Caldarelli, Alessandro Chessa | Data Science and Complex Networks: Real Cases Studies with Python | Oxford University Press | 2014 6. William L. Hamilton | Graph Representation Learning | Morgan & Claypool Publishers | 2020 7. Claudio Stamile, Aldo Marzullo, Enrico Deusebio | Graph Machine Learning | Packt Publishing | 2021 | | 22.2. | **Additional literature** No. Author Title Publisher Year | |

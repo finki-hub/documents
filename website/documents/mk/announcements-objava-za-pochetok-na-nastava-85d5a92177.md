@@ -1,0 +1,18 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/announcements/objava-za-pochetok-na-nastava/
+language: mk
+source_kind: rest
+modified: 2021-09-28T12:00:00
+wordpress_id: 17694
+wordpress_type: announcement
+-->
+
+# Објава за почеток на настава
+
+Почитувани студенти,
+
+Ве информираме дека редовната настава за учебната 2021/2022 година на ФИНКИ ќе започне од 04.10.2021.
+
+Распоредот на часови за првата недела ќе биде објавен најдоцна до Недела 03.10.2021 до 12:00 на [огласната таблa](https://oldsite.finki.ukim.mk/mk/student-announcement) на сајтот на ФИНКИ.
+
+Наставата ќе се одвива преку [системите за далечинско учење](https://courses.finki.ukim.mk/) на ФИНКИ.

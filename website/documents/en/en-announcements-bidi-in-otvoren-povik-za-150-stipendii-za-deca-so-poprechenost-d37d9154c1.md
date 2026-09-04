@@ -1,0 +1,11 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/announcements/bidi-in-otvoren-povik-za-150-stipendii-za-deca-so-poprechenost/
+language: en
+source_kind: rendered
+-->
+
+# Биди ИН: Отворен повик за 150 стипендии за деца со попреченост – ФИНКИ
+
+Фондацијата за образовни и културни иницијативи „Чекор по чекор“ во соработка со Здружението за промоција и развој на инклузивно општество „Инклузива“ и Здружението за давање услуги на лицата со попреченост „Хендимак“, го реализира Проектот „Биди ИН, биди ИНклузивен, биди ИНклудиран“. Проектот е финансиран од Европската Унија и има за цел да обезбеди целосна и рамноправна вклученост на децата со попреченост во редовните основни училишта.
+
+Further information is available at the following [link](https://oldsite.finki.ukim.mk/sites/default/files/u616/be_in-press_realease_5_-_mk.pdf).

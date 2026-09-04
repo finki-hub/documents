@@ -1,0 +1,32 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/subject/F23L3W037/
+language: en
+source_kind: rendered
+-->
+
+# Parallel and distributed processing
+
+|  |  |  |
+| --- | --- | --- |
+| 1. | Course Title | Parallel and distributed processing  Parallel and distributed processing |
+| 2. | Code | F23L3W037 |
+| 3. | Study Programme | Computer Science, Cloud Computing |
+| 4. | Organizer of the study programme (unit, institute, department or division) | Faculty of Computer Science and Engineering |
+| 5. | Degree level (first, second, third cycle) | First Cycle |
+| 6. | Academic year / semester | 5 / Winter |
+| 7. | Number of ECTS credits | 6 |
+| 8. | Teacher | Magdalena Kostoska Gjorgchevska, Marjan Gušev, Vladimir Zdravesk |
+| 9. | Prerequisites for enrolling in the course | Algorithms and Data Structures or Applied Algorithms and Data Structures |
+| 10. | Objectives of the course programme (competences) | The goal of the course is for students to master the methods of parallel and distributed processing, the possibilities for parallelizing a sequential program, distributed processing of large amounts of data, and the problems that must be addressed in that process. |
+| 11. | Course content | Lectures:  1. Introduction  2. Enabling Technologies and Distributed System Models  3. Basic concepts of parallel and distributed architectures  4. Parallel communications  5. Parallel Algorithms  6. Clusters  7. Colloquium 1  8. Clusters - Supplement  9. Grid  10. Big Data and Distributed File Systems  11. MapReduce concepts and implementations (Hadoop)  12. MapReduce concepts and implementations (Hadoop) - supplement  13. Cloud Computing - support for parallel and distributed processing  14. Colloquium 2    Practical Classes:  1.  2. Projects - Introduction  3. Introduction to MPI  4. Examples with MPI  5. Examples of multithreaded programming  6. Technologies and Interconnections  7.  8. Examples of horizontal and vertical scaling  9. Resource Management  10. Hadoop - Introduction  11. Simple examples with Hadoop  12. Examples with Hadoop  13. Advanced Hadoop Capabilities  14. |
+| 12. | Learning methods | Lectures supported by slide presentations, interactive lectures, exercises (using equipment and software packages), teamwork, case studies, guest lecturers, independent preparation and defense of a project assignment and a seminar paper, and learning in an electronic environment (forums, consultations). |
+| 13. | Total available time | 6 ECTS x 30 hours = 180 hours |
+| 14. | Distribution of available time | 30 + 45 + 15 + 15 + 75 = 180 hours |
+| 15. | Forms of teaching activities | |  |  |  | | --- | --- | --- | | 15.1. | Lectures - theoretical instruction | 30 hours | | 15.2. | Exercises (laboratory, auditory), seminars, teamwork | 45 hours | |
+| 16. | Other forms of activities | |  |  |  | | --- | --- | --- | | 16.1. | Project assignments | 15 hours | | 16.2. | Independent assignments | 15 hours | | 16.3. | Home study | 75 hours | |
+| 17. | Assessment method | |  |  |  | | --- | --- | --- | | 17.1. | Tests | 10 points | | 17.2. | Seminar paper / project (presentation: written and oral) | 15 points | | 17.3. | Activities and learning | 10 points | | 17.4. | Final exam | 70 points | |
+| 18. | Grading criteria (points / grade) | |  |  | | --- | --- | | up to 50 points | 5 (five) (F) | | from 51 to 60 points | 6 (six) (E) | | from 61 to 70 points | 7 (seven) (D) | | from 71 to 80 points | 8 (eight) (C) | | from 81 to 90 points | 9 (nine) (B) | | from 91 to 100 points | 10 (ten) (A) | |
+| 19. | Requirement for obtaining a signature and taking the final exam | Activities 15.2 and 16.1 completed |
+| 20. | Language of instruction | Macedonian and English |
+| 21. | Method for monitoring the quality of teaching | internal evaluation and survey mechanism |
+| 22. | Literature | |  |  | | --- | --- | | 22.1. | **Required literature** 1. K. Hwang, G. Fox and J. Dongarra | Distributed and Cloud Computing | Morgan Kaufmann | 2011 2. Andrew S. Tanenbaum | Distributed Systems: Principles and Paradigms” | Prentice Hall | 2007 3. T. Rauber, G. Runger | Parallel Programming for Multicore and Cluster Systems | Springer | 2009 4. Holden Karau, Andy Konwinski, Patrick Wendell, Matei Zaharia | Learning Spark: Lightning-Fast Big Data Analysis | O'Reilly | 2015 5. Donald Miner, Adam Shook | MapReduce Design Patterns | O'Reilly | 2013 6. Kai Hwang, Jack Dongarra, Geoffrey C. Fox | Distributed and Cloud Computing: From Parallel Processing to the Internet of Things | Morgan Kaufman | 2013 | | 22.2. | **Additional literature** No. Author Title Publisher Year | |

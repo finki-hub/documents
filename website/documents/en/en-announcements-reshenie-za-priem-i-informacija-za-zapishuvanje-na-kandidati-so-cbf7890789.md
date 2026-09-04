@@ -1,0 +1,15 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/announcements/reshenie-za-priem-i-informacija-za-zapishuvanje-na-kandidati-soglasno-reshenieto-za-priem-vo-tret-upisen-rok-2017-2018/
+language: en
+source_kind: rendered
+-->
+
+# Решение за прием и информација за запишување на кандидати согласно решението за прием во трет уписен рок 2017/2018 – ФИНКИ
+
+Dear candidates, we inform you that the enrollment of ranked candidates according to [the decision on admission](http://join.finki.ukim.mk/Files/%D0%A2%D1%80%D0%B5%D1%82%20%D1%83%D0%BF%D0%B8%D1%81%D0%B5%D0%BD%20%D1%80%D0%BE%D0%BA/%D0%A0%D0%B5%D0%B7%D1%83%D0%BB%D1%82%D0%B0%D1%82%D0%B8/%D0%A0%D0%B5%D1%88%D0%B5%D0%BD%D0%B8%D1%98%D0%B0%20%D0%B7%D0%B0%20%D0%BF%D1%80%D0%B8%D0%B5%D0%BC/Resenie_za_priem_site_nasoki.pdf) во третиот уписен рок ќе се изврши на 20.09.2016 од 09:00 – 14:30 часот во просториите на ФИНКИ. Потребната документација за запишување може да ја најдете [here](http://join.finki.ukim.mk/Dokumenti.aspx?id=291).
+
+We wish all future students of FINKI success!
+
+Напомена: Рангираните кандидати мора задолжително да се запишат во овие термини, инаку ќе го изгубат добиеното место.
+
+Сите кандидати кои НЕ се рангирани или сакаат да го променат или дополнат изборот на студиските програми или начинот на студирање (државна квота или кофинансирање) имаат можност да се доизјаснат за студиски програми во кои има слободни места и да бидат рангирани на студиска програма која не е целосно пополнета. Новото рангирање ќе биде направено без притоа да се промени редоследот на претходно рангираните кандидати. Промената на изборот на студиската програма или начинот на студирање се прави со пополнување на Изјава за дополнување или промена на избраните студиски програми – која ќе ја најдете на порталот за нови студенти ([join.finki.ukim.mk](http://join.finki.ukim.mk/)) или [here](http://join.finki.ukim.mk/Files/%D0%9F%D1%80%D0%B2%20%D1%83%D0%BF%D0%B8%D1%81%D0%B5%D0%BD%20%D1%80%D0%BE%D0%BA/%D0%9F%D1%80%D0%B5%D0%BB%D0%B8%D0%BC%D0%B8%D0%BD%D0%B0%D1%80%D0%BD%D0%B8%20%D1%80%D0%B0%D0%BD%D0%B3%20%D0%BB%D0%B8%D1%81%D1%82%D0%B8/%D0%98%D0%B7%D1%98%D0%B0%D0%B2a%20%D0%B7%D0%B0%20%D0%B4%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D1%83%D0%B2%D0%B0%D1%9A%D0%B5%20%D0%B8%D0%BB%D0%B8%20%D0%BF%D1%80%D0%BE%D0%BC%D0%B5%D0%BD%D0%B0%20%D0%BD%D0%B0%20%D0%B8%D0%B7%D0%B1%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%20%D1%81%D1%82%D1%83%D0%B4%D0%B8%D1%81%D0%BA%D0%B8%20%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%B8.pdf).

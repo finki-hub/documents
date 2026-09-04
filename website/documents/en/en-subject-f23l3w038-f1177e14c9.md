@@ -1,0 +1,32 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/en/subject/F23L3W038/
+language: en
+source_kind: rendered
+-->
+
+# Programming paradigms
+
+|  |  |  |
+| --- | --- | --- |
+| 1. | Course Title | Programming paradigms  Programming paradigms |
+| 2. | Code | F23L3W038 |
+| 3. | Study Programme | Computer Science |
+| 4. | Organizer of the study programme (unit, institute, department or division) | Faculty of Computer Science and Engineering |
+| 5. | Degree level (first, second, third cycle) | First Cycle |
+| 6. | Academic year / semester | 7 / Winter |
+| 7. | Number of ECTS credits | 6 |
+| 8. | Teacher | Emil Stankov, Kire Trivodaliiev, Mile Jovanov |
+| 9. | Prerequisites for enrolling in the course | Algorithms and Data Structures or Applied Algorithms and Data Structures |
+| 10. | Objectives of the course programme (competences) | The goal of this course is to introduce students to programming paradigms other than imperative and object-oriented, with a focus on the declarative and functional programming paradigm. Upon completion of the course, students should be able to: Compare different programming paradigms and choose an appropriate one for a given problem, Use a logic programming language to implement efficient algorithms, Use a logic programming language for knowledge representation and manipulation, Use a functional programming language to write programs without side effects, Understand and use first- and higher-order functions, functional closures, lazy evaluation, and sequence abstraction, Understand and write simple concurrent programs |
+| 11. | Course content | Lectures:  1. Overview and comparison of imperative, object-oriented, declarative, and functional programming paradigms.  2. Introduction to the declarative programming paradigm. Expression evaluation. First-order predicate logic.  3. Fundamentals of a Logic Programming Language. Unification. Backtracking Search.  4. Clausal representation of data structures and algorithms. Recursion. Termination. Negation.  5. Representation and manipulation of knowledge with a logic programming language.  6. Introduction to the functional programming paradigm. Programming without side effects.  7. Structured data types and their processing.  8. Functions as first-class objects. Anonymous functions.  9. Higher-order functions. Functional closures. Currying. Partial functions.  10. Lazy evaluation. Infinite sequences. Sequence abstraction.  11. Competitiveness and Parallelism 1  12. Competitiveness and Parallelism 2 |
+| 12. | Learning methods | Lectures using presentations, interactive lectures, exercises (using equipment and software packages), teamwork, case studies, guest lectures, independent preparation and defense of a project assignment and a seminar paper. |
+| 13. | Total available time | 6 ECTS x 30 hours = 180 hours |
+| 14. | Distribution of available time | 30 + 45 + 15 + 15 + 75 = 180 hours |
+| 15. | Forms of teaching activities | |  |  |  | | --- | --- | --- | | 15.1. | Lectures - theoretical instruction | 30 hours | | 15.2. | Exercises (laboratory, auditory), seminars, teamwork | 45 hours | |
+| 16. | Other forms of activities | |  |  |  | | --- | --- | --- | | 16.1. | Project assignments | 15 hours | | 16.2. | Independent assignments | 15 hours | | 16.3. | Home study | 75 hours | |
+| 17. | Assessment method | |  |  |  | | --- | --- | --- | | 17.1. | Tests | 10 points | | 17.2. | Seminar paper / project (presentation: written and oral) | 15 points | | 17.3. | Activities and learning | 10 points | | 17.4. | Final exam | 70 points | |
+| 18. | Grading criteria (points / grade) | |  |  | | --- | --- | | up to 50 points | 5 (five) (F) | | from 51 to 60 points | 6 (six) (E) | | from 61 to 70 points | 7 (seven) (D) | | from 71 to 80 points | 8 (eight) (C) | | from 81 to 90 points | 9 (nine) (B) | | from 91 to 100 points | 10 (ten) (A) | |
+| 19. | Requirement for obtaining a signature and taking the final exam | Activities 15.2 and 16.1 completed |
+| 20. | Language of instruction | Macedonian and English |
+| 21. | Method for monitoring the quality of teaching | internal evaluation and survey mechanism |
+| 22. | Literature | |  |  | | --- | --- | | 22.1. | **Required literature** 1. John C. Mitchell | Concepts in Programming Languages | Cambridge University Press | 2002 2. Maurizio Gabbrielli and Simone Martini | Programming Languages: Principles and Paradigms (Undergraduate Topics in Computer Science) | Springer | 2010 3. Neal Ford | Functional Thinking: Paradigm Over Syntax | O'Reilly Media | 2014 4. Ivan Bratko | Prolog Programming for Artificial Intelligence, 4/E | Pearson Education | 2011 | | 22.2. | **Additional literature** No. Author Title Publisher Year | |

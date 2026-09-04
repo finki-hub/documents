@@ -1,0 +1,34 @@
+<!-- finki-website-source
+url: https://finki.ukim.mk/announcements/reshenie-za-priem-i-informacija-za-zapishuvanje-na-kandidati-soglasno-reshenieto-za-priem-vo-tret-upisen-rok-2023-2024/
+language: mk
+source_kind: rest
+modified: 2023-09-29T12:00:00
+wordpress_id: 17551
+wordpress_type: announcement
+-->
+
+# Решение за прием и информација за запишување на кандидати согласно решението за прием во трет уписен рок 2023/2024
+
+Почитувани кандидати, ве известуваме дека запишувањето на рангираните кандидати според **[решението за прием](https://oldsite.finki.ukim.mk/sites/default/files/u620/3-rok-finalna_rang_lista.pdf)**  и во третиот уписен рок ќе се изврши на **29.09.2023** на шалтер во студентска служба од **9:00 до 12:00** часот.
+
+Им пожелуваме успех на сите идни студенти на ФИНКИ!
+
+**ПОТРЕБНА ДОКУМЕНТАЦИЈА ПРИ ЗАПИШУВАЊЕ НА НОВИ СТУДЕНТИ ВО УЧЕБНАТА 2023/2024**
+1. **[Изјава](https://oldsite.finki.ukim.mk/sites/default/files/u620/izjava_0.pdf)** за доставени документи
+2. Образец за запишување на семестар (со залепена слика), пополнет и потпишан (се купува од книжара)
+ 2.1. **[Листа](https://oldsite.finki.ukim.mk/sites/default/files/u620/predmeti1semestar_2.pdf)** на предмети според насоки кои се пополнуваат во образецот.
+3. Пријавен лист од Државен завод за статистика на РМ (образец ВОИ. 20) (се купува од книжара)
+4.а. Кандидатите примени во **државна квота** поднесуваат потврда за уплата на прва рата од **100 евра** во денарска противвредност по среден курс на НБ на Република Северна Македонија (**[пример уплатница](https://oldsite.finki.ukim.mk/sites/default/files/u620/finki-uplatnica-pp50-irata-100evra_1.png)**)
+ 4.а.1. **[Договор](https://oldsite.finki.ukim.mk/sites/default/files/u620/dogovor_za_studiranje_vo_drzhavna_kvota_3.pdf)** за студирање во државна квота во два примероци
+4.б. Кандидатите во **квота со кофинансирање** поднесуваат потврда за уплата на прва рата од **200 евра** во денарска противвредност по среден курс на НБ на Република Северна Македонија (**[пример уплатница](https://oldsite.finki.ukim.mk/sites/default/files/u620/finki-uplatnica-pp50-irata-200evra_0.png)**), како и
+ 4.б.1. **[Изјава](https://oldsite.finki.ukim.mk/sites/default/files/u620/izjava_za_studiranje_so_kofinansiranje_na_finki_1.pdf)** за согласност за поднесување на трошоците на студирање
+ 4.б.2. **[Договор](https://oldsite.finki.ukim.mk/sites/default/files/u620/dogovor_za_studiranje_vo_kvota_so_kofinansiranje_4.pdf)** за студирање во квота со кофинансирање во два примероци
+4.в. Кандидатите примени на **Стручни студии за програмирање** поднесуваат потврда за уплата на прва рата од **300 евра**во денарска противвредност по среден курс на НБ на Република Северна Македонија (**[пример уплатница](https://oldsite.finki.ukim.mk/sites/default/files/u620/finki-uplatnica-pp50-irata-300evra_.png)**), како и
+ 4.в.1. **[Изјава](https://oldsite.finki.ukim.mk/sites/default/files/u620/izjava_za_studiranje_-_ssp.pdf)** за согласност за поднесување на трошоците на студирање
+ 4.в.2. **[Договор](https://oldsite.finki.ukim.mk/sites/default/files/u620/dogovor_za_studiranje_-_ssp_0.pdf)** за студирање на ССП во два примероци
+5. Потврда за уплата на **750,00 денари** на сметката на ФИНКИ за административно материјални трошоци и осигурување. (**[пример уплатница](https://oldsite.finki.ukim.mk/sites/default/files/u620/finki-uplatnica-pp50-750den-finki_1.png)**)
+6. Потврда за уплатени **750,00 денари** – за информативни, информатички, културни и спортски активности на студентите на Универзитетот “Св. Кирил и Методиј” во Скопје, со назнака Одлука на УКИМ за ИКСА, ФИНКИ, (**[пример уплатница](https://oldsite.finki.ukim.mk/sites/default/files/u620/finki-uplatnica-pp50-750-ukim_0.png)**).
+7. Студенти кои сакаат да дадат пристап на трето лице за увид на личните документи и пристап до документите од студентското досие, потребно е да пополнат и поднесат **[Изјава](https://oldsite.finki.ukim.mk/sites/default/files/u620/izjava_za_pristap_do_informacii_i_dokumenti_od_treti_lica_na_finki.pdf)** за пристап до информации и документи од трети лица на ФИНКИ
+8. Индекс (со залепена слика) и студентска легитимација (со залепена слика), пополнети без број на индекс (се купува од книжара)
+
+Кандидатите кои нема да се запишат или се откажуваат од запишувањето на Факултетот за информатички науки и компјутерско инженерство во учебната 2023/2024, поднесените документи можат да ги **повлечат до 06.10.2023 (09:00 – 12:00 часот)**. При тоа, потребно е да се потпише [**изјава**](https://oldsite.finki.ukim.mk/sites/default/files/u620/izjava_za_podignuvanje_na_dokumentite_1.pdf) за подигнување на документите во 2 примероци.
