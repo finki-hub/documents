@@ -12,8 +12,7 @@ _EXPLICIT_IDENTIFIER_MARKERS: Final = (
 )
 _CANDIDATE_MARKERS: Final = ("candidate", "кандидат")
 _FIN_SEVEN_DIGIT_CODE: Final = re.compile(
-    r"\bf(?:[\W_]{0,3})i(?:[\W_]{0,3})n(?:[\W_]{0,3})"
-    r"\d(?:[\W_]{0,3}\d){6}\b"
+    r"\bf(?:[\W_]{0,3})i(?:[\W_]{0,3})n(?:[\W_]{0,3})\d(?:[\W_]{0,3}\d){6}\b"
 )
 _SEVEN_DIGIT_CODE: Final = re.compile(r"\b\d{7}\b")
 
