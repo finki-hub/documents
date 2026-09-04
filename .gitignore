@@ -11,7 +11,7 @@ __pycache__/
 .venv/
 .worktrees/
 
-# Generated website snapshots
+# Generated website snapshots are local audit artifacts
 website/
 .website-*/
 .website-recovery-*/
