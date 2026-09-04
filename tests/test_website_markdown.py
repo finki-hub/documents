@@ -32,6 +32,21 @@ def test_document_from_page_extracts_main_content_and_absolute_links() -> None:
     assert "[programme](https://finki.ukim.mk/dodiplomski-studii/)" in document.markdown
 
 
+def test_document_from_page_strips_whitespace_after_decoding_title() -> None:
+    document = document_from_page(
+        """
+        <main><h1>
+          Bioinformatics
+          <span>(BI23_1)</span>
+        </h1></main>
+        """,
+        "https://finki.ukim.mk/en/master-program/BI23_1/",
+    )
+
+    assert document.title == "Bioinformatics (BI23_1)"
+    assert all(line == line.rstrip() for line in render_document(document).splitlines())
+
+
 def test_document_from_page_removes_unsafe_link_targets() -> None:
     document = document_from_page(
         '<main><h1>Notice</h1><a href="javascript:alert(1)">click</a></main>',
@@ -179,6 +194,43 @@ def test_render_document_escapes_untrusted_metadata_and_title() -> None:
 
     assert rendered.count("-->") == 1
     assert "<script>" not in rendered
+
+
+def test_document_from_rest_strips_title_whitespace() -> None:
+    record = RestRecord.model_validate(
+        {
+            "id": 7,
+            "link": "https://finki.ukim.mk/master-program/BI23_1/",
+            "slug": "BI23_1",
+            "title": {"rendered": "Биоинформатика (BI23_1) \n"},
+            "content": {"rendered": "<p>Programme details.</p>"},
+            "type": "pages",
+        }
+    )
+
+    document = document_from_rest(record)
+    rendered = render_document(document)
+
+    assert document.title == "Биоинформатика (BI23_1)"
+    assert all(line == line.rstrip() for line in rendered.splitlines())
+
+
+def test_document_from_rest_uses_slug_for_blank_decoded_title() -> None:
+    record = RestRecord.model_validate(
+        {
+            "id": 8,
+            "link": "https://finki.ukim.mk/msmljk/",
+            "slug": "msmljk",
+            "title": {"rendered": "&nbsp;"},
+            "content": {"rendered": "<p>Programme details.</p>"},
+            "type": "page",
+        }
+    )
+
+    document = document_from_rest(record)
+
+    assert document.title == "msmljk"
+    assert "# msmljk\n" in render_document(document)
 
 
 def test_render_document_neutralizes_markdown_syntax_from_untrusted_text() -> None:

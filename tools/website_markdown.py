@@ -60,6 +60,10 @@ def _escape_markdown_text(value: str) -> str:
     return re.sub(r"([`*_{}\[\]()#+.!|-])", r"\\\1", escaped)
 
 
+def _clean_title(value: str) -> str:
+    return html_module.unescape(value).strip()
+
+
 def _safe_link(raw_url: str, base_url: str) -> str | None:
     try:
         absolute = urljoin(base_url, raw_url)
@@ -131,12 +135,17 @@ def _title(parser: HTMLParser, root: Node, url: str) -> str:
         for node in root.css("h1")
         if (value := node.text(separator=" ", strip=True))
     ]
-    if headings:
-        return html_module.unescape(headings[-1])
+    for value in reversed(headings):
+        if title := _clean_title(value):
+            return title
     for selector in (".page-title", ".entry-title", "title"):
         node = root.css_first(selector) or parser.css_first(selector)
-        if node is not None and (value := node.text(separator=" ", strip=True)):
-            return html_module.unescape(value)
+        if (
+            node is not None
+            and (value := node.text(separator=" ", strip=True))
+            and (title := _clean_title(value))
+        ):
+            return title
     return url.rstrip("/").rsplit("/", maxsplit=1)[-1].replace("-", " ").title()
 
 
@@ -177,7 +186,9 @@ def document_from_rest(
     markdown = _markdown_from_html(content, canonical_url)
     if not markdown and include_excerpt and record.excerpt:
         markdown = _markdown_from_html(record.excerpt.rendered, canonical_url)
-    title = html_module.unescape(record.title.rendered if record.title else record.slug)
+    title = _clean_title(record.title.rendered if record.title else "") or _clean_title(
+        record.slug
+    )
     return WebsiteDocument(
         aliases=(),
         language=language_for_url(canonical_url),
