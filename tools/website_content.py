@@ -25,6 +25,7 @@ from tools.website_models import (
     WebsiteDocument,
 )
 from tools.website_output import write_output
+from tools.website_privacy import contains_sensitive_personal_identifier
 
 DEFAULT_OUTPUT: Final = Path("website")
 
@@ -47,9 +48,23 @@ def build_documents(
     crawl: CrawlResult,
 ) -> tuple[WebsiteDocument, ...]:
     documents_by_url: dict[str, WebsiteDocument] = {}
+    blocked_urls: set[str] = set()
+
+    def is_blocked(document: WebsiteDocument) -> bool:
+        if document.url in blocked_urls:
+            return True
+        if not contains_sensitive_personal_identifier(
+            title=document.title,
+            markdown=document.markdown,
+        ):
+            return False
+        blocked_urls.add(document.url)
+        _ = documents_by_url.pop(document.url, None)
+        return True
 
     def add(document: WebsiteDocument) -> None:
-        documents_by_url[document.url] = document
+        if not is_blocked(document):
+            documents_by_url[document.url] = document
 
     redirects = {*crawl.redirects}
     redirects.update(
@@ -79,11 +94,15 @@ def build_documents(
             aliases=document.aliases,
             url=document.url,
         )
+        if is_blocked(document) or is_blocked(fallback):
+            continue
         rest_candidates.setdefault(final_url, []).append(
             (source_url, document, fallback)
         )
     rest_fallbacks: list[WebsiteDocument] = []
     for final_url, candidates in sorted(rest_candidates.items()):
+        if final_url in blocked_urls:
+            continue
         candidates.sort(key=lambda item: (item[0] != final_url, item[0]))
         _source_url, document, fallback = candidates[0]
         merged_aliases = {
@@ -99,6 +118,14 @@ def build_documents(
         elif fallback.markdown:
             rest_fallbacks.append(fallback)
     for page in sorted(crawl.pages, key=lambda item: item.final_url):
+        if "pg=" in urlsplit(page.final_url).query:
+            continue
+        document = replace(
+            document_from_page(page.html, page.final_url),
+            aliases=page.aliases,
+        )
+        if is_blocked(document):
+            continue
         if existing := documents_by_url.get(page.final_url):
             documents_by_url[page.final_url] = replace(
                 existing,
@@ -113,12 +140,6 @@ def build_documents(
                 ),
             )
             continue
-        if "pg=" in urlsplit(page.final_url).query:
-            continue
-        document = replace(
-            document_from_page(page.html, page.final_url),
-            aliases=page.aliases,
-        )
         if document.markdown:
             add(document)
     for fallback in rest_fallbacks:
@@ -163,7 +184,6 @@ async def update_website(output_dir: Path, max_pages: int) -> UpdateResult:
                 *empty_rest_urls,
                 *sorted(complete_rest_urls),
             ),
-            discovery_only_urls=complete_rest_urls,
             max_pages=max_pages,
         )
         crawl = await crawl_pages(client, plan)
