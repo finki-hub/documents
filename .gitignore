@@ -11,7 +11,7 @@ __pycache__/
 .venv/
 .worktrees/
 
-# Generated website snapshots
-website/
+# Generated website derivatives and temporary snapshots
+website/finki-website.md
 .website-*/
 .website-recovery-*/
