@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/machine-learning-intern/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:58
+modified: 2026-09-04T20:50:01
 wordpress_id: 16074
 wordpress_type: jobs-and-internships
 -->

@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/oglas-za-praksa-htec-group/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:56
+modified: 2026-09-04T20:49:55
 wordpress_id: 21588
 wordpress_type: jobs-and-internships
 -->

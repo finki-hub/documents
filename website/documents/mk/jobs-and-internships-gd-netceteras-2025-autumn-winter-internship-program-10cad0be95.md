@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/gd-netceteras-2025-autumn-winter-internship-program/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:59
+modified: 2026-09-04T20:50:02
 wordpress_id: 15162
 wordpress_type: jobs-and-internships
 -->

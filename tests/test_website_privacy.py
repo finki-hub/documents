@@ -59,6 +59,13 @@ def _build(
     )
 
 
+def _encoded_fin_identifier(depth: int) -> str:
+    value = "%46%49%4E%30%30%30%30%30%30%30"
+    for _ in range(depth - 1):
+        value = value.replace("%", "%25")
+    return value
+
+
 def test_build_documents_excludes_formatted_identifier_phrases() -> None:
     rest_url = "https://finki.ukim.mk/announcements/candidate-list/"
     rendered_url = "https://finki.ukim.mk/en/announcements/candidate-list/"
@@ -129,19 +136,25 @@ def test_build_documents_excludes_fin_code_without_candidate_wording(code: str) 
     assert _build({}, pages) == ()
 
 
-def test_build_documents_excludes_formatted_bare_candidate_code() -> None:
-    url = "https://finki.ukim.mk/announcements/candidate-code/"
-    page = _page(
-        url,
+@pytest.mark.parametrize(
+    "body",
+    [
         "<table><tr><th>Candidate code</th></tr><tr><td>00.00.000</td></tr></table>",
-    )
+        "<p>Candidate code</p><p>0 0 0 0 0 0 0</p>",
+        '<p>Candidate code</p><p><a href="https://finki.ukim.mk/profile/42/">00.00.000</a></p>',
+    ],
+)
+def test_build_documents_excludes_formatted_bare_candidate_code(body: str) -> None:
+    url = "https://finki.ukim.mk/announcements/candidate-code/"
+    page = _page(url, body)
 
     assert _build({}, (page,)) == ()
 
 
-def test_build_documents_excludes_percent_encoded_fin_link() -> None:
+@pytest.mark.parametrize("depth", [1, 6, 21])
+def test_build_documents_excludes_percent_encoded_fin_link(depth: int) -> None:
     url = "https://finki.ukim.mk/announcements/public-summary/"
-    encoded_identifier = "%46%49%4E%30%30%30%30%30%30%30"
+    encoded_identifier = _encoded_fin_identifier(depth)
     page = _page(
         url,
         f'<p><a href="https://finki.ukim.mk/{encoded_identifier}/">Details</a></p>',
@@ -151,15 +164,17 @@ def test_build_documents_excludes_percent_encoded_fin_link() -> None:
     assert _build({}, (page,)) == ()
 
 
-def test_build_documents_excludes_fin_identifier_in_canonical_url() -> None:
-    url = "https://finki.ukim.mk/announcements/FIN0000000/"
+@pytest.mark.parametrize("path", ["FIN0000000", "candidate-code/0000000"])
+def test_build_documents_excludes_identifier_in_canonical_url(path: str) -> None:
+    url = f"https://finki.ukim.mk/announcements/{path}/"
 
     assert _build({}, (_page(url, "<p>Public summary.</p>", title="Summary"),)) == ()
 
 
-def test_build_documents_excludes_fin_identifier_in_alias() -> None:
+@pytest.mark.parametrize("path", ["FIN0000000", "candidate-code/0000000"])
+def test_build_documents_excludes_identifier_in_alias(path: str) -> None:
     url = "https://finki.ukim.mk/announcements/public-summary/"
-    alias = "https://finki.ukim.mk/announcements/FIN0000000/"
+    alias = f"https://finki.ukim.mk/announcements/{path}/"
     page = _page(
         url,
         "<p>Public summary.</p>",

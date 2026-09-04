@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/ai-creative-strategist-internship/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:57
+modified: 2026-09-04T20:49:58
 wordpress_id: 16039
 wordpress_type: jobs-and-internships
 -->

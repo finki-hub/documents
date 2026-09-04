@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/obrabotka-na-ekg-signali/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:56
+modified: 2026-09-04T20:49:58
 wordpress_id: 20657
 wordpress_type: jobs-and-internships
 -->

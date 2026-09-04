@@ -9,6 +9,7 @@ from tools.website_privacy import contains_sensitive_personal_identifier
 
 SNAPSHOT_ROOT: Final = Path("website")
 MANIFEST_PATH: Final = SNAPSHOT_ROOT / "manifest.json"
+MAX_DECODE_PASSES: Final = 20
 FORBIDDEN_FIN_IDENTIFIER: Final = re.compile(
     r"\bf[\W_]{0,3}i[\W_]{0,3}n[\W_]{0,3}\d(?:[\W_]{0,3}\d){6}\b",
     re.IGNORECASE,
@@ -22,13 +23,13 @@ def _load_manifest() -> WebsiteManifest:
     )
 
 
-def _decoded_text(value: str) -> str:
-    for _ in range(5):
-        decoded = unquote(value)
+def _decoded_text(value: str) -> str | None:
+    for _ in range(MAX_DECODE_PASSES):
+        decoded = unquote(unicodedata.normalize("NFKC", value))
         if decoded == value:
-            break
+            return decoded
         value = decoded
-    return unicodedata.normalize("NFKC", value)
+    return None
 
 
 def test_tracked_website_snapshot_is_complete() -> None:
@@ -56,7 +57,9 @@ def test_tracked_website_snapshot_excludes_personal_identifier_tables() -> None:
         path = SNAPSHOT_ROOT / entry.path
         markdown = path.read_text(encoding="utf-8")
         emitted_text = "\n".join((entry.title, entry.url, *entry.aliases, markdown))
-        assert not FORBIDDEN_FIN_IDENTIFIER.search(_decoded_text(emitted_text)), (
+        decoded_text = _decoded_text(emitted_text)
+        assert decoded_text is not None, f"over-encoded output in {path}"
+        assert not FORBIDDEN_FIN_IDENTIFIER.search(decoded_text), (
             f"FIN-prefixed personal identifier in {path}"
         )
         assert not contains_sensitive_personal_identifier(

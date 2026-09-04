@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/dynamics-365-developer-intern-2/
 language: mk
 source_kind: rest
-modified: 2026-09-04T19:49:56
+modified: 2026-09-04T20:49:58
 wordpress_id: 21505
 wordpress_type: jobs-and-internships
 -->

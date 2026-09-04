@@ -13,19 +13,21 @@ _EXPLICIT_IDENTIFIER_MARKERS: Final = (
 )
 _CANDIDATE_MARKERS: Final = ("candidate", "кандидат")
 _CODE_MARKERS: Final = ("code", "код")
+_MAX_DECODE_PASSES: Final = 20
 _FIN_SEVEN_DIGIT_CODE: Final = re.compile(
     r"(?<!\w)f[\W_]*i[\W_]*n[\W_]*\d(?:[\W_]*\d){6}(?!\d)"
 )
 _CONTIGUOUS_SEVEN_DIGIT_CODE: Final = re.compile(r"(?<!\d)\d{7}(?!\d)")
+_DIGIT_CLUSTER: Final = re.compile(r"\d(?:[\W_]*\d)*")
 
 
-def _compatibility_text(value: str) -> str:
-    for _ in range(5):
-        decoded = unquote(value)
+def _compatibility_text(value: str) -> str | None:
+    for _ in range(_MAX_DECODE_PASSES):
+        decoded = unquote(unicodedata.normalize("NFKC", value))
         if decoded == value:
-            break
+            return decoded.casefold()
         value = decoded
-    return unicodedata.normalize("NFKC", value).casefold()
+    return None
 
 
 def _contains_fin_identifier(value: str) -> bool:
@@ -34,9 +36,9 @@ def _contains_fin_identifier(value: str) -> bool:
 
 def _contains_seven_digit_sequence(value: str) -> bool:
     return any(
-        not any(character.isalpha() for character in token)
-        and sum(character.isdecimal() for character in token) == 7
-        for token in value.split()
+        sum(character.isdecimal() for character in match.group()) == 7
+        for line in value.splitlines()
+        for match in _DIGIT_CLUSTER.finditer(line)
     )
 
 
@@ -67,6 +69,8 @@ def _contains_candidate_identifier(*, title: str, value: str) -> bool:
 def contains_sensitive_personal_identifier(*, title: str, markdown: str) -> bool:
     compatibility_title = _compatibility_text(title)
     compatibility_text = _compatibility_text(f"{title}\n{markdown}")
+    if compatibility_title is None or compatibility_text is None:
+        return True
     normalized_text = re.sub(r"[\W_]+", " ", compatibility_text)
     if _contains_fin_identifier(compatibility_text) or any(
         marker in normalized_text for marker in _EXPLICIT_IDENTIFIER_MARKERS
