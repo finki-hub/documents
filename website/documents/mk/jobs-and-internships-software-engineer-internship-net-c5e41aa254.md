@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/software-engineer-internship-net/
 language: mk
 source_kind: rest
-modified: 2026-09-04T16:49:59
+modified: 2026-09-04T19:49:59
 wordpress_id: 15163
 wordpress_type: jobs-and-internships
 -->

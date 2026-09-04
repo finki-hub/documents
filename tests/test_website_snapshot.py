@@ -2,6 +2,7 @@ import re
 import unicodedata
 from pathlib import Path
 from typing import Final
+from urllib.parse import unquote
 
 from tools.website_models import WebsiteManifest
 from tools.website_privacy import contains_sensitive_personal_identifier
@@ -19,6 +20,15 @@ def _load_manifest() -> WebsiteManifest:
     return WebsiteManifest.model_validate_json(
         MANIFEST_PATH.read_text(encoding="utf-8")
     )
+
+
+def _decoded_text(value: str) -> str:
+    for _ in range(5):
+        decoded = unquote(value)
+        if decoded == value:
+            break
+        value = decoded
+    return unicodedata.normalize("NFKC", value)
 
 
 def test_tracked_website_snapshot_is_complete() -> None:
@@ -45,11 +55,11 @@ def test_tracked_website_snapshot_excludes_personal_identifier_tables() -> None:
     for entry in manifest.documents:
         path = SNAPSHOT_ROOT / entry.path
         markdown = path.read_text(encoding="utf-8")
-        normalized_markdown = unicodedata.normalize("NFKC", markdown)
-        assert not FORBIDDEN_FIN_IDENTIFIER.search(normalized_markdown), (
+        emitted_text = "\n".join((entry.title, entry.url, *entry.aliases, markdown))
+        assert not FORBIDDEN_FIN_IDENTIFIER.search(_decoded_text(emitted_text)), (
             f"FIN-prefixed personal identifier in {path}"
         )
         assert not contains_sensitive_personal_identifier(
             title=entry.title,
-            markdown=markdown,
+            markdown=emitted_text,
         ), f"sensitive candidate identifier in {path}"

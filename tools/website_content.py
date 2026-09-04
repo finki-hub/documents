@@ -53,9 +53,10 @@ def build_documents(
     def is_blocked(document: WebsiteDocument) -> bool:
         if document.url in blocked_urls:
             return True
+        emitted_text = "\n".join((document.markdown, document.url, *document.aliases))
         if not contains_sensitive_personal_identifier(
             title=document.title,
-            markdown=document.markdown,
+            markdown=emitted_text,
         ):
             return False
         blocked_urls.add(document.url)
@@ -127,7 +128,7 @@ def build_documents(
         if is_blocked(document):
             continue
         if existing := documents_by_url.get(page.final_url):
-            documents_by_url[page.final_url] = replace(
+            merged = replace(
                 existing,
                 aliases=tuple(
                     sorted(
@@ -139,6 +140,8 @@ def build_documents(
                     )
                 ),
             )
+            if not is_blocked(merged):
+                documents_by_url[page.final_url] = merged
             continue
         if document.markdown:
             add(document)

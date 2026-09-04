@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/backend-developer-internship-netcetera/
 language: mk
 source_kind: rest
-modified: 2026-09-04T16:49:58
+modified: 2026-09-04T19:49:58
 wordpress_id: 15153
 wordpress_type: jobs-and-internships
 -->

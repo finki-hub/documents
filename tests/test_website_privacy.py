@@ -32,8 +32,15 @@ def _record(identifier: int, url: str, content: str) -> RestRecord:
     )
 
 
-def _page(url: str, body: str, *, title: str = "Candidate list") -> PageSnapshot:
+def _page(
+    url: str,
+    body: str,
+    *,
+    title: str = "Candidate list",
+    aliases: tuple[str, ...] = (),
+) -> PageSnapshot:
     return PageSnapshot(
+        aliases=aliases,
         final_url=url,
         html=f"<main><h1>{title}</h1>{body}</main>",
         links=(),
@@ -100,7 +107,14 @@ def test_build_documents_excludes_short_candidate_code_tables() -> None:
 
 @pytest.mark.parametrize(
     "code",
-    ["FIN0000000", "F.I.N.0000000", "FIN 00-00-000", "ＦＩＮ０００００００"],
+    [
+        "FIN0000000",
+        "F.I.N.0000000",
+        "F....I....N....0000000",
+        "FIN 00-00-000",
+        "FIN<strong>0</strong><strong>0</strong><strong>0</strong><strong>0</strong><strong>0</strong><strong>0</strong><strong>0</strong>",
+        "ＦＩＮ０００００００",
+    ],
 )
 def test_build_documents_excludes_fin_code_without_candidate_wording(code: str) -> None:
     url = "https://finki.ukim.mk/announcements/admitted-students/"
@@ -113,6 +127,47 @@ def test_build_documents_excludes_fin_code_without_candidate_wording(code: str) 
     )
 
     assert _build({}, pages) == ()
+
+
+def test_build_documents_excludes_formatted_bare_candidate_code() -> None:
+    url = "https://finki.ukim.mk/announcements/candidate-code/"
+    page = _page(
+        url,
+        "<table><tr><th>Candidate code</th></tr><tr><td>00.00.000</td></tr></table>",
+    )
+
+    assert _build({}, (page,)) == ()
+
+
+def test_build_documents_excludes_percent_encoded_fin_link() -> None:
+    url = "https://finki.ukim.mk/announcements/public-summary/"
+    encoded_identifier = "%46%49%4E%30%30%30%30%30%30%30"
+    page = _page(
+        url,
+        f'<p><a href="https://finki.ukim.mk/{encoded_identifier}/">Details</a></p>',
+        title="Public summary",
+    )
+
+    assert _build({}, (page,)) == ()
+
+
+def test_build_documents_excludes_fin_identifier_in_canonical_url() -> None:
+    url = "https://finki.ukim.mk/announcements/FIN0000000/"
+
+    assert _build({}, (_page(url, "<p>Public summary.</p>", title="Summary"),)) == ()
+
+
+def test_build_documents_excludes_fin_identifier_in_alias() -> None:
+    url = "https://finki.ukim.mk/announcements/public-summary/"
+    alias = "https://finki.ukim.mk/announcements/FIN0000000/"
+    page = _page(
+        url,
+        "<p>Public summary.</p>",
+        title="Summary",
+        aliases=(alias,),
+    )
+
+    assert _build({}, (page,)) == ()
 
 
 def test_build_documents_blocks_sensitive_url_across_representations() -> None:
@@ -148,6 +203,11 @@ def test_build_documents_blocks_sensitive_url_across_representations() -> None:
         "<p>Account reference 7654321.</p>",
         "<p>ISBN 1234567.</p>",
         '<p>See <a href="https://example.com/1234567">the archive</a>.</p>',
+        '<img src="https://finki.ukim.mk/uploads/upisi_2026-27-4.jpg"><p>Enrollment information for candidates.</p>',
+        "<p>Classes run from 9/16/2024 through 9/21/2024 for registered candidates.</p>",
+        "<p>Candidates enroll on 10.9.2021 and 13.9.2021.</p>",
+        "<p>Decision 02-1080/1 describes the requirements for candidates.</p>",
+        "<p>Each candidate may receive an award of 30.000,00 denars.</p>",
     ],
 )
 def test_build_documents_keeps_benign_seven_digit_values(body: str) -> None:

@@ -2,7 +2,7 @@
 url: https://finki.ukim.mk/jobs-and-internships/qa-game-tester-internship-position/
 language: mk
 source_kind: rest
-modified: 2026-09-04T16:49:57
+modified: 2026-09-04T19:49:56
 wordpress_id: 20639
 wordpress_type: jobs-and-internships
 -->
