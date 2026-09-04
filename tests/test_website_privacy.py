@@ -66,6 +66,10 @@ def _encoded_fin_identifier(depth: int) -> str:
     return value
 
 
+def _entity_fin_identifier(reference: str) -> str:
+    return f"FIN{reference * 7}"
+
+
 def test_build_documents_excludes_formatted_identifier_phrases() -> None:
     rest_url = "https://finki.ukim.mk/announcements/candidate-list/"
     rendered_url = "https://finki.ukim.mk/en/announcements/candidate-list/"
@@ -136,6 +140,21 @@ def test_build_documents_excludes_fin_code_without_candidate_wording(code: str) 
     assert _build({}, pages) == ()
 
 
+@pytest.mark.parametrize("reference", ["&amp;#48;", "&amp;#x30;", "&amp;amp;#48;"])
+def test_build_documents_excludes_html_entity_fin_code_from_content(
+    reference: str,
+) -> None:
+    rest_url = "https://finki.ukim.mk/announcements/rest-entity/"
+    rendered_url = "https://finki.ukim.mk/announcements/rendered-entity/"
+    encoded_identifier = _entity_fin_identifier(reference)
+    records = {
+        rest_url: _record(44, rest_url, f"<p>{encoded_identifier}</p>"),
+    }
+    pages = (_page(rendered_url, f"<p>{encoded_identifier}</p>", title="Results"),)
+
+    assert _build(records, pages) == ()
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -191,6 +210,39 @@ def test_build_documents_excludes_identifier_in_canonical_url(path: str) -> None
 def test_build_documents_excludes_identifier_in_alias(path: str) -> None:
     url = "https://finki.ukim.mk/announcements/public-summary/"
     alias = f"https://finki.ukim.mk/announcements/{path}/"
+    page = _page(
+        url,
+        "<p>Public summary.</p>",
+        title="Summary",
+        aliases=(alias,),
+    )
+
+    assert _build({}, (page,)) == ()
+
+
+@pytest.mark.parametrize(
+    "encoded_reference",
+    ["%26%2348%3B", "%26%23x30%3B", "%26amp%3B%2348%3B"],
+)
+def test_build_documents_excludes_html_entity_fin_code_from_canonical_url(
+    encoded_reference: str,
+) -> None:
+    identifier = _entity_fin_identifier(encoded_reference)
+    url = f"https://finki.ukim.mk/announcements/{identifier}/"
+
+    assert _build({}, (_page(url, "<p>Public summary.</p>", title="Summary"),)) == ()
+
+
+@pytest.mark.parametrize(
+    "encoded_reference",
+    ["%26%2348%3B", "%26%23x30%3B", "%26amp%3B%2348%3B"],
+)
+def test_build_documents_excludes_html_entity_fin_code_from_alias(
+    encoded_reference: str,
+) -> None:
+    url = "https://finki.ukim.mk/announcements/public-summary/"
+    identifier = _entity_fin_identifier(encoded_reference)
+    alias = f"https://finki.ukim.mk/announcements/{identifier}/"
     page = _page(
         url,
         "<p>Public summary.</p>",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from html import unescape
 from typing import Final
 from urllib.parse import unquote
 
@@ -23,7 +24,7 @@ _DIGIT_CLUSTER: Final = re.compile(r"\d(?:[^\w|]*\d)*")
 
 def _compatibility_text(value: str) -> str | None:
     for _ in range(_MAX_DECODE_PASSES):
-        decoded = unquote(unicodedata.normalize("NFKC", value))
+        decoded = unescape(unquote(unicodedata.normalize("NFKC", value)))
         if decoded == value:
             return decoded.casefold()
         value = decoded
