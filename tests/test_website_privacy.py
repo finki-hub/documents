@@ -151,6 +151,22 @@ def test_build_documents_excludes_formatted_bare_candidate_code(body: str) -> No
     assert _build({}, (page,)) == ()
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        "<table><tr><th>Candidate code</th><th>Points</th></tr><tr><td>0000000</td><td>95</td></tr></table>",
+        "<table><tr><th>Код на кандидатот</th><th>Поени</th></tr><tr><td>0 0 0 0 0 0 0</td><td>95</td></tr></table>",
+    ],
+)
+def test_build_documents_excludes_candidate_code_with_numeric_sibling_cell(
+    body: str,
+) -> None:
+    url = "https://finki.ukim.mk/announcements/results/"
+    page = _page(url, body, title="Results")
+
+    assert _build({}, (page,)) == ()
+
+
 @pytest.mark.parametrize("depth", [1, 6, 21])
 def test_build_documents_excludes_percent_encoded_fin_link(depth: int) -> None:
     url = "https://finki.ukim.mk/announcements/public-summary/"

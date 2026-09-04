@@ -18,7 +18,7 @@ _FIN_SEVEN_DIGIT_CODE: Final = re.compile(
     r"(?<!\w)f[\W_]*i[\W_]*n[\W_]*\d(?:[\W_]*\d){6}(?!\d)"
 )
 _CONTIGUOUS_SEVEN_DIGIT_CODE: Final = re.compile(r"(?<!\d)\d{7}(?!\d)")
-_DIGIT_CLUSTER: Final = re.compile(r"\d(?:[\W_]*\d)*")
+_DIGIT_CLUSTER: Final = re.compile(r"\d(?:[^\w|]*\d)*")
 
 
 def _compatibility_text(value: str) -> str | None:
