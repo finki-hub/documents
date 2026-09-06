@@ -14,6 +14,8 @@ from tools.website_reference import (
     MAX_REVIEW_AGE,
     ReferencePage,
     ReferenceSource,
+    has_substantive_prose,
+    is_navigation_shaped,
     load_sources,
     parse_aggregate,
     refresh_reference,
@@ -34,6 +36,7 @@ def _source(source_id: str, path: str) -> ReferenceSource:
         language="en",
         category="studies",
         last_verified=date(2026, 9, 1),
+        content_selectors=("main",),
     )
 
 
@@ -45,11 +48,20 @@ def _legacy_source(source_id: str, path: str) -> ReferenceSource:
         language="mk",
         category="studies",
         last_verified=date(2026, 9, 1),
+        content_selectors=("main",),
     )
 
 
 def _html(title: str, body: str) -> str:
     return f"<html><body><main><h1>{title}</h1>{body}</main></body></html>"
+
+
+def _prose(label: str) -> str:
+    return (
+        f"{label} provides detailed information for students about procedures, "
+        "deadlines, documents, contacts, and academic support. The instructions "
+        "describe each required step clearly so visitors can complete their requests."
+    )
 
 
 def _refresh_with_responses(
@@ -102,6 +114,190 @@ def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
     assert len(sources) == 2
 
 
+def _selector_allowlist(
+    *,
+    first_selector: str | None = '["#article-body"]',
+    second_selector: str | None = '["main"]',
+) -> str:
+    original = SOURCES.read_text(encoding="utf-8")
+    lines = original.splitlines()
+    output: list[str] = []
+    selector_values = (first_selector, second_selector)
+    source_index = -1
+    for line in lines:
+        output.append(line)
+        if line == "[[sources]]":
+            source_index += 1
+        if (
+            line.startswith("last_verified")
+            and selector_values[source_index] is not None
+        ):
+            output.append(f"content_selectors = {selector_values[source_index]}")
+    return "\n".join(output) + "\n"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        '"#article-body"',
+        "[]",
+        '[""]',
+        '["#article\\rbody"]',
+        '["<!-- finki-static-page:start -->"]',
+    ],
+)
+def test_allowlist_rejects_invalid_content_selector_values(
+    tmp_path: Path, value: str
+) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="content_selectors"):
+        load_sources(path, today=date(2026, 9, 6))
+
+
+def test_allowlist_rejects_missing_content_selectors(tmp_path: Path) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(_selector_allowlist(first_selector=None), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="content_selectors"):
+        load_sources(path, today=date(2026, 9, 6))
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://finki.ukim.mk/mk/studies/",
+        "https://www.finki.ukim.mk/mk/studies/",
+        "https://oldsite.finki.ukim.mk/mk/studies/",
+    ],
+)
+def test_allowlist_accepts_direct_macedonian_routes_on_all_finki_hosts(
+    tmp_path: Path,
+    url: str,
+) -> None:
+    text = _selector_allowlist().replace(
+        "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti", url
+    )
+    path = tmp_path / "sources.toml"
+    path.write_text(text, encoding="utf-8")
+    assert load_sources(path, today=date(2026, 9, 6))[0].language == "mk"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://oldsite.finki.ukim.mk/en/studies/",
+        "https://finki.ukim.mk/de/studies/",
+        "https://www.finki.ukim.mk.evil/mk/studies/",
+        "https://finki.ukim.mk/mk/assets/file.pdf",
+        "https://finki.ukim.mk/mk/studies/?page=2",
+    ],
+)
+def test_allowlist_rejects_non_canonical_curated_routes(
+    tmp_path: Path, url: str
+) -> None:
+    text = _selector_allowlist().replace(
+        "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti", url
+    )
+    path = tmp_path / "sources.toml"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="(URL|route|host|query|asset|language)"):
+        load_sources(path, today=date(2026, 9, 6))
+
+
+def test_curated_adapter_uses_selector_and_never_follows_page_links(
+    tmp_path: Path,
+) -> None:
+    source = replace(
+        _legacy_source("selector-page", "/mk/selector/"),
+        content_selectors=("#article-body",),
+    )
+    article = (
+        "This article contains the substantive institutional information needed by students. "
+        "It explains procedures, contacts, deadlines, and supporting documents in detail. "
+        "Students should review the instructions carefully before submitting requests, "
+        "because each academic service follows a documented and transparent process."
+    )
+    html = (
+        "<html><body><main><nav>Home Studies Contact</nav>"
+        '<a href="https://oldsite.finki.ukim.mk/mk/linked/">Linked label</a>'
+        f'<section id="article-body"><h1>Selector page</h1><p>{article}</p></section>'
+        "</main></body></html>"
+    )
+    output = tmp_path / "aggregate.md"
+    requested = _refresh_with_responses(
+        (source,),
+        output,
+        {
+            source.source_url: httpx2.Response(
+                200, headers={"content-type": "text/html"}, text=html
+            )
+        },
+    )
+
+    body = parse_aggregate(output.read_text(encoding="utf-8"))[0].body
+    assert requested == [source.source_url]
+    assert "substantive institutional information" in body
+    assert "Home Studies Contact" not in body
+    assert "Linked label" not in body
+
+
+def test_quality_gates_distinguish_prose_from_navigation() -> None:
+    link_list = "\n".join(
+        f"- [Section {index}](https://example.com/{index})" for index in range(20)
+    )
+    repeated = "\n".join(["Home", "Studies", "Contact"] * 3)
+    repeated_links = "\n".join(["- [Home](https://example.com/home)"] * 3)
+    prose = (
+        "Students can find detailed information about enrolment, examinations, "
+        "study procedures, required forms, deadlines, contacts, and academic support. "
+        "The faculty publishes the current instructions and explains each step clearly."
+    )
+
+    assert not has_substantive_prose(link_list)
+    assert is_navigation_shaped(repeated)
+    assert is_navigation_shaped(repeated_links)
+    assert has_substantive_prose(prose)
+    assert not is_navigation_shaped(prose)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "\n".join(
+            f"- [Section {index}](https://example.com/{index})" for index in range(30)
+        ),
+        "\n".join(
+            ["Student services and procedures"] * 3
+            + ["Academic support and deadlines"] * 3
+            + ["Faculty contacts and forms"] * 3
+        ),
+    ],
+)
+def test_refresh_quality_gates_leave_prior_aggregate_untouched(
+    tmp_path: Path, body: str
+) -> None:
+    source = _source("quality-page", "/en/quality/")
+    output = tmp_path / "aggregate.md"
+    output.write_text("prior aggregate\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="empty|navigation"):
+        _refresh_with_responses(
+            (source,),
+            output,
+            {
+                source.source_url: httpx2.Response(
+                    200,
+                    headers={"content-type": "text/html"},
+                    text=_html("Quality", f"<div>{body}</div>"),
+                )
+            },
+        )
+
+    assert output.read_text(encoding="utf-8") == "prior aggregate\n"
+
+
 def test_direct_legacy_source_refreshes_without_following_page_links(
     tmp_path: Path,
 ) -> None:
@@ -116,7 +312,7 @@ def test_direct_legacy_source_refreshes_without_following_page_links(
             headers={"content-type": "text/html; charset=utf-8"},
             text=_html(
                 "Институти",
-                "<p>Информации за институтите на факултетот.</p>"
+                f"<p>{_prose('Информации за институтите на факултетот')}</p>"
                 '<a href="https://finki.ukim.mk/en/news/">news</a>',
             ),
         )
@@ -365,7 +561,7 @@ def test_refresh_fetches_only_allowlisted_urls_and_is_byte_stable(
             headers={"content-type": "text/html; charset=utf-8"},
             text=_html(
                 source.id,
-                f'<p>{source.id} information.</p><a href="/en/not-listed/">link</a>',
+                f'<p>{_prose(source.id)}</p><a href="/en/not-listed/">link</a>',
             ),
         )
         for source in sources
@@ -576,7 +772,7 @@ def test_refresh_removes_images_and_verify_live_does_not_write(tmp_path: Path) -
         source.source_url: httpx2.Response(
             200,
             headers={"content-type": "text/html"},
-            text=_html("Safe", '<p>Text</p><img src="/en/image.png">'),
+            text=_html("Safe", f'<p>{_prose("Text")}</p><img src="/en/image.png">'),
         )
     }
     _refresh_with_responses((source,), output, responses)
@@ -589,7 +785,7 @@ def test_refresh_removes_images_and_verify_live_does_not_write(tmp_path: Path) -
             lambda _request: httpx2.Response(
                 200,
                 headers={"content-type": "text/html"},
-                text=_html("Safe", "<p>Text</p>"),
+                text=_html("Safe", f"<p>{_prose('Text')}</p>"),
             )
         )
     )
@@ -612,7 +808,7 @@ def test_verify_live_hash_mismatch_fails_without_writing(tmp_path: Path) -> None
             source.source_url: httpx2.Response(
                 200,
                 headers={"content-type": "text/html"},
-                text=_html("Safe", "<p>Original content.</p>"),
+                text=_html("Safe", f"<p>{_prose('Original content')}</p>"),
             )
         },
     )
@@ -622,7 +818,7 @@ def test_verify_live_hash_mismatch_fails_without_writing(tmp_path: Path) -> None
             lambda _request: httpx2.Response(
                 200,
                 headers={"content-type": "text/html"},
-                text=_html("Safe", "<p>Changed content.</p>"),
+                text=_html("Safe", f"<p>{_prose('Changed content')}</p>"),
             )
         )
     )

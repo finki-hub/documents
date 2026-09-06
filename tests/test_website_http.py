@@ -7,6 +7,28 @@ import pytest
 from tools.website_http import PAGE_FETCH_POLICY, PublicFetchError, fetch_public
 
 
+def test_fetch_public_does_not_accept_legacy_host_without_explicit_opt_in() -> None:
+    requested: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return httpx2.Response(200, headers={"content-type": "text/html"})
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            with pytest.raises(PublicFetchError):
+                await fetch_public(
+                    client,
+                    "https://oldsite.finki.ukim.mk/mk/source",
+                    PAGE_FETCH_POLICY,
+                )
+
+    anyio.run(run)
+    assert requested == []
+
+
 def test_fetch_public_direct_legacy_url_is_allowed_only_when_explicitly_enabled() -> (
     None
 ):

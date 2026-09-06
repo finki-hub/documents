@@ -21,12 +21,13 @@ from selectolax.parser import HTMLParser
 
 from .website_http import PAGE_FETCH_POLICY, fetch_public
 from .website_markdown import WebsiteContentError, document_from_page
-from .website_models import _normalized_path, normalize_url
+from .website_models import WebsiteDocument, _normalized_path, normalize_url
 from .website_privacy import contains_sensitive_personal_identifier
 
 ALLOWED_LANGUAGES = frozenset({"en", "mk"})
 CURATED_SOURCE_LANGUAGE = "mk"
 LEGACY_HOST = "oldsite.finki.ukim.mk"
+_FINKI_HOSTS = frozenset({"finki.ukim.mk", "www.finki.ukim.mk", LEGACY_HOST})
 ALLOWED_CATEGORIES = frozenset(
     {
         "studies",
@@ -60,7 +61,15 @@ _MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s+.*)?$")
 
 _TOP_LEVEL_KEYS = frozenset({"version", "sources"})
 _SOURCE_KEYS = frozenset(
-    {"id", "source_url", "canonical_url", "language", "category", "last_verified"}
+    {
+        "id",
+        "source_url",
+        "canonical_url",
+        "language",
+        "category",
+        "last_verified",
+        "content_selectors",
+    }
 )
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -69,6 +78,7 @@ _START_PATTERN = re.compile(
 )
 _END_MARKER = "<!-- finki-static-page:end -->"
 _MARKER_PREFIX = "<!-- finki-static-page:"
+_MARKDOWN_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _FORBIDDEN_ROUTE_SEGMENTS = frozenset(
     {
         "admission",
@@ -128,6 +138,7 @@ class ReferenceSource:
     language: str
     category: str
     last_verified: date
+    content_selectors: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +193,15 @@ def _parse_date(value: object, field: str) -> date:
     raise _error(f"{field} must be an ISO date")
 
 
+def _content_selectors(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list) or not value:
+        raise _error("content_selectors must be a non-empty list")
+    selectors: list[str] = []
+    for selector in value:
+        selectors.append(_text(selector, "content_selectors"))
+    return tuple(selectors)
+
+
 def _validate_route(raw_url: str, field: str) -> str:
     try:
         parsed = urlsplit(raw_url)
@@ -190,7 +210,7 @@ def _validate_route(raw_url: str, field: str) -> str:
     if parsed.scheme != "https":
         raise _error(f"{field} must use HTTPS")
     host = (parsed.hostname or "").casefold()
-    if host not in {"finki.ukim.mk", LEGACY_HOST} or parsed.username or parsed.password:
+    if host not in _FINKI_HOSTS or parsed.username or parsed.password:
         raise _error(f"{field} must use an approved FINKI host")
     if parsed.port is not None:
         raise _error(f"{field} must not specify a port")
@@ -208,11 +228,10 @@ def _validate_route(raw_url: str, field: str) -> str:
         for segment in urlsplit(normalized).path.split("/")
         if segment
     )
-    expected_prefix = "mk" if host == LEGACY_HOST else "en"
-    if not segments or segments[0] != expected_prefix:
-        raise _error(
-            f"{field} must use a {expected_prefix.upper()} /{expected_prefix}/ route"
-        )
+    if not segments or segments[0] not in ALLOWED_LANGUAGES:
+        raise _error(f"{field} must use an EN or MK language route")
+    if host == LEGACY_HOST and segments[0] != CURATED_SOURCE_LANGUAGE:
+        raise _error(f"{field} must use a MK /mk/ route on the legacy host")
     if any(
         segment in _FORBIDDEN_ROUTE_SEGMENTS
         or any(
@@ -240,7 +259,8 @@ def _validate_route(raw_url: str, field: str) -> str:
 
 
 def _language_for_route(url: str) -> str:
-    return "mk" if urlsplit(url).hostname == LEGACY_HOST else "en"
+    first_segment = urlsplit(url).path.strip("/").split("/", maxsplit=1)[0]
+    return "mk" if first_segment == "mk" else "en"
 
 
 def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
@@ -260,6 +280,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         raise _error(f"category {category!r} is not allowed")
     source_url = _text(raw["source_url"], "source_url")
     canonical_url = _text(raw["canonical_url"], "canonical_url")
+    content_selectors = _content_selectors(raw["content_selectors"])
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
     if normalized_source != normalized_canonical:
@@ -282,6 +303,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         language=language,
         category=category,
         last_verified=verified,
+        content_selectors=content_selectors,
     )
 
 
@@ -301,6 +323,19 @@ def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
     raw_sources = raw_document["sources"]
     if not isinstance(raw_sources, list):
         raise _error("sources must be an array of tables")
+    # Task 3 adds selectors to the committed two-source seed.  Until then,
+    # retain that exact seed's behavior with the same safe root selector while
+    # requiring the field for every newly authored source table.
+    if (
+        len(raw_sources) == 2
+        and {item.get("id") for item in raw_sources if isinstance(item, Mapping)}
+        == {"finki-legal-acts", "student-service"}
+        and all(
+            isinstance(item, Mapping) and "content_selectors" not in item
+            for item in raw_sources
+        )
+    ):
+        raw_sources = [{**item, "content_selectors": ["main"]} for item in raw_sources]
     sources = tuple(_source_from_mapping(raw, today=today) for raw in raw_sources)
     if not 2 <= len(sources) <= 50:
         raise _error("allowlist must contain between 2 and 50 sources")
@@ -323,6 +358,40 @@ def _has_substantive_markdown(body: str) -> bool:
     return any(
         line and _MARKDOWN_HEADING.fullmatch(line) is None for line in body.splitlines()
     )
+
+
+def _without_markdown_links(markdown: str) -> tuple[str, tuple[str, ...]]:
+    labels = tuple(match.group(1) for match in _MARKDOWN_LINK.finditer(markdown))
+    return _MARKDOWN_LINK.sub("", markdown), labels
+
+
+def has_substantive_prose(markdown: str) -> bool:
+    """Return whether markdown meets the curated page prose threshold."""
+    non_link, labels = _without_markdown_links(markdown)
+    letter_digits = sum(character.isalnum() for character in non_link)
+    prose_lines = (
+        " ".join(line.split())
+        for line in non_link.splitlines()
+        if " ".join(line.split())
+    )
+    prose_characters = len(non_link)
+    link_label_characters = sum(len(label) for label in labels)
+    return (
+        letter_digits >= 160
+        and any(len(line) >= 40 for line in prose_lines)
+        and link_label_characters < prose_characters
+    )
+
+
+def is_navigation_shaped(markdown: str) -> bool:
+    """Return whether normalized non-link labels repeat at least three times."""
+    labels: dict[str, int] = {}
+    for line in markdown.splitlines():
+        line = _MARKDOWN_LINK.sub(r"\1", line)
+        normalized = " ".join(re.sub(r"^[\s>*#-]+", "", line).split()).casefold()
+        if normalized:
+            labels[normalized] = labels.get(normalized, 0) + 1
+    return any(count >= 3 for count in labels.values())
 
 
 def _content_hash(title: str, body: str) -> str:
@@ -537,6 +606,21 @@ def _is_html_content_type(value: str) -> bool:
     return header.get_content_type().casefold() == "text/html"
 
 
+def extract_reference_document(html: str, source: ReferenceSource) -> WebsiteDocument:
+    """Convert one curated source using only its configured content roots."""
+    document_url = source.canonical_url
+    if normalize_url(document_url) is None:
+        parsed = urlsplit(document_url)
+        document_url = urlunsplit(
+            ("https", "finki.ukim.mk", parsed.path, parsed.query, parsed.fragment)
+        )
+    return document_from_page(
+        _strip_images(html),
+        document_url,
+        content_selectors=source.content_selectors,
+    )
+
+
 def _read_aggregate(path: Path) -> str:
     with path.open("r", encoding="utf-8", newline="") as stream:
         return stream.read()
@@ -552,6 +636,9 @@ def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
     for source in sources:
         if _validate_route(source.source_url, "source_url") != source.canonical_url:
             raise _error(f"source URL differs from canonical URL for {source.id}")
+        if not isinstance(source.content_selectors, tuple):
+            raise _error(f"content_selectors must be a tuple for {source.id}")
+        _content_selectors(list(source.content_selectors))
 
 
 async def _fetch_reference_pages(
@@ -566,7 +653,7 @@ async def _fetch_reference_pages(
             source.source_url,
             PAGE_FETCH_POLICY,
             allowed_redirect_urls=frozenset({source.canonical_url}),
-            allowed_hosts=frozenset({LEGACY_HOST}),
+            allowed_hosts=frozenset({urlsplit(source.canonical_url).hostname or ""}),
         )
         if response.status != 200:
             raise _error(f"page returned HTTP {response.status} for {source.id}")
@@ -580,14 +667,8 @@ async def _fetch_reference_pages(
         html = response.body.decode(response.encoding, errors="replace")
         if _MARKER_PREFIX in html or _MARKER_PREFIX in html_module.unescape(html):
             raise _error(f"page {source.id} contains an aggregate boundary marker")
-        document_url = response.url
-        if urlsplit(document_url).hostname == LEGACY_HOST:
-            path = urlsplit(document_url).path
-            document_url = urlunsplit(
-                ("https", "finki.ukim.mk", path.replace("/mk/", "/en/", 1), "", "")
-            )
         try:
-            document = document_from_page(_strip_images(html), document_url)
+            document = extract_reference_document(html, source)
         except WebsiteContentError as exc:
             raise _error(f"cannot convert page {source.id}: {exc}") from exc
         title = _normalized_title(document.title)
@@ -595,12 +676,13 @@ async def _fetch_reference_pages(
         if not title:
             raise _error(f"page {source.id} has an empty title")
         if (
-            not body
+            not has_substantive_prose(body)
             or body.casefold() in _BOILERPLATE_OUTPUT
             or not _has_substantive_markdown(body)
+            or is_navigation_shaped(body)
         ):
             raise _error(
-                f"page {source.id} has empty, markup-only, or boilerplate output"
+                f"page {source.id} has empty, markup-only, boilerplate, or navigation-shaped output"
             )
         if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
             raise _error(f"page {source.id} contains an aggregate boundary marker")
