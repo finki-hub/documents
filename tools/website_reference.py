@@ -10,6 +10,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from email.message import Message
 from hashlib import sha256
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -501,6 +502,17 @@ def _normalized_title(title: str) -> str:
     return " ".join(title.replace("\r", " ").replace("\n", " ").split())
 
 
+def _is_html_content_type(value: str) -> bool:
+    header = Message()
+    header["content-type"] = value
+    return header.get_content_type().casefold() == "text/html"
+
+
+def _read_aggregate(path: Path) -> str:
+    with path.open("r", encoding="utf-8", newline="") as stream:
+        return stream.read()
+
+
 def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
     ids = [source.id for source in sources]
     if len(set(ids)) != len(ids):
@@ -520,10 +532,15 @@ async def _fetch_reference_pages(
     pages: list[ReferencePage] = []
     seen_hashes: dict[str, str] = {}
     for source in sources:
-        response = await fetch_public(client, source.source_url, PAGE_FETCH_POLICY)
+        response = await fetch_public(
+            client,
+            source.source_url,
+            PAGE_FETCH_POLICY,
+            allowed_redirect_urls=frozenset({source.canonical_url}),
+        )
         if response.status != 200:
             raise _error(f"page returned HTTP {response.status} for {source.id}")
-        if "text/html" not in response.content_type:
+        if not _is_html_content_type(response.content_type):
             raise _error(f"page is not HTML for {source.id}")
         if response.url != source.canonical_url:
             raise _error(
@@ -621,7 +638,7 @@ def verify_live(
     client: httpx2.AsyncClient | None = None,
 ) -> None:
     """Compare live normalized page hashes with an aggregate without writing."""
-    tracked = validate_aggregate(aggregate.read_text(encoding="utf-8"), tuple(sources))
+    tracked = validate_aggregate(_read_aggregate(aggregate), tuple(sources))
     tracked_by_id = {page.source_id: page for page in tracked}
 
     async def verify() -> None:
@@ -655,7 +672,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     sources = load_sources(arguments.sources, today=datetime.now(tz=UTC).date())
     if arguments.check:
-        validate_aggregate(arguments.aggregate.read_text(encoding="utf-8"), sources)
+        validate_aggregate(_read_aggregate(arguments.aggregate), sources)
     elif arguments.refresh:
         refresh_reference(sources, arguments.aggregate)
     else:

@@ -111,6 +111,8 @@ async def fetch_public(
     client: httpx2.AsyncClient,
     url: str,
     policy: FetchPolicy,
+    *,
+    allowed_redirect_urls: frozenset[str] | None = None,
 ) -> PublicResponse:
     current_url = _safe_url(url, url, policy)
     redirects = 0
@@ -135,12 +137,21 @@ async def fetch_public(
                             url=current_url,
                         )
                     try:
-                        current_url = _safe_url(location, current_url, policy)
+                        redirect_url = _safe_url(location, current_url, policy)
                     except PublicFetchError as error:
                         raise NonPublicRedirectError(
                             reason=error.reason,
                             url=error.url,
                         ) from error
+                    if (
+                        allowed_redirect_urls is not None
+                        and redirect_url not in allowed_redirect_urls
+                    ):
+                        raise PublicFetchError(
+                            reason="redirect target is not allowlisted",
+                            url=redirect_url,
+                        )
+                    current_url = redirect_url
                     continue
                 if (
                     response.status_code >= 400

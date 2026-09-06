@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx2
 import pytest
 
+from tools import website_reference as website_reference_module
 from tools.website_reference import (
     ALLOWED_CATEGORIES,
     MAX_REVIEW_AGE,
@@ -325,6 +326,40 @@ def test_refresh_fetches_only_allowlisted_urls_and_is_byte_stable(
     assert first.read_bytes() == second.read_bytes()
 
 
+def test_refresh_rejects_internal_redirect_without_requesting_target(
+    tmp_path: Path,
+) -> None:
+    source = _source("safe-page", "/en/safe/")
+    target = "https://finki.ukim.mk/en/redirected/"
+    responses = {
+        source.source_url: httpx2.Response(
+            302,
+            headers={"location": target},
+        ),
+        target: httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html("Redirected", "<p>Target content.</p>"),
+        ),
+    }
+    requested: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return responses[str(request.url)]
+
+    client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    try:
+        with pytest.raises((RuntimeError, ValueError), match="allowlisted|canonical"):
+            refresh_reference((source,), tmp_path / "aggregate.md", client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+
+    assert requested == [source.source_url]
+
+
 @pytest.mark.parametrize(
     ("status", "content_type", "body", "location", "content_length"),
     [
@@ -356,6 +391,61 @@ def test_refresh_failures_leave_prior_aggregate_untouched(
         _refresh_with_responses((source,), output, {source.source_url: response})
 
     assert output.read_text(encoding="utf-8") == "prior aggregate\n"
+
+
+def test_refresh_rejects_malformed_content_type(tmp_path: Path) -> None:
+    source = _source("safe-page", "/en/safe/")
+    with pytest.raises(ValueError, match="HTML"):
+        _refresh_with_responses(
+            (source,),
+            tmp_path / "aggregate.md",
+            {
+                source.source_url: httpx2.Response(
+                    200,
+                    headers={"content-type": "application/not-text/html"},
+                    text=_html("Safe", "<p>Content.</p>"),
+                )
+            },
+        )
+
+
+def test_check_rejects_crlf_aggregate_without_newline_normalization(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _source("safe-page", "/en/safe/")
+    page = ReferencePage(
+        source_id=source.id,
+        source_url=source.source_url,
+        canonical_url=source.canonical_url,
+        language=source.language,
+        category=source.category,
+        last_verified=source.last_verified,
+        title="Safe",
+        body="Content.",
+        content_sha256=sha256(b"Safe\n\nContent.").hexdigest(),
+    )
+    aggregate = tmp_path / "aggregate.md"
+    aggregate.write_bytes(render_aggregate((page,)).replace("\n", "\r\n").encode())
+
+    def fake_load_sources(_path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
+        return (source,) if today else ()
+
+    monkeypatch.setattr(
+        website_reference_module,
+        "load_sources",
+        fake_load_sources,
+    )
+
+    with pytest.raises(ValueError, match="LF-only"):
+        website_reference_module.main(
+            [
+                "--check",
+                "--sources",
+                str(tmp_path / "sources.toml"),
+                "--aggregate",
+                str(aggregate),
+            ]
+        )
 
 
 @pytest.mark.parametrize(
@@ -443,6 +533,40 @@ def test_refresh_removes_images_and_verify_live_does_not_write(tmp_path: Path) -
     )
     try:
         verify_live((source,), output, client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+    assert output.read_bytes() == before
+
+
+def test_verify_live_hash_mismatch_fails_without_writing(tmp_path: Path) -> None:
+    source = _source("safe-page", "/en/safe/")
+    output = tmp_path / "aggregate.md"
+    _refresh_with_responses(
+        (source,),
+        output,
+        {
+            source.source_url: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Safe", "<p>Original content.</p>"),
+            )
+        },
+    )
+    before = output.read_bytes()
+    client = httpx2.AsyncClient(
+        transport=httpx2.MockTransport(
+            lambda _request: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Safe", "<p>Changed content.</p>"),
+            )
+        )
+    )
+    try:
+        with pytest.raises(ValueError, match="live hash differs"):
+            verify_live((source,), output, client=client)
     finally:
         import anyio
 
