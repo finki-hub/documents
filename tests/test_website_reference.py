@@ -77,7 +77,7 @@ def _refresh_with_responses(
 def test_seed_contains_curated_stable_sources() -> None:
     sources = load_sources(SOURCES, today=date(2026, 9, 6))
 
-    assert 5 <= len(sources) <= 50
+    assert 2 <= len(sources) <= 50
     assert len({source.id for source in sources}) == len(sources)
     assert len({source.canonical_url for source in sources}) == len(sources)
     assert {source.language for source in sources} == {"mk"}
@@ -86,6 +86,20 @@ def test_seed_contains_curated_stable_sources() -> None:
         source.source_url.startswith("https://oldsite.finki.ukim.mk/mk/")
         for source in sources
     )
+
+
+def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
+    original = SOURCES.read_text(encoding="utf-8")
+    source_blocks = original.split("[[sources]]")
+    path = tmp_path / "sources.toml"
+    path.write_text(
+        source_blocks[0] + "[[sources]]" + "[[sources]]".join(source_blocks[1:3]),
+        encoding="utf-8",
+    )
+
+    sources = load_sources(path, today=date(2026, 9, 6))
+
+    assert len(sources) == 2
 
 
 def test_direct_legacy_source_refreshes_without_following_page_links(

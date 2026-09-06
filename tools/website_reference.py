@@ -301,8 +301,8 @@ def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
     if not isinstance(raw_sources, list):
         raise _error("sources must be an array of tables")
     sources = tuple(_source_from_mapping(raw, today=today) for raw in raw_sources)
-    if not 5 <= len(sources) <= 50:
-        raise _error("allowlist must contain between 5 and 50 sources")
+    if not 2 <= len(sources) <= 50:
+        raise _error("allowlist must contain between 2 and 50 sources")
     ids = [source.id for source in sources]
     if len(set(ids)) != len(ids):
         raise _error("source IDs must be unique")

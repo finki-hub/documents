@@ -67,7 +67,7 @@ Website output is ephemeral informational source material, not reviewed legal te
 
 ### Curated website reference
 
-The separate `website-reference/` corpus is classified as `official_website_informational`: a small, manually reviewed extract of public FINKI informational menu pages, lower authority than the reviewed legal documents in `processed/`. The initial corpus uses direct Macedonian pages on FINKI's official legacy host, `oldsite.finki.ukim.mk`, because the corresponding English routes currently redirect there or are stale. The source and canonical URLs preserve that provenance.
+The separate `website-reference/` corpus is classified as `official_website_informational`: a deliberately narrow, two-page manually reviewed extract of public FINKI informational menu pages, lower authority than the reviewed legal documents in `processed/`. The initial corpus uses direct Macedonian pages on FINKI's official legacy host, `oldsite.finki.ukim.mk`, because the corresponding English routes currently redirect there or are stale. The source and canonical URLs preserve that provenance.
 
 Selection is limited to stable institutional, study, programme, student-service, legal-act, organization, and thesis/internship information. Exclude annual admissions, quotas, rankings, deadlines, news, events, calendars, results, staff or person lists, projects, jobs, financial/account identifiers, candidate identifiers, images, PDFs/assets, boilerplate, duplicate, empty, or otherwise time-sensitive content. Every change requires a manual review for upstream drift and unsuitable content; a failed or stale source is removed or replaced only by an equivalent direct static menu page.
 

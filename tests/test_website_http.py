@@ -77,6 +77,33 @@ def test_curated_legacy_fetch_rejects_cross_host_or_unlisted_redirects(
     assert requested == ["https://oldsite.finki.ukim.mk/mk/source"]
 
 
+def test_curated_fetch_rejects_finki_to_legacy_redirect() -> None:
+    requested: list[str] = []
+    legacy_url = "https://oldsite.finki.ukim.mk/mk/source"
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return httpx2.Response(302, headers={"location": legacy_url})
+
+    async def run() -> None:
+        async with httpx2.AsyncClient(
+            transport=httpx2.MockTransport(handler)
+        ) as client:
+            with pytest.raises(PublicFetchError):
+                await fetch_public(
+                    client,
+                    "https://finki.ukim.mk/en/source",
+                    PAGE_FETCH_POLICY,
+                    allowed_redirect_urls=frozenset(
+                        {"https://finki.ukim.mk/en/source"}
+                    ),
+                    allowed_hosts=frozenset({"oldsite.finki.ukim.mk"}),
+                )
+
+    anyio.run(run)
+    assert requested == ["https://finki.ukim.mk/en/source"]
+
+
 def test_fetch_public_strict_redirect_mode_does_not_request_target() -> None:
     requested: list[str] = []
 
