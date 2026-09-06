@@ -37,6 +37,17 @@ def _source(source_id: str, path: str) -> ReferenceSource:
     )
 
 
+def _legacy_source(source_id: str, path: str) -> ReferenceSource:
+    return ReferenceSource(
+        id=source_id,
+        source_url=f"https://oldsite.finki.ukim.mk{path}",
+        canonical_url=f"https://oldsite.finki.ukim.mk{path}",
+        language="mk",
+        category="studies",
+        last_verified=date(2026, 9, 1),
+    )
+
+
 def _html(title: str, body: str) -> str:
     return f"<html><body><main><h1>{title}</h1>{body}</main></body></html>"
 
@@ -66,14 +77,46 @@ def _refresh_with_responses(
 def test_seed_contains_curated_stable_sources() -> None:
     sources = load_sources(SOURCES, today=date(2026, 9, 6))
 
-    assert 20 <= len(sources) <= 50
+    assert 5 <= len(sources) <= 50
     assert len({source.id for source in sources}) == len(sources)
     assert len({source.canonical_url for source in sources}) == len(sources)
-    assert {source.language for source in sources} == {"en"}
+    assert {source.language for source in sources} == {"mk"}
     assert {source.category for source in sources} <= ALLOWED_CATEGORIES
     assert all(
-        source.source_url.startswith("https://finki.ukim.mk/") for source in sources
+        source.source_url.startswith("https://oldsite.finki.ukim.mk/mk/")
+        for source in sources
     )
+
+
+def test_direct_legacy_source_refreshes_without_following_page_links(
+    tmp_path: Path,
+) -> None:
+    source = _legacy_source("legacy-page", "/mk/zafakultetot/instituti")
+    output = tmp_path / "aggregate.md"
+    requested: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html; charset=utf-8"},
+            text=_html(
+                "Институти",
+                "<p>Информации за институтите на факултетот.</p>"
+                '<a href="https://finki.ukim.mk/en/news/">news</a>',
+            ),
+        )
+
+    client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    try:
+        refresh_reference((source,), output, client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+
+    assert requested == [source.source_url]
+    assert parse_aggregate(output.read_text(encoding="utf-8"))[0].language == "mk"
 
 
 @pytest.mark.parametrize(
@@ -116,26 +159,26 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("language", "mk"),
-        ("source_url", "https://finki.ukim.mk/mk/studies/"),
-        ("canonical_url", "https://finki.ukim.mk/mk/studies/"),
+        ("language", "en"),
+        ("source_url", "https://oldsite.finki.ukim.mk/en/studies/"),
+        ("canonical_url", "https://oldsite.finki.ukim.mk/en/studies/"),
     ],
 )
-def test_allowlist_requires_english_routes(
+def test_allowlist_requires_macedonian_legacy_routes(
     tmp_path: Path, field: str, value: str
 ) -> None:
     original = SOURCES.read_text(encoding="utf-8")
     old_value = (
-        'language = "en"'
+        'language = "mk"'
         if field == "language"
-        else f'{field} = "https://finki.ukim.mk/en/studies/"'
+        else f'{field} = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"'
     )
     path = tmp_path / "sources.toml"
     path.write_text(
         original.replace(old_value, f'{field} = "{value}"', 1), encoding="utf-8"
     )
 
-    with pytest.raises(ValueError, match="English|/en/|language"):
+    with pytest.raises(ValueError, match="Macedonian|/mk/|language"):
         load_sources(path, today=date(2026, 9, 6))
 
 
@@ -145,7 +188,7 @@ def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
     path = tmp_path / "sources.toml"
     path.write_text(
         original.replace(
-            'last_verified = "2026-09-01"', f'last_verified = "{stale}"', 1
+            'last_verified = "2026-09-06"', f'last_verified = "{stale}"', 1
         ),
         encoding="utf-8",
     )
@@ -154,7 +197,7 @@ def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
 
     path.write_text(
         original.replace(
-            'last_verified = "2026-09-01"', 'last_verified = "2026-09-07"', 1
+            'last_verified = "2026-09-06"', 'last_verified = "2026-09-07"', 1
         ),
         encoding="utf-8",
     )
@@ -576,3 +619,17 @@ def test_verify_live_hash_mismatch_fails_without_writing(tmp_path: Path) -> None
 
 def test_validate_aggregate_alias_checks_allowlist() -> None:
     assert validate_aggregate is not None
+
+
+def test_committed_aggregate_matches_allowlist_exactly() -> None:
+    aggregate_path = ROOT / "website-reference" / "finki-static-pages.md"
+    sources = load_sources(SOURCES, today=date(2026, 9, 6))
+    text = aggregate_path.read_text(encoding="utf-8", newline="")
+
+    pages = validate_aggregate(text, sources)
+
+    assert len(pages) == len(sources)
+    assert [page.source_id for page in pages] == [source.id for source in sources]
+    assert text.count("<!-- finki-static-page:start id=") == len(sources)
+    assert text.count("<!-- finki-static-page:end -->") == len(sources)
+    assert text == render_aggregate(pages)

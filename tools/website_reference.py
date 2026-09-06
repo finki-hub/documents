@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 from email.message import Message
 from hashlib import sha256
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import anyio
 import httpx2
@@ -21,10 +21,12 @@ from selectolax.parser import HTMLParser
 
 from .website_http import PAGE_FETCH_POLICY, fetch_public
 from .website_markdown import WebsiteContentError, document_from_page
-from .website_models import normalize_url
+from .website_models import _normalized_path, normalize_url
 from .website_privacy import contains_sensitive_personal_identifier
 
-ALLOWED_LANGUAGES = frozenset({"en"})
+ALLOWED_LANGUAGES = frozenset({"en", "mk"})
+CURATED_SOURCE_LANGUAGE = "mk"
+LEGACY_HOST = "oldsite.finki.ukim.mk"
 ALLOWED_CATEGORIES = frozenset(
     {
         "studies",
@@ -186,13 +188,18 @@ def _validate_route(raw_url: str, field: str) -> str:
         raise _error(f"{field} is not a valid URL") from exc
     if parsed.scheme != "https":
         raise _error(f"{field} must use HTTPS")
-    if parsed.hostname != "finki.ukim.mk" or parsed.username or parsed.password:
-        raise _error(f"{field} must use the finki.ukim.mk host")
+    host = (parsed.hostname or "").casefold()
+    if host not in {"finki.ukim.mk", LEGACY_HOST} or parsed.username or parsed.password:
+        raise _error(f"{field} must use an approved FINKI host")
     if parsed.port is not None:
         raise _error(f"{field} must not specify a port")
     if parsed.query or parsed.fragment:
         raise _error(f"{field} must not contain a query or fragment")
     normalized = normalize_url(raw_url)
+    if normalized is None and host == LEGACY_HOST:
+        path = _normalized_path(parsed.path)
+        if path is not None:
+            normalized = urlunsplit(("https", LEGACY_HOST, path, "", ""))
     if normalized is None:
         raise _error(f"{field} is not an allowed public route")
     segments = tuple(
@@ -200,8 +207,11 @@ def _validate_route(raw_url: str, field: str) -> str:
         for segment in urlsplit(normalized).path.split("/")
         if segment
     )
-    if not segments or segments[0] != "en":
-        raise _error(f"{field} must use an English /en/ route")
+    expected_prefix = "mk" if host == LEGACY_HOST else "en"
+    if not segments or segments[0] != expected_prefix:
+        raise _error(
+            f"{field} must use a {expected_prefix.upper()} /{expected_prefix}/ route"
+        )
     if any(
         segment in _FORBIDDEN_ROUTE_SEGMENTS
         or any(
@@ -228,6 +238,10 @@ def _validate_route(raw_url: str, field: str) -> str:
     return normalized
 
 
+def _language_for_route(url: str) -> str:
+    return "mk" if urlsplit(url).hostname == LEGACY_HOST else "en"
+
+
 def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     if not isinstance(raw, Mapping):
         raise _error("each source must be a table")
@@ -240,8 +254,6 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     if _ID_PATTERN.fullmatch(source_id) is None:
         raise _error("id must be a stable lowercase hyphenated identifier")
     language = _text(raw["language"], "language")
-    if language not in ALLOWED_LANGUAGES:
-        raise _error(f"language {language!r} is not allowed")
     category = _text(raw["category"], "category")
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
@@ -251,6 +263,12 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
     if normalized_source != normalized_canonical:
         raise _error("source_url and canonical_url identify different routes")
+    if language != CURATED_SOURCE_LANGUAGE:
+        raise _error("initial curated sources must use Macedonian language")
+    if language != _language_for_route(normalized_source):
+        raise _error("language does not match the source route")
+    if language not in ALLOWED_LANGUAGES:
+        raise _error(f"language {language!r} is not allowed")
     verified = _parse_date(raw["last_verified"], "last_verified")
     if verified > today:
         raise _error("last_verified cannot be in the future")
@@ -283,8 +301,8 @@ def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
     if not isinstance(raw_sources, list):
         raise _error("sources must be an array of tables")
     sources = tuple(_source_from_mapping(raw, today=today) for raw in raw_sources)
-    if not 20 <= len(sources) <= 50:
-        raise _error("allowlist must contain between 20 and 50 sources")
+    if not 5 <= len(sources) <= 50:
+        raise _error("allowlist must contain between 5 and 50 sources")
     ids = [source.id for source in sources]
     if len(set(ids)) != len(ids):
         raise _error("source IDs must be unique")
@@ -349,6 +367,8 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
     language = _text(metadata["language"], "language")
     if language not in ALLOWED_LANGUAGES:
         raise _error(f"language {language!r} is not allowed")
+    if language != _language_for_route(normalized_source):
+        raise _error("language does not match the aggregate route")
     category = _text(metadata["category"], "category")
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
@@ -415,8 +435,10 @@ def _validate_page_for_render(page: ReferencePage) -> str:
     if normalized_source != normalized_canonical:
         raise _error("source_url and canonical_url identify different routes")
     language = _text(page.language, "language")
-    if language != "en":
-        raise _error("language must be English")
+    if language not in ALLOWED_LANGUAGES:
+        raise _error(f"language {language!r} is not allowed")
+    if language != _language_for_route(normalized_source):
+        raise _error("language does not match the route")
     category = _text(page.category, "category")
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
@@ -537,6 +559,7 @@ async def _fetch_reference_pages(
             source.source_url,
             PAGE_FETCH_POLICY,
             allowed_redirect_urls=frozenset({source.canonical_url}),
+            allowed_hosts=frozenset({LEGACY_HOST}),
         )
         if response.status != 200:
             raise _error(f"page returned HTTP {response.status} for {source.id}")
@@ -550,8 +573,14 @@ async def _fetch_reference_pages(
         html = response.body.decode(response.encoding, errors="replace")
         if _MARKER_PREFIX in html or _MARKER_PREFIX in html_module.unescape(html):
             raise _error(f"page {source.id} contains an aggregate boundary marker")
+        document_url = response.url
+        if urlsplit(document_url).hostname == LEGACY_HOST:
+            path = urlsplit(document_url).path
+            document_url = urlunsplit(
+                ("https", "finki.ukim.mk", path.replace("/mk/", "/en/", 1), "", "")
+            )
         try:
-            document = document_from_page(_strip_images(html), response.url)
+            document = document_from_page(_strip_images(html), document_url)
         except WebsiteContentError as exc:
             raise _error(f"cannot convert page {source.id}: {exc}") from exc
         title = _normalized_title(document.title)
