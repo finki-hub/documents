@@ -1,0 +1,193 @@
+version = 1
+
+[[sources]]
+id = "studies-overview"
+source_url = "https://finki.ukim.mk/en/studies/"
+canonical_url = "https://finki.ukim.mk/en/studies/"
+language = "en"
+category = "studies"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "undergraduate-studies"
+source_url = "https://finki.ukim.mk/en/studies/undergraduate-studies/"
+canonical_url = "https://finki.ukim.mk/en/studies/undergraduate-studies/"
+language = "en"
+category = "studies"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "second-cycle-studies"
+source_url = "https://finki.ukim.mk/en/studies/second-cycle-studies/"
+canonical_url = "https://finki.ukim.mk/en/studies/second-cycle-studies/"
+language = "en"
+category = "studies"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "third-cycle-studies"
+source_url = "https://finki.ukim.mk/en/studies/third-cycle-studies/"
+canonical_url = "https://finki.ukim.mk/en/studies/third-cycle-studies/"
+language = "en"
+category = "studies"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "study-programmes"
+source_url = "https://finki.ukim.mk/en/studies/study-programmes/"
+canonical_url = "https://finki.ukim.mk/en/studies/study-programmes/"
+language = "en"
+category = "programmes"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "student-support"
+source_url = "https://finki.ukim.mk/en/students/support/"
+canonical_url = "https://finki.ukim.mk/en/students/support/"
+language = "en"
+category = "student-support"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "student-procedures"
+source_url = "https://finki.ukim.mk/en/students/procedures/"
+canonical_url = "https://finki.ukim.mk/en/students/procedures/"
+language = "en"
+category = "procedures"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "student-forms"
+source_url = "https://finki.ukim.mk/en/students/forms/"
+canonical_url = "https://finki.ukim.mk/en/students/forms/"
+language = "en"
+category = "forms"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "erasmus-information"
+source_url = "https://finki.ukim.mk/en/students/erasmus/"
+canonical_url = "https://finki.ukim.mk/en/students/erasmus/"
+language = "en"
+category = "erasmus"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "student-organizations"
+source_url = "https://finki.ukim.mk/en/students/organizations/"
+canonical_url = "https://finki.ukim.mk/en/students/organizations/"
+language = "en"
+category = "organizations"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "thesis-guidance"
+source_url = "https://finki.ukim.mk/en/students/thesis/"
+canonical_url = "https://finki.ukim.mk/en/students/thesis/"
+language = "en"
+category = "thesis-internship"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "internship-guidance"
+source_url = "https://finki.ukim.mk/en/students/internships/"
+canonical_url = "https://finki.ukim.mk/en/students/internships/"
+language = "en"
+category = "thesis-internship"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "finki-overview"
+source_url = "https://finki.ukim.mk/en/about-finki/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/"
+language = "en"
+category = "institutional"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "finki-organization"
+source_url = "https://finki.ukim.mk/en/about-finki/organization/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/organization/"
+language = "en"
+category = "institutional"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "legal-acts"
+source_url = "https://finki.ukim.mk/en/about-finki/legal-acts/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/legal-acts/"
+language = "en"
+category = "legal"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "privacy-information"
+source_url = "https://finki.ukim.mk/en/about-finki/privacy/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/privacy/"
+language = "en"
+category = "privacy"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "public-information"
+source_url = "https://finki.ukim.mk/en/about-finki/public-information/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/public-information/"
+language = "en"
+category = "public-information"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "contact-information"
+source_url = "https://finki.ukim.mk/en/contact/"
+canonical_url = "https://finki.ukim.mk/en/contact/"
+language = "en"
+category = "contact"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "international-study"
+source_url = "https://finki.ukim.mk/en/international/"
+canonical_url = "https://finki.ukim.mk/en/international/"
+language = "en"
+category = "international-study"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "international-students"
+source_url = "https://finki.ukim.mk/en/international/students/"
+canonical_url = "https://finki.ukim.mk/en/international/students/"
+language = "en"
+category = "international-study"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "quality-assurance"
+source_url = "https://finki.ukim.mk/en/about-finki/quality-assurance/"
+canonical_url = "https://finki.ukim.mk/en/about-finki/quality-assurance/"
+language = "en"
+category = "institutional"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "study-regulations"
+source_url = "https://finki.ukim.mk/en/studies/study-regulations/"
+canonical_url = "https://finki.ukim.mk/en/studies/study-regulations/"
+language = "en"
+category = "studies"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "student-rights"
+source_url = "https://finki.ukim.mk/en/students/rights/"
+canonical_url = "https://finki.ukim.mk/en/students/rights/"
+language = "en"
+category = "student-support"
+last_verified = "2026-09-01"
+
+[[sources]]
+id = "application-procedures"
+source_url = "https://finki.ukim.mk/en/students/application-procedures/"
+canonical_url = "https://finki.ukim.mk/en/students/application-procedures/"
+language = "en"
+category = "procedures"
+last_verified = "2026-09-01"
