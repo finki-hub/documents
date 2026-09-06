@@ -41,15 +41,18 @@ files = [
   "tools/website_output.py",
   "tools/website_output_paths.py",
   "tools/website_privacy.py",
+  "tools/website_reference.py",
   "tests/test_website_cli.py",
   "tests/test_website_content.py",
   "tests/test_website_fetch.py",
+  "tests/test_website_http.py",
   "tests/test_website_markdown.py",
   "tests/test_website_models.py",
   "tests/test_website_output_safety.py",
   "tests/test_website_privacy.py",
   "tests/test_website_rest.py",
   "tests/test_website_review_regressions.py",
+  "tests/test_website_reference.py",
 ]
 
 [tool.pydantic-mypy]

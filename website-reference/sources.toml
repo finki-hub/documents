@@ -1,0 +1,17 @@
+version = 1
+
+[[sources]]
+id = "finki-legal-acts"
+source_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"
+canonical_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"
+language = "mk"
+category = "legal"
+last_verified = "2026-09-06"
+
+[[sources]]
+id = "student-service"
+source_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"
+canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"
+language = "mk"
+category = "procedures"
+last_verified = "2026-09-06"
