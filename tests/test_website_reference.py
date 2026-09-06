@@ -531,7 +531,12 @@ def test_refresh_rejects_aggregate_boundary_forgery(tmp_path: Path, body: str) -
 
 @pytest.mark.parametrize(
     "body",
-    ["", "<p>Candidate code: 1234567</p>", "<p>same text</p>"],
+    [
+        "",
+        "<h2>Heading only</h2><h3>Still markup</h3>",
+        "<p>Candidate code: 1234567</p>",
+        "<p>same text</p>",
+    ],
 )
 def test_refresh_rejects_title_only_or_sensitive_pages(
     tmp_path: Path, body: str
@@ -560,7 +565,7 @@ def test_refresh_rejects_title_only_or_sensitive_pages(
             )
         }
 
-    with pytest.raises(ValueError, match="(empty|identifier|duplicate)"):
+    with pytest.raises(ValueError, match="(empty|markup|identifier|duplicate)"):
         _refresh_with_responses(sources, tmp_path / "aggregate.md", responses)
 
 

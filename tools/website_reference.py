@@ -56,6 +56,7 @@ _BOILERPLATE_OUTPUT = frozenset(
         "skip to main content",
     }
 )
+_MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s+.*)?$")
 
 _TOP_LEVEL_KEYS = frozenset({"version", "sources"})
 _SOURCE_KEYS = frozenset(
@@ -316,6 +317,12 @@ def _normalize_body(body: str) -> str:
     normalized = body.replace("\r\n", "\n").replace("\r", "\n")
     lines = [line.rstrip() for line in normalized.split("\n")]
     return "\n".join(lines).strip()
+
+
+def _has_substantive_markdown(body: str) -> bool:
+    return any(
+        line and _MARKDOWN_HEADING.fullmatch(line) is None for line in body.splitlines()
+    )
 
 
 def _content_hash(title: str, body: str) -> str:
@@ -587,8 +594,14 @@ async def _fetch_reference_pages(
         body = _normalize_body(document.markdown)
         if not title:
             raise _error(f"page {source.id} has an empty title")
-        if not body or body.casefold() in _BOILERPLATE_OUTPUT:
-            raise _error(f"page {source.id} has empty or boilerplate output")
+        if (
+            not body
+            or body.casefold() in _BOILERPLATE_OUTPUT
+            or not _has_substantive_markdown(body)
+        ):
+            raise _error(
+                f"page {source.id} has empty, markup-only, or boilerplate output"
+            )
         if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
             raise _error(f"page {source.id} contains an aggregate boundary marker")
         if contains_sensitive_personal_identifier(title=title, markdown=body):
