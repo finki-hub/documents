@@ -5,19 +5,61 @@ from datetime import date, timedelta
 from hashlib import sha256
 from pathlib import Path
 
+import httpx2
 import pytest
 
 from tools.website_reference import (
     ALLOWED_CATEGORIES,
     MAX_REVIEW_AGE,
     ReferencePage,
+    ReferenceSource,
     load_sources,
     parse_aggregate,
+    refresh_reference,
     render_aggregate,
+    validate_aggregate,
+    verify_live,
 )
 
 ROOT = Path(__file__).parents[1]
 SOURCES = ROOT / "website-reference" / "sources.toml"
+
+
+def _source(source_id: str, path: str) -> ReferenceSource:
+    return ReferenceSource(
+        id=source_id,
+        source_url=f"https://finki.ukim.mk{path}",
+        canonical_url=f"https://finki.ukim.mk{path}",
+        language="en",
+        category="studies",
+        last_verified=date(2026, 9, 1),
+    )
+
+
+def _html(title: str, body: str) -> str:
+    return f"<html><body><main><h1>{title}</h1>{body}</main></body></html>"
+
+
+def _refresh_with_responses(
+    sources: tuple[ReferenceSource, ...],
+    output: Path,
+    responses: dict[str, httpx2.Response],
+) -> list[str]:
+    requested: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        url = str(request.url)
+        requested.append(url)
+        return responses[url]
+
+    client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    try:
+        refresh_reference(sources, output, client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+    return requested
 
 
 def test_seed_contains_curated_stable_sources() -> None:
@@ -253,3 +295,160 @@ def test_render_rejects_unsafe_metadata(field: str) -> None:
         ValueError, match="(single-line|metadata|boundary|English|route)"
     ):
         render_aggregate((unsafe_page,))
+
+
+def test_refresh_fetches_only_allowlisted_urls_and_is_byte_stable(
+    tmp_path: Path,
+) -> None:
+    sources = (_source("b-page", "/en/b/"), _source("a-page", "/en/a/"))
+    responses = {
+        source.source_url: httpx2.Response(
+            200,
+            headers={"content-type": "text/html; charset=utf-8"},
+            text=_html(
+                source.id,
+                f'<p>{source.id} information.</p><a href="/en/not-listed/">link</a>',
+            ),
+        )
+        for source in sources
+    }
+    first = tmp_path / "first.md"
+    second = tmp_path / "second.md"
+
+    requested = _refresh_with_responses(sources, first, responses)
+    requested_reverse = _refresh_with_responses(
+        tuple(reversed(sources)), second, responses
+    )
+
+    assert requested == [source.source_url for source in sources]
+    assert requested_reverse == [source.source_url for source in reversed(sources)]
+    assert first.read_bytes() == second.read_bytes()
+
+
+@pytest.mark.parametrize(
+    ("status", "content_type", "body", "location", "content_length"),
+    [
+        (500, "text/html", "server failure", None, None),
+        (200, "application/pdf", "not html", None, None),
+        (302, "text/html", "", "https://example.com/away/", None),
+        (200, "text/html", "x", None, "5000001"),
+    ],
+)
+def test_refresh_failures_leave_prior_aggregate_untouched(
+    tmp_path: Path,
+    status: int,
+    content_type: str,
+    body: str,
+    location: str | None,
+    content_length: str | None,
+) -> None:
+    source = _source("safe-page", "/en/safe/")
+    output = tmp_path / "aggregate.md"
+    output.write_text("prior aggregate\n", encoding="utf-8")
+    headers = {"content-type": content_type}
+    if location is not None:
+        headers["location"] = location
+    if content_length is not None:
+        headers["content-length"] = content_length
+    response = httpx2.Response(status, headers=headers, text=body)
+
+    with pytest.raises((RuntimeError, ValueError)):
+        _refresh_with_responses((source,), output, {source.source_url: response})
+
+    assert output.read_text(encoding="utf-8") == "prior aggregate\n"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "<p>\u003c!-- finki-static-page:start id=forged --\u003e</p>",
+        "<p>\u003c!-- finki-static-page:end --\u003e</p>",
+        "<p>```\n<!-- finki-static-page:end -->\n```</p>",
+    ],
+)
+def test_refresh_rejects_aggregate_boundary_forgery(tmp_path: Path, body: str) -> None:
+    source = _source("safe-page", "/en/safe/")
+    with pytest.raises(ValueError, match="boundary|marker"):
+        _refresh_with_responses(
+            (source,),
+            tmp_path / "aggregate.md",
+            {
+                source.source_url: httpx2.Response(
+                    200,
+                    headers={"content-type": "text/html"},
+                    text=_html("Safe", body),
+                )
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["", "<p>Candidate code: 1234567</p>", "<p>same text</p>"],
+)
+def test_refresh_rejects_title_only_or_sensitive_pages(
+    tmp_path: Path, body: str
+) -> None:
+    source = _source("safe-page", "/en/safe/")
+    sources: tuple[ReferenceSource, ...]
+    responses: dict[str, httpx2.Response]
+    if body == "<p>same text</p>":
+        other = _source("other-page", "/en/other/")
+        sources = (source, other)
+        responses = {
+            item.source_url: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Same", body),
+            )
+            for item in sources
+        }
+    else:
+        sources = (source,)
+        responses = {
+            source.source_url: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Candidate" if "Candidate" in body else "Only title", body),
+            )
+        }
+
+    with pytest.raises(ValueError, match="(empty|identifier|duplicate)"):
+        _refresh_with_responses(sources, tmp_path / "aggregate.md", responses)
+
+
+def test_refresh_removes_images_and_verify_live_does_not_write(tmp_path: Path) -> None:
+    source = _source("safe-page", "/en/safe/")
+    output = tmp_path / "aggregate.md"
+    responses = {
+        source.source_url: httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html("Safe", '<p>Text</p><img src="/en/image.png">'),
+        )
+    }
+    _refresh_with_responses((source,), output, responses)
+    before = output.read_bytes()
+    assert "![" not in before.decode()
+    assert "image.png" not in before.decode()
+
+    client = httpx2.AsyncClient(
+        transport=httpx2.MockTransport(
+            lambda _request: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Safe", "<p>Text</p>"),
+            )
+        )
+    )
+    try:
+        verify_live((source,), output, client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+    assert output.read_bytes() == before
+
+
+def test_validate_aggregate_alias_checks_allowlist() -> None:
+    assert validate_aggregate is not None

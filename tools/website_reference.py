@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import argparse
+import html as html_module
+import os
 import re
+import tempfile
 import tomllib
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+import anyio
+import httpx2
+from selectolax.parser import HTMLParser
+
+from .website_http import PAGE_FETCH_POLICY, fetch_public
+from .website_markdown import WebsiteContentError, document_from_page
 from .website_models import normalize_url
+from .website_privacy import contains_sensitive_personal_identifier
 
 ALLOWED_LANGUAGES = frozenset({"en"})
 ALLOWED_CATEGORIES = frozenset(
@@ -31,6 +43,16 @@ ALLOWED_CATEGORIES = frozenset(
     }
 )
 MAX_REVIEW_AGE = timedelta(days=180)
+_DEFAULT_SOURCES = Path("website-reference/sources.toml")
+_DEFAULT_AGGREGATE = Path("website-reference/finki-static-pages.md")
+_BOILERPLATE_OUTPUT = frozenset(
+    {
+        "menu",
+        "navigation",
+        "skip to content",
+        "skip to main content",
+    }
+)
 
 _TOP_LEVEL_KEYS = frozenset({"version", "sources"})
 _SOURCE_KEYS = frozenset(
@@ -457,3 +479,189 @@ def check_aggregate(
         ):
             raise _error(f"aggregate metadata differs for {page.source_id}")
     return pages
+
+
+def validate_aggregate(
+    text: str, sources: tuple[ReferenceSource, ...]
+) -> tuple[ReferencePage, ...]:
+    """Validate an aggregate against its offline source allowlist."""
+    return check_aggregate(text, sources)
+
+
+def _strip_images(html: str) -> str:
+    parser = HTMLParser(html)
+    if parser.root is None:
+        return ""
+    for image in parser.root.css("img"):
+        image.decompose()
+    return parser.root.html or ""
+
+
+def _normalized_title(title: str) -> str:
+    return " ".join(title.replace("\r", " ").replace("\n", " ").split())
+
+
+def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
+    ids = [source.id for source in sources]
+    if len(set(ids)) != len(ids):
+        raise _error("refresh source IDs must be unique")
+    urls = [source.canonical_url for source in sources]
+    if len(set(urls)) != len(urls):
+        raise _error("refresh canonical URLs must be unique")
+    for source in sources:
+        if _validate_route(source.source_url, "source_url") != source.canonical_url:
+            raise _error(f"source URL differs from canonical URL for {source.id}")
+
+
+async def _fetch_reference_pages(
+    sources: Sequence[ReferenceSource], client: httpx2.AsyncClient
+) -> tuple[ReferencePage, ...]:
+    _validate_refresh_sources(sources)
+    pages: list[ReferencePage] = []
+    seen_hashes: dict[str, str] = {}
+    for source in sources:
+        response = await fetch_public(client, source.source_url, PAGE_FETCH_POLICY)
+        if response.status != 200:
+            raise _error(f"page returned HTTP {response.status} for {source.id}")
+        if "text/html" not in response.content_type:
+            raise _error(f"page is not HTML for {source.id}")
+        if response.url != source.canonical_url:
+            raise _error(
+                f"page canonical URL differs for {source.id}: "
+                f"expected {source.canonical_url}, got {response.url}"
+            )
+        html = response.body.decode(response.encoding, errors="replace")
+        if _MARKER_PREFIX in html or _MARKER_PREFIX in html_module.unescape(html):
+            raise _error(f"page {source.id} contains an aggregate boundary marker")
+        try:
+            document = document_from_page(_strip_images(html), response.url)
+        except WebsiteContentError as exc:
+            raise _error(f"cannot convert page {source.id}: {exc}") from exc
+        title = _normalized_title(document.title)
+        body = _normalize_body(document.markdown)
+        if not title:
+            raise _error(f"page {source.id} has an empty title")
+        if not body or body.casefold() in _BOILERPLATE_OUTPUT:
+            raise _error(f"page {source.id} has empty or boilerplate output")
+        if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
+            raise _error(f"page {source.id} contains an aggregate boundary marker")
+        if contains_sensitive_personal_identifier(title=title, markdown=body):
+            raise _error(f"page {source.id} contains a sensitive identifier")
+        digest = _content_hash(title, body)
+        duplicate_id = seen_hashes.get(digest)
+        if duplicate_id is not None:
+            raise _error(
+                f"duplicate normalized content for {source.id} and {duplicate_id}"
+            )
+        seen_hashes[digest] = source.id
+        pages.append(
+            ReferencePage(
+                source_id=source.id,
+                source_url=source.source_url,
+                canonical_url=source.canonical_url,
+                language=source.language,
+                category=source.category,
+                last_verified=source.last_verified,
+                title=title,
+                body=body,
+                content_sha256=digest,
+            )
+        )
+    return tuple(pages)
+
+
+def _replace_atomically(output: Path, text: str) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            dir=output.parent,
+            prefix=f".{output.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as staged:
+            temporary = staged.name
+            staged.write(text)
+            staged.flush()
+            os.fsync(staged.fileno())
+        os.replace(temporary, output)
+        temporary = None
+    finally:
+        if temporary is not None:
+            with suppress(FileNotFoundError):
+                os.unlink(temporary)
+
+
+def refresh_reference(
+    sources: Sequence[ReferenceSource],
+    output: Path,
+    *,
+    client: httpx2.AsyncClient | None = None,
+) -> None:
+    """Fetch the fixed allowlist and atomically replace its aggregate."""
+
+    async def refresh() -> None:
+        if client is None:
+            async with httpx2.AsyncClient() as live_client:
+                pages = await _fetch_reference_pages(sources, live_client)
+        else:
+            pages = await _fetch_reference_pages(sources, client)
+        _replace_atomically(output, render_aggregate(pages))
+
+    anyio.run(refresh)
+
+
+def verify_live(
+    sources: Sequence[ReferenceSource],
+    aggregate: Path,
+    *,
+    client: httpx2.AsyncClient | None = None,
+) -> None:
+    """Compare live normalized page hashes with an aggregate without writing."""
+    tracked = validate_aggregate(aggregate.read_text(encoding="utf-8"), tuple(sources))
+    tracked_by_id = {page.source_id: page for page in tracked}
+
+    async def verify() -> None:
+        if client is None:
+            async with httpx2.AsyncClient() as live_client:
+                live = await _fetch_reference_pages(sources, live_client)
+        else:
+            live = await _fetch_reference_pages(sources, client)
+        for page in live:
+            tracked_page = tracked_by_id[page.source_id]
+            if page.content_sha256 != tracked_page.content_sha256:
+                raise _error(f"live hash differs for {page.source_id}")
+
+    anyio.run(verify)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Manage the curated website reference")
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--check", action="store_true", help="validate offline files")
+    modes.add_argument("--refresh", action="store_true", help="refresh the aggregate")
+    modes.add_argument(
+        "--verify-live", action="store_true", help="compare live page hashes"
+    )
+    parser.add_argument("--sources", type=Path, default=_DEFAULT_SOURCES)
+    parser.add_argument("--aggregate", type=Path, default=_DEFAULT_AGGREGATE)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    arguments = _build_parser().parse_args(argv)
+    sources = load_sources(arguments.sources, today=datetime.now(tz=UTC).date())
+    if arguments.check:
+        validate_aggregate(arguments.aggregate.read_text(encoding="utf-8"), sources)
+    elif arguments.refresh:
+        refresh_reference(sources, arguments.aggregate)
+    else:
+        verify_live(sources, arguments.aggregate)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
