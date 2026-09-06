@@ -1,6 +1,9 @@
 from time import perf_counter
 
+import pytest
+
 from tools.website_markdown import (
+    WebsiteContentError,
     document_from_page,
     document_from_rest,
     render_document,
@@ -30,6 +33,43 @@ def test_document_from_page_extracts_main_content_and_absolute_links() -> None:
     assert "Copyright" not in document.markdown
     assert "ignored" not in document.markdown
     assert "[programme](https://finki.ukim.mk/dodiplomski-studii/)" in document.markdown
+
+
+def test_document_from_page_uses_configured_content_selector() -> None:
+    document = document_from_page(
+        """
+        <main>
+          <nav>Navigation-heavy main menu</nav>
+          <div id="article-body">
+            <h1>Configured article</h1>
+            <p>Only article content belongs in the document.</p>
+          </div>
+        </main>
+        """,
+        "https://finki.ukim.mk/en/notice/",
+        content_selectors=("#article-body",),
+    )
+
+    assert document.title == "Configured article"
+    assert "Only article content belongs in the document." in document.markdown
+    assert "Navigation-heavy main menu" not in document.markdown
+
+
+def test_document_from_page_uses_ordered_content_selectors_and_reports_misses() -> None:
+    document = document_from_page(
+        '<main><div id="article-body">Second selector content.</div></main>',
+        "https://finki.ukim.mk/en/notice/",
+        content_selectors=("#missing", "#article-body"),
+    )
+
+    assert document.markdown == "Second selector content."
+
+    with pytest.raises(WebsiteContentError, match="https://finki.ukim.mk/en/notice/"):
+        document_from_page(
+            "<main><p>Unavailable configured content.</p></main>",
+            "https://finki.ukim.mk/en/notice/",
+            content_selectors=("#missing", ".also-missing"),
+        )
 
 
 def test_document_from_page_strips_whitespace_after_decoding_title() -> None:
