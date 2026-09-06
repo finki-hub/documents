@@ -7,8 +7,8 @@ Source-of-truth corpus for the [`finki-hub/chat-bot`](https://github.com/finki-h
 ```
 processed/   reviewed Markdown — the tracked corpus (one file per document)
 raw/         original PDFs/DOCX — the corpus source files, tracked here
-tools/       offline CLI: preprocess.py + docpipe.py
-website/     generated public website corpus (created by website_content.py)
+tools/       offline CLI: preprocess.py + docpipe.py + website_content.py
+website/     ignored local website snapshot created by website_content.py
 ```
 
 Both the originals (`raw/`) and the reviewed Markdown (`processed/`) are versioned here — this repo is the source of truth. Cloudflare R2 is an optional downstream mirror of the originals; chunks and embeddings live in the chat-bot's Postgres (regenerable from the Markdown at any time).
@@ -51,7 +51,7 @@ Generate a fresh Markdown snapshot of the public FINKI website with:
 uv run --locked python -m tools.website_content --output website
 ```
 
-The generator combines the public WordPress REST API with a rendered-page crawl because staff listings, archive pages, English pages, subjects, and study programmes are not represented completely by REST records. It follows only canonical `finki.ukim.mk` HTML routes, streams responses before accepting HTML, and limits concurrent requests to four.
+The generator combines the public WordPress REST API with a rendered-page crawl because staff listings, archive pages, English pages, subjects, and study programmes are not represented completely by REST records. It follows only canonical `finki.ukim.mk` HTML routes, streams responses before accepting HTML, and limits concurrent requests to four. Generated representations that publish seven-digit or `FIN`-prefixed identifiers in candidate context, or explicitly label values as the first seven identification-number digits, are excluded from every output surface so public candidate lists are not republished as a durable bulk dataset. When both REST and rendered representations are available, a match in either excludes the canonical URL.
 
 Every run replaces an empty directory or a prior generator-owned snapshot with three deterministic surfaces. It refuses foreign directories and link-bearing output trees before modifying them:
 
@@ -61,9 +61,9 @@ Every run replaces an empty directory or a prior generator-owned snapshot with t
 
 For safety, the generator writes a complete sibling staging snapshot before moving an existing owned snapshot into `.website-recovery-*` and installing the replacement. If installation fails, it restores the prior snapshot when possible and leaves staging or recovery artifacts available for inspection instead of recursively deleting them. The generator is intentionally single-writer; do not run concurrent commands against the same output directory.
 
-Use `--max-pages 20` for a quick network smoke test. For a content refresh, run the full command and review `manifest.json`, additions/removals, language balance, and representative rendered-only pages. Generated `website/` snapshots and their staging/recovery siblings are ignored by Git and must remain uncommitted. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
+Use `--max-pages 20` for a quick network smoke test. For a complete local audit, run the full command and require `crawl_truncated` to be `false` in `manifest.json`. Generated website snapshots are ignored and must not be committed: a complete crawl includes thousands of unreviewed, duplicated, historical, and time-sensitive pages that do not satisfy this repository's corpus standards. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
 
-Website output is informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync` until the chat-bot has a dedicated website-ingestion contract.
+Website output is ephemeral informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync`, or track a curated subset, until the chat-bot has a dedicated website-ingestion contract with default-deny relevance, currentness, and conflict-resolution rules.
 
 ## License
 
