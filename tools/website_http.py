@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, final, override
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
 
 import httpx2
 
@@ -13,6 +13,7 @@ from tools.website_models import (
     TEXT_REST_BASES,
     RestInventory,
     RestRecord,
+    _normalized_path,
     normalize_rest_url,
     normalize_url,
 )
@@ -69,12 +70,32 @@ PAGE_FETCH_POLICY: Final = FetchPolicy(
 REST_FETCH_POLICY: Final = FetchPolicy(allow_rest=True, max_bytes=20_000_000)
 
 
-def _safe_url(raw_url: str, base_url: str, policy: FetchPolicy) -> str:
+def _safe_url(
+    raw_url: str,
+    base_url: str,
+    policy: FetchPolicy,
+    allowed_hosts: frozenset[str] | None = None,
+) -> str:
     normalized = (
         normalize_rest_url(raw_url, base_url)
         if policy.allow_rest
         else normalize_url(raw_url, base_url)
     )
+    if normalized is None and not policy.allow_rest and allowed_hosts:
+        parsed = urlsplit(urljoin(base_url, raw_url))
+        host = (parsed.hostname or "").casefold()
+        if (
+            parsed.scheme == "https"
+            and host in allowed_hosts
+            and not parsed.username
+            and not parsed.password
+            and parsed.port is None
+            and not parsed.query
+            and not parsed.fragment
+        ):
+            path = _normalized_path(parsed.path)
+            if path is not None:
+                normalized = urlunsplit(("https", host, path, "", ""))
     if normalized is None:
         reason = "unsafe REST URL" if policy.allow_rest else "unsafe public URL"
         raise PublicFetchError(reason=reason, url=raw_url)
@@ -111,8 +132,11 @@ async def fetch_public(
     client: httpx2.AsyncClient,
     url: str,
     policy: FetchPolicy,
+    *,
+    allowed_redirect_urls: frozenset[str] | None = None,
+    allowed_hosts: frozenset[str] | None = None,
 ) -> PublicResponse:
-    current_url = _safe_url(url, url, policy)
+    current_url = _safe_url(url, url, policy, allowed_hosts)
     redirects = 0
     try:
         while True:
@@ -135,12 +159,23 @@ async def fetch_public(
                             url=current_url,
                         )
                     try:
-                        current_url = _safe_url(location, current_url, policy)
+                        redirect_url = _safe_url(
+                            location, current_url, policy, allowed_hosts
+                        )
                     except PublicFetchError as error:
                         raise NonPublicRedirectError(
                             reason=error.reason,
                             url=error.url,
                         ) from error
+                    if (
+                        allowed_redirect_urls is not None
+                        and redirect_url not in allowed_redirect_urls
+                    ):
+                        raise PublicFetchError(
+                            reason="redirect target is not allowlisted",
+                            url=redirect_url,
+                        )
+                    current_url = redirect_url
                     continue
                 if (
                     response.status_code >= 400

@@ -1,0 +1,251 @@
+version = 2
+
+[[sources]]
+id = "finki-about"
+source_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/"
+canonical_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "finki-vision"
+source_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/vizija/"
+canonical_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/vizija/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["#tabs-14368-panel-vizija"]
+
+[[sources]]
+id = "finki-strategic-goals"
+source_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/"
+canonical_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["#tabs-14368-panel-strateshki-celi"]
+
+[[sources]]
+id = "finki-history"
+source_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/istorijat/"
+canonical_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/istorijat/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["#tabs-14368-panel-istorijat"]
+
+[[sources]]
+id = "finki-logo"
+source_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/logo/"
+canonical_url = "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/logo/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["#tabs-14368-panel-logo"]
+
+[[sources]]
+id = "finki-centers"
+source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/instituti-i-centri/centri/"
+canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/instituti-i-centri/centri/"
+language = "mk"
+category = "organizations"
+content_kind = "structured"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "finki-laboratories"
+source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/"
+canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/"
+language = "mk"
+category = "institutional"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["#tabs-14349-panel-laboratorii"]
+
+[[sources]]
+id = "privacy-personal-data"
+source_url = "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/zashtita-na-lichni-podatoci/"
+canonical_url = "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/zashtita-na-lichni-podatoci/"
+language = "mk"
+category = "privacy"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "public-information-access"
+source_url = "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/sloboden-pristap-do-informacii-od-javen-karakter/"
+canonical_url = "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/sloboden-pristap-do-informacii-od-javen-karakter/"
+language = "mk"
+category = "public-information"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "electronic-documents"
+source_url = "https://finki.ukim.mk/elektronski-dokumenti/"
+canonical_url = "https://finki.ukim.mk/elektronski-dokumenti/"
+language = "mk"
+category = "forms"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "grade-annulment"
+source_url = "https://finki.ukim.mk/procedura-za-ponishtuvanje-na-ocena/"
+canonical_url = "https://finki.ukim.mk/procedura-za-ponishtuvanje-na-ocena/"
+language = "mk"
+category = "procedures"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "transfer-from-another-faculty"
+source_url = "https://finki.ukim.mk/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/"
+canonical_url = "https://finki.ukim.mk/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/"
+language = "mk"
+category = "procedures"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "course-enrollment-rules"
+source_url = "https://finki.ukim.mk/pravila-za-zapishuvanje-na-predmeti/"
+canonical_url = "https://finki.ukim.mk/pravila-za-zapishuvanje-na-predmeti/"
+language = "mk"
+category = "procedures"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "student-forms"
+source_url = "https://finki.ukim.mk/studii-2/poddrshka/obrasci/"
+canonical_url = "https://finki.ukim.mk/studii-2/poddrshka/obrasci/"
+language = "mk"
+category = "forms"
+content_kind = "link-catalog"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "erasmus"
+source_url = "https://finki.ukim.mk/studii-2/poddrshka/erazmus/"
+canonical_url = "https://finki.ukim.mk/studii-2/poddrshka/erazmus/"
+language = "mk"
+category = "erasmus"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = ["main.site-main .page-content__body"]
+
+[[sources]]
+id = "ug-study-program-choice"
+source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/izbor-na-studiska-programa/"
+canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/izbor-na-studiska-programa/"
+language = "mk"
+category = "programmes"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "ug-required-subjects"
+source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-predmeti/"
+canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-predmeti/"
+language = "mk"
+category = "studies"
+content_kind = "structured"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "ug-required-documents"
+source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumenti/"
+canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumenti/"
+language = "mk"
+category = "forms"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "ug-scholarships"
+source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/stipendii/"
+canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/stipendii/"
+language = "mk"
+category = "student-support"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "masters-required-documents"
+source_url = "https://finki.ukim.mk/upisi/magisterski-studii/potrebni-dokumenti/"
+canonical_url = "https://finki.ukim.mk/upisi/magisterski-studii/potrebni-dokumenti/"
+language = "mk"
+category = "forms"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "masters-admission-conditions"
+source_url = "https://finki.ukim.mk/upisi/magisterski-studii/uslovi/"
+canonical_url = "https://finki.ukim.mk/upisi/magisterski-studii/uslovi/"
+language = "mk"
+category = "studies"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "doctoral-required-documents"
+source_url = "https://finki.ukim.mk/upisi/doktorski-studii/potrebni-dokumenti/"
+canonical_url = "https://finki.ukim.mk/upisi/doktorski-studii/potrebni-dokumenti/"
+language = "mk"
+category = "forms"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "doctoral-admission-conditions"
+source_url = "https://finki.ukim.mk/upisi/doktorski-studii/uslovi/"
+canonical_url = "https://finki.ukim.mk/upisi/doktorski-studii/uslovi/"
+language = "mk"
+category = "studies"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "international-undergraduate-admissions"
+source_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/"
+canonical_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/"
+language = "en"
+category = "international-study"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]
+
+[[sources]]
+id = "international-masters-admissions"
+source_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/masters-studies-for-international-students/"
+canonical_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/masters-studies-for-international-students/"
+language = "en"
+category = "international-study"
+content_kind = "prose"
+last_verified = "2026-09-07"
+content_selectors = [".page-content__body"]

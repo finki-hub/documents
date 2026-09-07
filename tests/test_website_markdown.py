@@ -1,6 +1,9 @@
 from time import perf_counter
 
+import pytest
+
 from tools.website_markdown import (
+    WebsiteContentError,
     document_from_page,
     document_from_rest,
     render_document,
@@ -30,6 +33,79 @@ def test_document_from_page_extracts_main_content_and_absolute_links() -> None:
     assert "Copyright" not in document.markdown
     assert "ignored" not in document.markdown
     assert "[programme](https://finki.ukim.mk/dodiplomski-studii/)" in document.markdown
+
+
+def test_document_from_page_uses_configured_content_selector() -> None:
+    document = document_from_page(
+        """
+        <main>
+          <nav>Navigation-heavy main menu</nav>
+          <div id="article-body">
+            <h1>Configured article</h1>
+            <p>Only article content belongs in the document.</p>
+          </div>
+        </main>
+        """,
+        "https://finki.ukim.mk/en/notice/",
+        content_selectors=("#article-body",),
+    )
+
+    assert document.title == "Configured article"
+    assert "Only article content belongs in the document." in document.markdown
+    assert "Navigation-heavy main menu" not in document.markdown
+
+
+def test_document_from_page_uses_ordered_content_selectors_and_reports_misses() -> None:
+    document = document_from_page(
+        '<main><div id="article-body">Second selector content.</div></main>',
+        "https://finki.ukim.mk/en/notice/",
+        content_selectors=("#missing", "#article-body"),
+    )
+
+    assert document.markdown == "Second selector content."
+
+    with pytest.raises(WebsiteContentError, match="https://finki.ukim.mk/en/notice/"):
+        document_from_page(
+            "<main><p>Unavailable configured content.</p></main>",
+            "https://finki.ukim.mk/en/notice/",
+            content_selectors=("#missing", ".also-missing"),
+        )
+
+
+def test_document_from_page_drops_empty_headings_but_keeps_valid_headings() -> None:
+    document = document_from_page(
+        """
+        <section>
+          <h3>Mission</h3>
+          <h3> </h3>
+          <p>The faculty provides enduring educational and research value.</p>
+        </section>
+        """,
+        "https://finki.ukim.mk/en/about/",
+        content_selectors=("section",),
+    )
+
+    assert "### Mission" in document.markdown
+    assert "###\n" not in document.markdown
+
+
+def test_document_from_page_preserves_hash_heading_inside_code() -> None:
+    document = document_from_page(
+        """
+        <section>
+          <h2>Example</h2>
+          <pre><code>first line
+###
+last line</code></pre>
+        </section>
+        """,
+        "https://finki.ukim.mk/en/about/",
+        content_selectors=("section",),
+    )
+
+    assert "###" in document.markdown
+    assert "first line" in document.markdown
+    assert "last line" in document.markdown
 
 
 def test_document_from_page_strips_whitespace_after_decoding_title() -> None:

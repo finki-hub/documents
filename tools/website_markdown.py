@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html as html_module
 import re
+from collections.abc import Sequence
 from urllib.parse import urljoin, urlsplit
 
 from markdownify import markdownify
@@ -91,6 +92,10 @@ def _sanitize_html(value: str, base_url: str) -> str:
     for selector in _REMOVED_SELECTORS:
         for node in parser.root.css(selector):
             node.decompose()
+    for heading in parser.root.css("h1, h2, h3, h4, h5, h6"):
+        heading_text = heading.text(separator=" ", strip=True).replace("\xa0", " ")
+        if not heading_text.strip():
+            heading.decompose()
     for node in parser.root.css("a[href]"):
         href = node.attributes.get("href")
         if href and (safe_link := _safe_link(href, base_url)) is not None:
@@ -119,7 +124,18 @@ def _markdown_from_html(value: str, base_url: str) -> str:
     )
 
 
-def _content_root(parser: HTMLParser) -> Node:
+def _content_root(
+    parser: HTMLParser,
+    *,
+    content_selectors: Sequence[str] | None = None,
+    url: str | None = None,
+) -> Node:
+    if content_selectors is not None:
+        for selector in content_selectors:
+            node = parser.css_first(selector)
+            if node is not None:
+                return node
+        raise WebsiteContentError("Configured content selectors matched no node", url)
     for selector in ("main", "article", "body"):
         node = parser.css_first(selector)
         if node is not None:
@@ -149,9 +165,14 @@ def _title(parser: HTMLParser, root: Node, url: str) -> str:
     return url.rstrip("/").rsplit("/", maxsplit=1)[-1].replace("-", " ").title()
 
 
-def document_from_page(html: str, url: str) -> WebsiteDocument:
+def document_from_page(
+    html: str,
+    url: str,
+    *,
+    content_selectors: Sequence[str] | None = None,
+) -> WebsiteDocument:
     parser = HTMLParser(html)
-    root = _content_root(parser)
+    root = _content_root(parser, content_selectors=content_selectors, url=url)
     for selector in _REMOVED_SELECTORS:
         for node in root.css(selector):
             node.decompose()

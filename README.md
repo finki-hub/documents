@@ -65,6 +65,22 @@ Use `--max-pages 20` for a quick network smoke test. For a complete local audit,
 
 Website output is ephemeral informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync`, or track a curated subset, until the chat-bot has a dedicated website-ingestion contract with default-deny relevance, currentness, and conflict-resolution rules.
 
+### Curated website reference
+
+The separate `website-reference/` corpus is classified as `official_website_informational`: a deliberately narrow, 25-page manually reviewed snapshot of public FINKI pages, lower authority than the reviewed legal documents in `processed/`. Directly selected pages may include admissions information, dates or quotas, public institutional contacts or person listings, payment/account details, and public PDF links. Each source declares an explicit `content_kind`: 22 prose pages, two structured pages, and one link catalog.
+
+Each source has an explicitly reviewed CSS selector and only exact source-page URLs are fetched. The refresh never crawls or fetches linked documents, PDFs, or assets; it retains only sanitized links found on directly selected pages. Candidate identifiers, undisclosed or private data, and asset ingestion remain prohibited. Every change requires manual review for upstream drift and suitability.
+
+FINKI website content is publicly attributed to FINKI and remains **all rights reserved**; this repository's copy is for internal informational/reference use, not republication or redistribution of the upstream material. The generator fetches only exact URLs in `website-reference/sources.toml`, never follows page links, never fetches PDFs/assets or external hosts, and permits only exact source-scoped canonical redirects. Use the bounded commands below from the repository root:
+
+```bash
+uv run --locked python -m tools.website_reference --refresh
+uv run --locked python -m tools.website_reference --check
+uv run --locked python -m tools.website_reference --verify-live
+```
+
+Reviewer workflow: inspect every generated `finki-static-page` block, confirm the visible source and canonical URLs, check for prohibited or stale material, run `--check` and `--verify-live`, and review the resulting diff before accepting a change. Page-level ingestion is deferred until the chat-bot has a dedicated contract for relevance, currentness, provenance, conflict resolution, and this source class. The full `website/` snapshots remain ignored and must not be ingested; they are an unreviewed crawl, not a curated reference corpus.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
