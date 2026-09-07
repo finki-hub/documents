@@ -36,6 +36,7 @@ _REMOVED_SELECTORS = (
     ".breadcrumb",
     ".breadcrumbs",
 )
+_EMPTY_MARKDOWN_HEADING = re.compile(r"(?m)^[ \t]{0,3}#{1,6}[ \t]*(?:\n|$)")
 
 
 class WebsiteContentError(ValueError):
@@ -52,6 +53,8 @@ class WebsiteContentError(ValueError):
 def _clean_markdown(value: str) -> str:
     cleaned = value.replace("\xa0", " ").replace("\r\n", "\n")
     cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = _EMPTY_MARKDOWN_HEADING.sub("", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 

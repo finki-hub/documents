@@ -72,6 +72,23 @@ def test_document_from_page_uses_ordered_content_selectors_and_reports_misses() 
         )
 
 
+def test_document_from_page_drops_empty_headings_but_keeps_valid_headings() -> None:
+    document = document_from_page(
+        """
+        <section>
+          <h3>Mission</h3>
+          <h3> </h3>
+          <p>The faculty provides enduring educational and research value.</p>
+        </section>
+        """,
+        "https://finki.ukim.mk/en/about/",
+        content_selectors=("section",),
+    )
+
+    assert "### Mission" in document.markdown
+    assert "###\n" not in document.markdown
+
+
 def test_document_from_page_strips_whitespace_after_decoding_title() -> None:
     document = document_from_page(
         """

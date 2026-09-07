@@ -5,13 +5,11 @@ language: en
 category: institutional
 last_verified: 2026-09-06
 title: За Факултетот – ФИНКИ
-sha256: 9b00125e9b6cd30b066065b0011bae3daa27f68472a236d1c58cb6734ccb045d
+sha256: c9f555346e5c4053b2edb5337b692ba1e8c5aa79dfe9b69e466e7453f70e922e
 
 ### **Mission**
 
 The Faculty of Computer Science and Engineering is committed to creating, advancing, and applying knowledge in the fields of computer science, computer engineering, and digital technologies by providing high-quality education, conducting cutting-edge scientific research, and fostering active collaboration with industry and society, thereby contributing to the technological, economic, and social development of the Republic of North Macedonia and beyond.
-
-###
 <!-- finki-static-page:end -->
 
 <!-- finki-static-page:start id=strategic-goals -->
