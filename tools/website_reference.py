@@ -721,6 +721,7 @@ def check_aggregate(
     by_id = {source.id: source for source in sources}
     if set(by_id) != {page.source_id for page in pages}:
         raise _error("aggregate sources do not match the allowlist")
+    seen_hashes: dict[str, str] = {}
     for page in pages:
         source = by_id[page.source_id]
         if (
@@ -732,6 +733,15 @@ def check_aggregate(
             or page.last_verified != source.last_verified
         ):
             raise _error(f"aggregate metadata differs for {page.source_id}")
+        if contains_sensitive_personal_identifier(title=page.title, markdown=page.body):
+            raise _error(f"page {page.source_id} contains a sensitive identifier")
+        digest = _content_hash(page.title, page.body)
+        duplicate_id = seen_hashes.get(digest)
+        if duplicate_id is not None:
+            raise _error(
+                f"duplicate normalized content for {page.source_id} and {duplicate_id}"
+            )
+        seen_hashes[digest] = page.source_id
     return pages
 
 
@@ -739,7 +749,10 @@ def validate_aggregate(
     text: str, sources: tuple[ReferenceSource, ...]
 ) -> tuple[ReferencePage, ...]:
     """Validate an aggregate against its offline source allowlist."""
-    return check_aggregate(text, sources)
+    pages = check_aggregate(text, sources)
+    if text != render_aggregate(pages):
+        raise _error("aggregate serialization is not canonical")
+    return pages
 
 
 def _strip_images(html: str) -> str:

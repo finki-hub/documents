@@ -469,6 +469,79 @@ def test_aggregate_round_trip_preserves_and_validates_content_kind() -> None:
         parse_aggregate(unknown_kind)
 
 
+def test_offline_check_rejects_validly_hashed_sensitive_aggregate() -> None:
+    body = _prose("Sensitive page") + " Candidate identifier: 1234567"
+    page = ReferencePage(
+        source_id="sensitive-page",
+        source_url="https://finki.ukim.mk/en/sensitive/",
+        canonical_url="https://finki.ukim.mk/en/sensitive/",
+        language="en",
+        category="studies",
+        content_kind="prose",
+        last_verified=date(2026, 9, 1),
+        title="Sensitive",
+        body=body,
+        content_sha256=sha256(f"Sensitive\n\n{body}".encode()).hexdigest(),
+    )
+    source = replace(_source("sensitive-page", "/en/sensitive/"))
+
+    with pytest.raises(ValueError, match="identifier"):
+        validate_aggregate(render_aggregate((page,)), (source,))
+
+
+def test_offline_check_rejects_validly_hashed_duplicate_aggregate() -> None:
+    body = _prose("Duplicate page")
+    pages = tuple(
+        ReferencePage(
+            source_id=source_id,
+            source_url=f"https://finki.ukim.mk/en/{source_id}/",
+            canonical_url=f"https://finki.ukim.mk/en/{source_id}/",
+            language="en",
+            category="studies",
+            content_kind="prose",
+            last_verified=date(2026, 9, 1),
+            title="Duplicate",
+            body=body,
+            content_sha256=sha256(f"Duplicate\n\n{body}".encode()).hexdigest(),
+        )
+        for source_id in ("duplicate-a", "duplicate-b")
+    )
+    sources = tuple(_source(page.source_id, f"/en/{page.source_id}/") for page in pages)
+
+    with pytest.raises(ValueError, match="duplicate"):
+        validate_aggregate(render_aggregate(pages), sources)
+
+
+def test_offline_check_rejects_noncanonical_aggregate_serialization() -> None:
+    body = _prose("Serialization page")
+    pages = tuple(
+        ReferencePage(
+            source_id=source_id,
+            source_url=f"https://finki.ukim.mk/en/{source_id}/",
+            canonical_url=f"https://finki.ukim.mk/en/{source_id}/",
+            language="en",
+            category="studies",
+            content_kind="prose",
+            last_verified=date(2026, 9, 1),
+            title=source_id,
+            body=body + f" {source_id}",
+            content_sha256=sha256(
+                f"{source_id}\n\n{body} {source_id}".encode()
+            ).hexdigest(),
+        )
+        for source_id in ("a-page", "b-page")
+    )
+    sources = tuple(_source(page.source_id, f"/en/{page.source_id}/") for page in pages)
+    canonical = render_aggregate(pages)
+    blocks = [render_aggregate((page,)) for page in reversed(pages)]
+    reordered = "".join(blocks)
+    whitespace = canonical.replace("\n\n", "\n\n\n", 1)
+
+    for noncanonical in (reordered, whitespace):
+        with pytest.raises(ValueError, match="canonical|deterministic|serialization"):
+            validate_aggregate(noncanonical, sources)
+
+
 def test_structured_body_can_pass_structured_quality_without_prose_quality() -> None:
     long_link_label = " ".join(["Detailed linked information"] * 30)
     body = f"{_prose('Structured information')}\n[{long_link_label}](https://example.com/details)"
