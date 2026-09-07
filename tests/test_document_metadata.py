@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from tools import preprocess
+from tools import document_metadata, preprocess
 
 
 def _metadata_header(**overrides: str) -> str:
@@ -238,4 +238,14 @@ def test_reviewed_corpus_satisfies_canonical_metadata_contract() -> None:
 
     statuses = preprocess.audit_corpus(repo_root / "processed", repo_root / "raw")
 
-    assert sum(statuses.values()) == 34
+    assert sum(statuses.values()) == 35
+
+    documents = document_metadata.validated_corpus(
+        repo_root / "processed", repo_root / "raw"
+    )
+    sources = {
+        source
+        for document in documents
+        for source in document_metadata.source_filenames(document.content)
+    }
+    assert "paketi-partnerstvo.pdf" in sources

@@ -1,6 +1,6 @@
 # Corpus metadata evidence ledger
 
-Audit date: **2026-09-01**
+Audit date: **2026-09-07**
 
 This ledger records the authority evidence behind the machine-readable headers in `processed/`. It deliberately distinguishes an act's legal date from a report's coverage period, a consolidated text's amendment cutoff, and a file's technical timestamps.
 
@@ -30,6 +30,7 @@ This ledger records the authority evidence behind the machine-readable headers i
 | `lista-posrednici-voznemiruvanje-rabotno-mesto-finki` | 2026-05-18 | issued / day | current | Archive number/date and immediate effect are printed; personnel list requires periodic review; [official PDF](https://finki.ukim.mk/sites/default/files/u703/odluka-lista-za-posrednici-za-zastita-od-voznemirvanje-na-rabotno-mesto.pdf). |
 | `odluka-plati-nadomestoci-finki-2026-02-19` | 2019-09-26 | adopted / day | currentness_unresolved | Base decision date is printed and an [official consolidated copy](https://finki.ukim.mk/wp-content/uploads/2026/07/odluka_za_plati_2024_-_so_vneseni_site_izmeni_zakluchno_so_19.02.2026.pdf) is available; the claimed 2026 cutoff still lacks a separate amendment register. |
 | `odluka-sovet-kvalitet-finki` | 2019-09-26 | issued / day | stale_review_required | Decision 02-684/1; member mandates were three years and student mandates two years; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
+| `paketi-partnerstvo` | unresolved | unresolved / none | stale_review_required | The public [FINKI partnership page](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/partnerstva/) currently links this official PDF, which returned HTTP 200 and had `Last-Modified: 2026-08-10`; its extracted text has no explicit issued or effective date. The annual commercial prices and benefits require periodic review. |
 | `pravilnik-doktorski-studii-po-stara-programa` | unresolved | unresolved / none | historical | Text expressly limits scope to the period through 2011-12-31; no adoption or publication date is present. |
 | `pravilnik-iii-ciklus-2020` | 2020-12-31 | published / day | presumed_current | University Gazette 530/2020; [UKIM guide page and governing-rule reference](https://ukim.edu.mk/studii/informacii-za-studentite/vodich-za-studenti/). |
 | `pravilnik-kvalitet-nastava-finki` | 2024-05-16 | adopted / day | current | Decision 02-629/2 and immediate effect are printed; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
@@ -57,7 +58,7 @@ This ledger records the authority evidence behind the machine-readable headers i
 
 ## Canonical authority URLs
 
-The 33 direct-file URLs below were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256 on 2026-09-01. The disciplinary rulebook uses an official FINKI authority page because its SharePoint file is not a stable direct URL.
+The 34 direct-file URLs below are canonical authority artifacts. The original 33 were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256 on 2026-09-01; `paketi-partnerstvo.pdf` was downloaded from its direct URL and verified on 2026-09-07. The disciplinary rulebook uses an official FINKI authority page because its SharePoint file is not a stable direct URL.
 
 - `264-statut-ukim-6-6-2019` — <https://finki.ukim.mk/wp-content/uploads/2026/06/264_statut_ukim-6.6.2019.pdf>
 - `cenovnik-finki-2024-25-2` — <https://finki.ukim.mk/wp-content/uploads/2026/07/cenovnik_finki_2024-25-2.pdf>
@@ -69,6 +70,7 @@ The 33 direct-file URLs below were downloaded and verified byte-identical to the
 - `lista-posrednici-voznemiruvanje-rabotno-mesto-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/07/odluka-voznemiruvanje.pdf>
 - `odluka-plati-nadomestoci-finki-2026-02-19` — <https://finki.ukim.mk/wp-content/uploads/2026/07/odluka_za_plati_2024_-_so_vneseni_site_izmeni_zakluchno_so_19.02.2026.pdf>
 - `odluka-sovet-kvalitet-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/06/odluka_za_formiranje_sovet_za_kvalitet_na_finki.pdf>
+- `paketi-partnerstvo` — <https://finki.ukim.mk/wp-content/uploads/2026/08/paketi-partnerstvo.pdf>
 - `pravilnik-doktorski-studii-po-stara-programa` — <https://finki.ukim.mk/wp-content/uploads/2026/06/pravilnik_doktorski_studii_po_stara_programa.pdf>
 - `pravilnik-iii-ciklus-2020` — <https://ukim.edu.mk/wp-content/uploads/2025/04/pravilnik-iii_ciklus-31.12.2020-glasnik_530.pdf>
 - `pravilnik-kvalitet-nastava-finki` — <https://finki.ukim.mk/wp-content/uploads/2026/06/pravilnik_za_obezbeduvanje_i_ocenuvanje_na_kvalitetot_na_nastavata_na_finki.pdf>
