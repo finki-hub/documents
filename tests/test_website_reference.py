@@ -92,12 +92,33 @@ def test_seed_contains_curated_stable_sources() -> None:
     assert 2 <= len(sources) <= 50
     assert len({source.id for source in sources}) == len(sources)
     assert len({source.canonical_url for source in sources}) == len(sources)
-    assert {source.language for source in sources} == {"mk"}
+    assert {source.id for source in sources} == {
+        "about-faculty",
+        "student-practice",
+        "strategic-goals",
+        "study-guide",
+    }
+    assert {source.language for source in sources} == {"en", "mk"}
     assert {source.category for source in sources} <= ALLOWED_CATEGORIES
     assert all(
-        source.source_url.startswith("https://finki.ukim.mk/mk/") for source in sources
+        source.source_url.startswith("https://finki.ukim.mk/") for source in sources
     )
     assert all(source.content_selectors for source in sources)
+
+
+def test_committed_sources_have_reviewed_current_host_contract() -> None:
+    sources = {
+        source.id: source for source in load_sources(SOURCES, today=date(2026, 9, 6))
+    }
+
+    assert sources["about-faculty"].language == "en"
+    assert sources["about-faculty"].category == "institutional"
+    assert sources["about-faculty"].content_selectors == ("#tabs-14368-panel-misija",)
+    assert sources["strategic-goals"].language == "en"
+    assert sources["strategic-goals"].category == "institutional"
+    assert sources["strategic-goals"].content_selectors == (
+        "#tabs-14368-panel-strateshki-celi",
+    )
 
 
 def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
@@ -998,3 +1019,31 @@ def test_committed_aggregate_matches_allowlist_exactly() -> None:
     assert text.count("<!-- finki-static-page:start id=") == len(sources)
     assert text.count("<!-- finki-static-page:end -->") == len(sources)
     assert text == render_aggregate(pages)
+
+
+def test_committed_aggregate_has_only_qualified_source_contract() -> None:
+    sources = load_sources(SOURCES, today=date(2026, 9, 6))
+    pages = validate_aggregate(
+        (ROOT / "website-reference" / "finki-static-pages.md").read_text(
+            encoding="utf-8"
+        ),
+        sources,
+    )
+    page_by_id = {page.source_id: page for page in pages}
+    rejected_ids = {
+        "finki-legal-acts",
+        "student-service",
+        "thesis-procedure",
+        "course-enrollment",
+        "electronic-documents",
+        "institutional-contact",
+    }
+
+    assert set(page_by_id) == {source.id for source in sources}
+    assert not rejected_ids.intersection(page_by_id)
+    assert all(source.content_selectors for source in sources)
+    assert all(
+        page.source_url == source.source_url and page.category == source.category
+        for source in sources
+        for page in [page_by_id[source.id]]
+    )

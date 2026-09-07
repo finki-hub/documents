@@ -318,8 +318,6 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
     if not _routes_match(source_url, canonical_url):
         raise _error("source_url and canonical_url identify different routes")
-    if language != CURATED_SOURCE_LANGUAGE:
-        raise _error("initial curated sources must use Macedonian language")
     if language != _language_for_route(normalized_source):
         raise _error("language does not match the source route")
     if language not in ALLOWED_LANGUAGES:

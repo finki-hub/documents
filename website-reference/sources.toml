@@ -17,3 +17,21 @@ language = "mk"
 category = "procedures"
 last_verified = "2026-09-06"
 content_selectors = ["#node-24592 .field-item > div"]
+
+[[sources]]
+id = "about-faculty"
+source_url = "https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/"
+canonical_url = "https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/"
+language = "en"
+category = "institutional"
+last_verified = "2026-09-06"
+content_selectors = ["#tabs-14368-panel-misija"]
+
+[[sources]]
+id = "strategic-goals"
+source_url = "https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/"
+canonical_url = "https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/"
+language = "en"
+category = "institutional"
+last_verified = "2026-09-06"
+content_selectors = ["#tabs-14368-panel-strateshki-celi"]

@@ -1,3 +1,42 @@
+<!-- finki-static-page:start id=about-faculty -->
+source_url: https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/
+canonical_url: https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/
+language: en
+category: institutional
+last_verified: 2026-09-06
+title: За Факултетот – ФИНКИ
+sha256: 9b00125e9b6cd30b066065b0011bae3daa27f68472a236d1c58cb6734ccb045d
+
+### **Mission**
+
+The Faculty of Computer Science and Engineering is committed to creating, advancing, and applying knowledge in the fields of computer science, computer engineering, and digital technologies by providing high-quality education, conducting cutting-edge scientific research, and fostering active collaboration with industry and society, thereby contributing to the technological, economic, and social development of the Republic of North Macedonia and beyond.
+
+###
+<!-- finki-static-page:end -->
+
+<!-- finki-static-page:start id=strategic-goals -->
+source_url: https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/
+canonical_url: https://finki.ukim.mk/en/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/
+language: en
+category: institutional
+last_verified: 2026-09-06
+title: Стратешки цели – За Факултетот – ФИНКИ
+sha256: aefa6233742b328cd525b71f078eb1673e5688017b84eaba44d7cd1fc069b9b7
+
+### **Strategic Goals**
+
+1. Continuous enhancement of the quality of the teaching process and modernization of study programs in line with global technological trends.
+2. Development and support of cutting-edge scientific research, innovation, and technology transfer.
+3. Internationalization of education, research, and institutional cooperation through participation in international programs and projects.
+4. Strengthening cooperation with industry and the public sector through joint projects, practical training, and knowledge transfer.
+5. Fostering entrepreneurship, innovation, and the development of the startup ecosystem.
+6. Development of modern digital and research infrastructure.
+7. Ensuring an inclusive, transparent, and stimulating academic environment for students and staff.
+8. Supporting the digital transformation of society through the development of modern information technology solutions.
+9. Strengthening the quality assurance system and institutional excellence.
+10. Human resource development through continuous education, professional development, and lifelong learning.
+<!-- finki-static-page:end -->
+
 <!-- finki-static-page:start id=student-practice -->
 source_url: https://finki.ukim.mk/mk/studies/studentska-praksa
 canonical_url: https://oldsite.finki.ukim.mk/mk/studies/studentska-praksa
