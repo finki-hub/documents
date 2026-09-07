@@ -7,6 +7,7 @@ OFFICIAL_AUTHORITY_HOSTS: Final = frozenset(
     {
         "azlp.mk",
         "finki.ukim.mk",
+        "finkiukim-my.sharepoint.com",
         "portal.mdt.gov.mk",
         "slvesnik.com.mk",
         "ukim.edu.mk",
