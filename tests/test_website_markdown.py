@@ -89,6 +89,25 @@ def test_document_from_page_drops_empty_headings_but_keeps_valid_headings() -> N
     assert "###\n" not in document.markdown
 
 
+def test_document_from_page_preserves_hash_heading_inside_code() -> None:
+    document = document_from_page(
+        """
+        <section>
+          <h2>Example</h2>
+          <pre><code>first line
+###
+last line</code></pre>
+        </section>
+        """,
+        "https://finki.ukim.mk/en/about/",
+        content_selectors=("section",),
+    )
+
+    assert "###" in document.markdown
+    assert "first line" in document.markdown
+    assert "last line" in document.markdown
+
+
 def test_document_from_page_strips_whitespace_after_decoding_title() -> None:
     document = document_from_page(
         """

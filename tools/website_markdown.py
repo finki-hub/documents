@@ -36,7 +36,6 @@ _REMOVED_SELECTORS = (
     ".breadcrumb",
     ".breadcrumbs",
 )
-_EMPTY_MARKDOWN_HEADING = re.compile(r"(?m)^[ \t]{0,3}#{1,6}[ \t]*(?:\n|$)")
 
 
 class WebsiteContentError(ValueError):
@@ -53,8 +52,6 @@ class WebsiteContentError(ValueError):
 def _clean_markdown(value: str) -> str:
     cleaned = value.replace("\xa0", " ").replace("\r\n", "\n")
     cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
-    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
-    cleaned = _EMPTY_MARKDOWN_HEADING.sub("", cleaned)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -95,6 +92,10 @@ def _sanitize_html(value: str, base_url: str) -> str:
     for selector in _REMOVED_SELECTORS:
         for node in parser.root.css(selector):
             node.decompose()
+    for heading in parser.root.css("h1, h2, h3, h4, h5, h6"):
+        heading_text = heading.text(separator=" ", strip=True).replace("\xa0", " ")
+        if not heading_text.strip():
+            heading.decompose()
     for node in parser.root.css("a[href]"):
         href = node.attributes.get("href")
         if href and (safe_link := _safe_link(href, base_url)) is not None:
