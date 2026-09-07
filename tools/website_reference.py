@@ -26,6 +26,7 @@ from .website_privacy import contains_sensitive_personal_identifier
 
 ALLOWED_LANGUAGES = frozenset({"en", "mk"})
 CURATED_SOURCE_LANGUAGE = "mk"
+ALLOWED_CONTENT_KINDS = frozenset({"prose", "structured", "link-catalog"})
 LEGACY_HOST = "oldsite.finki.ukim.mk"
 _FINKI_HOSTS = frozenset({"finki.ukim.mk", "www.finki.ukim.mk", LEGACY_HOST})
 ALLOWED_CATEGORIES = frozenset(
@@ -58,6 +59,8 @@ _BOILERPLATE_OUTPUT = frozenset(
     }
 )
 _MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s+.*)?$")
+_PROSE_LINE_MIN_LENGTH = 40
+_MARKDOWN_LINK_WITH_TARGET = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
 _TOP_LEVEL_KEYS = frozenset({"version", "sources"})
 _SOURCE_KEYS = frozenset(
@@ -67,6 +70,7 @@ _SOURCE_KEYS = frozenset(
         "canonical_url",
         "language",
         "category",
+        "content_kind",
         "last_verified",
         "content_selectors",
     }
@@ -137,6 +141,23 @@ _FORBIDDEN_ROUTE_SEGMENTS = frozenset(
         "file",
     }
 )
+_APPROVED_MK_ROUTE_ROOTS = frozenset({"za-nas", "upisi", "studii-2"})
+_APPROVED_MK_ROUTE_PATHS = frozenset(
+    {
+        "/elektronski-dokumenti/",
+        "/procedura-za-ponishtuvanje-na-ocena/",
+        "/pravila-za-zapishuvanje-na-predmeti/",
+    }
+)
+_APPROVED_TRANSFER_PATH = (
+    "/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/"
+)
+_APPROVED_INTERNATIONAL_PATHS = frozenset(
+    {
+        "/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/",
+        "/internacionalni-studenti/admissions/masters-studies-for-international-students/",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +167,7 @@ class ReferenceSource:
     canonical_url: str
     language: str
     category: str
+    content_kind: str
     last_verified: date
     content_selectors: tuple[str, ...]
 
@@ -157,6 +179,7 @@ class ReferencePage:
     canonical_url: str
     language: str
     category: str
+    content_kind: str
     last_verified: date
     title: str
     body: str
@@ -221,6 +244,13 @@ def _content_selectors(value: object) -> tuple[str, ...]:
     return tuple(selectors)
 
 
+def _content_kind(value: object) -> str:
+    kind = _text(value, "content_kind")
+    if kind not in ALLOWED_CONTENT_KINDS:
+        raise _error(f"content_kind {kind!r} is not allowed")
+    return kind
+
+
 def _validate_route(raw_url: str, field: str) -> str:
     try:
         parsed = urlsplit(raw_url)
@@ -242,19 +272,29 @@ def _validate_route(raw_url: str, field: str) -> str:
             normalized = urlunsplit(("https", LEGACY_HOST, path, "", ""))
     if normalized is None:
         raise _error(f"{field} is not an allowed public route")
+    normalized_path = urlsplit(normalized).path
+    normalized_path_casefold = normalized_path.casefold()
     segments = tuple(
-        unquote(segment).casefold()
-        for segment in urlsplit(normalized).path.split("/")
-        if segment
+        unquote(segment).casefold() for segment in normalized_path.split("/") if segment
     )
-    if not segments or segments[0] not in ALLOWED_LANGUAGES:
-        raise _error(f"{field} must use an EN or MK language route")
+    route_language = _route_language_for_path(normalized_path_casefold)
+    if route_language is None:
+        raise _error(f"{field} is not an approved curated route")
     if host == LEGACY_HOST and segments[0] != CURATED_SOURCE_LANGUAGE:
         raise _error(f"{field} must use a MK /mk/ route on the legacy host")
+    ignored_forbidden_segments = set[str]()
+    if normalized_path_casefold == _APPROVED_TRANSFER_PATH:
+        ignored_forbidden_segments.add("announcements")
+    if normalized_path_casefold in _APPROVED_INTERNATIONAL_PATHS:
+        ignored_forbidden_segments.add("admissions")
     if any(
-        segment in _FORBIDDEN_ROUTE_SEGMENTS
+        (
+            segment in _FORBIDDEN_ROUTE_SEGMENTS
+            and segment not in ignored_forbidden_segments
+        )
         or any(
             token in _FORBIDDEN_ROUTE_SEGMENTS
+            and token not in ignored_forbidden_segments
             for token in re.split(r"[-_.]+", segment)
             if token
         )
@@ -268,7 +308,7 @@ def _validate_route(raw_url: str, field: str) -> str:
         segment.isdigit() or re.fullmatch(r"\d{4}[-_]\d{1,2}", segment)
         for segment in segments
     ):
-        raise _error(f"{field} must not identify a dated page")
+        raise _error(f"{field} must not identify a dated page route")
     if any(
         token in raw_url.casefold()
         for token in ("candidate=", "student-id", "personal-id")
@@ -278,8 +318,23 @@ def _validate_route(raw_url: str, field: str) -> str:
 
 
 def _language_for_route(url: str) -> str:
-    first_segment = urlsplit(url).path.strip("/").split("/", maxsplit=1)[0]
-    return "mk" if first_segment == "mk" else "en"
+    language = _route_language_for_path(urlsplit(url).path.casefold())
+    if language is None:
+        raise _error("route language cannot be derived")
+    return language
+
+
+def _route_language_for_path(path: str) -> str | None:
+    first_segment = path.strip("/").split("/", maxsplit=1)[0]
+    if first_segment in ALLOWED_LANGUAGES:
+        return first_segment
+    if path in _APPROVED_INTERNATIONAL_PATHS:
+        return "en"
+    if path == _APPROVED_TRANSFER_PATH or path in _APPROVED_MK_ROUTE_PATHS:
+        return "mk"
+    if first_segment in _APPROVED_MK_ROUTE_ROOTS:
+        return "mk"
+    return None
 
 
 def _routes_match(source_url: str, canonical_url: str) -> bool:
@@ -311,6 +366,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     category = _text(raw["category"], "category")
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
+    content_kind = _content_kind(raw["content_kind"])
     source_url = _text(raw["source_url"], "source_url")
     canonical_url = _text(raw["canonical_url"], "canonical_url")
     content_selectors = _content_selectors(raw["content_selectors"])
@@ -333,6 +389,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         canonical_url=normalized_canonical,
         language=language,
         category=category,
+        content_kind=content_kind,
         last_verified=verified,
         content_selectors=content_selectors,
     )
@@ -349,8 +406,8 @@ def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
         extra = sorted(set(raw_document) - _TOP_LEVEL_KEYS)
         detail = f"missing {missing}" if missing else f"unknown fields {extra}"
         raise _error(f"allowlist has {detail}")
-    if raw_document["version"] != 1:
-        raise _error("allowlist version must be 1")
+    if raw_document["version"] != 2:
+        raise _error("allowlist version must be 2")
     raw_sources = raw_document["sources"]
     if not isinstance(raw_sources, list):
         raise _error("sources must be an array of tables")
@@ -383,50 +440,108 @@ def _without_markdown_links(markdown: str) -> tuple[str, tuple[str, ...]]:
     return _MARKDOWN_LINK.sub("", markdown), labels
 
 
-def has_substantive_prose(markdown: str) -> bool:
-    """Return whether markdown meets the curated page prose threshold."""
-    non_link, labels = _without_markdown_links(markdown)
+def _has_substantive_non_link_prose(markdown: str) -> bool:
+    non_link, _ = _without_markdown_links(markdown)
     letter_digits = sum(character.isalnum() for character in non_link)
     prose_lines = (
         " ".join(line.split())
         for line in non_link.splitlines()
         if " ".join(line.split())
     )
+    return letter_digits >= 160 and any(
+        len(line) >= _PROSE_LINE_MIN_LENGTH for line in prose_lines
+    )
+
+
+def has_substantive_prose(markdown: str) -> bool:
+    """Return whether markdown meets the curated page prose threshold."""
+    non_link, labels = _without_markdown_links(markdown)
     prose_characters = len(non_link)
     link_label_characters = sum(len(label) for label in labels)
     return (
-        letter_digits >= 160
-        and any(len(line) >= 40 for line in prose_lines)
+        _has_substantive_non_link_prose(markdown)
         and link_label_characters < prose_characters
     )
 
 
-def is_navigation_shaped(markdown: str) -> bool:
+def is_navigation_shaped(markdown: str, *, ignore_headings: bool = False) -> bool:
     """Return whether normalized non-link labels repeat at least three times."""
     labels: dict[str, int] = {}
     for line in markdown.splitlines():
+        if ignore_headings and _MARKDOWN_HEADING.fullmatch(line):
+            continue
         line = _MARKDOWN_LINK.sub(r"\1", line)
         normalized = " ".join(re.sub(r"^[\s>*#-]+", "", line).split()).casefold()
         if normalized:
             labels[normalized] = labels.get(normalized, 0) + 1
-    return any(count >= 3 for count in labels.values())
+    return any(
+        count >= 3 and len(label) < _PROSE_LINE_MIN_LENGTH
+        for label, count in labels.items()
+    )
 
 
-def _validate_reference_body(markdown: str, page_id: str) -> str:
+def _link_catalog_links(markdown: str) -> tuple[tuple[str, str], ...]:
+    matches = tuple(_MARKDOWN_LINK_WITH_TARGET.finditer(markdown))
+    links: list[tuple[str, str]] = []
+    for match in matches:
+        label = " ".join(match.group(1).split())
+        target = match.group(2).strip().strip("<>")
+        parsed = urlsplit(target)
+        if (
+            not label
+            or parsed.scheme.casefold() not in {"http", "https"}
+            or not parsed.hostname
+            or any(character.isspace() for character in target)
+        ):
+            raise _error("link-catalog contains an unsafe or placeholder link")
+        links.append((target, label))
+    if len({target for target, _ in links}) < 3:
+        raise _error("link-catalog requires at least three distinct links")
+    if sum(character.isalnum() for _, label in links for character in label) < 160:
+        raise _error("link-catalog link labels are too short")
+    return tuple(links)
+
+
+def _validate_reference_body(markdown: str, page_id: str, *, content_kind: str) -> str:
     body = _normalize_body(markdown)
-    if (
+    _content_kind(content_kind)
+    common_failure = (
         not body
         or body.casefold() in _BOILERPLATE_OUTPUT
-        or not has_substantive_prose(body)
         or not _has_substantive_markdown(body)
-        or is_navigation_shaped(body)
-    ):
+    )
+    if content_kind == "prose":
+        quality_failure = (
+            common_failure
+            or not has_substantive_prose(body)
+            or is_navigation_shaped(body)
+        )
+    elif content_kind == "structured":
+        link_dominated = False
+        non_link, labels = _without_markdown_links(body)
+        if non_link:
+            link_dominated = sum(len(label) for label in labels) >= len(non_link)
+        quality_failure = (
+            common_failure
+            or not _has_substantive_non_link_prose(body)
+            or (link_dominated and is_navigation_shaped(body, ignore_headings=True))
+        )
+    else:
+        quality_failure = common_failure or is_navigation_shaped(body)
+        if not quality_failure:
+            _link_catalog_links(body)
+    if quality_failure:
         raise _error(
             f"page {page_id} has empty, markup-only, boilerplate, or navigation-shaped output"
         )
     if _MARKER_PREFIX in body:
         raise _error(f"page {page_id} contains an aggregate boundary marker")
     return body
+
+
+def validate_reference_body(markdown: str, page_id: str, *, content_kind: str) -> str:
+    """Validate and return one normalized body using its declared content kind."""
+    return _validate_reference_body(markdown, page_id, content_kind=content_kind)
 
 
 def _content_hash(title: str, body: str) -> str:
@@ -445,6 +560,7 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
             "canonical_url",
             "language",
             "category",
+            "content_kind",
             "last_verified",
             "title",
             "sha256",
@@ -459,13 +575,17 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
         "canonical_url",
         "language",
         "category",
+        "content_kind",
         "last_verified",
         "title",
         "sha256",
     }
     if set(metadata) != required or index >= len(lines) or lines[index] != "":
         raise _error("aggregate metadata is incomplete")
-    body = _validate_reference_body("\n".join(lines[index + 1 :]), source_id)
+    content_kind = _content_kind(metadata["content_kind"])
+    body = _validate_reference_body(
+        "\n".join(lines[index + 1 :]), source_id, content_kind=content_kind
+    )
     title = _text(metadata["title"], "title")
     source_url = metadata["source_url"]
     canonical_url = metadata["canonical_url"]
@@ -491,6 +611,7 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
         canonical_url=normalized_canonical,
         language=language,
         category=category,
+        content_kind=content_kind,
         last_verified=verified,
         title=title,
         body=body,
@@ -551,6 +672,7 @@ def _validate_page_for_render(page: ReferencePage) -> str:
     category = _text(page.category, "category")
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
+    _content_kind(page.content_kind)
     if not isinstance(page.last_verified, date) or isinstance(
         page.last_verified, datetime
     ):
@@ -565,7 +687,9 @@ def render_aggregate(pages: Iterable[ReferencePage]) -> str:
     rendered: list[str] = []
     for page in ordered:
         canonical_url = _validate_page_for_render(page)
-        body = _validate_reference_body(page.body, page.source_id)
+        body = _validate_reference_body(
+            page.body, page.source_id, content_kind=page.content_kind
+        )
         digest = _content_hash(page.title, body)
         if page.content_sha256 != digest:
             raise _error(f"hash verification failed for {page.source_id}")
@@ -576,6 +700,7 @@ def render_aggregate(pages: Iterable[ReferencePage]) -> str:
                 f"canonical_url: {canonical_url}",
                 f"language: {page.language}",
                 f"category: {page.category}",
+                f"content_kind: {page.content_kind}",
                 f"last_verified: {page.last_verified.isoformat()}",
                 f"title: {page.title}",
                 f"sha256: {digest}",
@@ -603,6 +728,7 @@ def check_aggregate(
             or page.canonical_url != source.canonical_url
             or page.language != source.language
             or page.category != source.category
+            or page.content_kind != source.content_kind
             or page.last_verified != source.last_verified
         ):
             raise _error(f"aggregate metadata differs for {page.source_id}")
@@ -663,6 +789,7 @@ def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
     if len(set(urls)) != len(urls):
         raise _error("refresh canonical URLs must be unique")
     for source in sources:
+        _content_kind(source.content_kind)
         if not _routes_match(source.source_url, source.canonical_url):
             raise _error(f"source URL differs from canonical URL for {source.id}")
         if not isinstance(source.content_selectors, tuple):
@@ -701,7 +828,9 @@ async def _fetch_reference_pages(
         except WebsiteContentError as exc:
             raise _error(f"cannot convert page {source.id}: {exc}") from exc
         title = _normalized_title(document.title)
-        body = _validate_reference_body(document.markdown, source.id)
+        body = _validate_reference_body(
+            document.markdown, source.id, content_kind=source.content_kind
+        )
         if not title:
             raise _error(f"page {source.id} has an empty title")
         if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
@@ -722,6 +851,7 @@ async def _fetch_reference_pages(
                 canonical_url=source.canonical_url,
                 language=source.language,
                 category=source.category,
+                content_kind=source.content_kind,
                 last_verified=source.last_verified,
                 title=title,
                 body=body,

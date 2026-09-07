@@ -10,7 +10,6 @@ import pytest
 
 from tools import website_reference as website_reference_module
 from tools.website_reference import (
-    ALLOWED_CATEGORIES,
     MAX_REVIEW_AGE,
     ReferencePage,
     ReferenceSource,
@@ -35,6 +34,7 @@ def _source(source_id: str, path: str) -> ReferenceSource:
         canonical_url=f"https://finki.ukim.mk{path}",
         language="en",
         category="studies",
+        content_kind="prose",
         last_verified=date(2026, 9, 1),
         content_selectors=("main",),
     )
@@ -47,6 +47,7 @@ def _legacy_source(source_id: str, path: str) -> ReferenceSource:
         canonical_url=f"https://oldsite.finki.ukim.mk{path}",
         language="mk",
         category="studies",
+        content_kind="prose",
         last_verified=date(2026, 9, 1),
         content_selectors=("main",),
     )
@@ -86,39 +87,205 @@ def _refresh_with_responses(
     return requested
 
 
-def test_seed_contains_curated_stable_sources() -> None:
-    sources = load_sources(SOURCES, today=date(2026, 9, 6))
+def test_task3_source_config_contains_exact_approved_25_pages() -> None:
+    expected = {
+        "finki-about": (
+            "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/",
+            "mk",
+            "institutional",
+            ".page-content__body",
+        ),
+        "finki-vision": (
+            "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/vizija/",
+            "mk",
+            "institutional",
+            "#tabs-14368-panel-vizija",
+        ),
+        "finki-strategic-goals": (
+            "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/strateshki-celi/",
+            "mk",
+            "institutional",
+            "#tabs-14368-panel-strateshki-celi",
+        ),
+        "finki-history": (
+            "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/istorijat/",
+            "mk",
+            "institutional",
+            "#tabs-14368-panel-istorijat",
+        ),
+        "finki-logo": (
+            "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/logo/",
+            "mk",
+            "institutional",
+            "#tabs-14368-panel-logo",
+        ),
+        "finki-centers": (
+            "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/instituti-i-centri/centri/",
+            "mk",
+            "organizations",
+            ".page-content__body",
+        ),
+        "finki-laboratories": (
+            "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/",
+            "mk",
+            "institutional",
+            "#tabs-14349-panel-laboratorii",
+        ),
+        "privacy-personal-data": (
+            "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/zashtita-na-lichni-podatoci/",
+            "mk",
+            "privacy",
+            "main.site-main .page-content__body",
+        ),
+        "public-information-access": (
+            "https://finki.ukim.mk/za-nas/administracija-i-dokumenti/sloboden-pristap-do-informacii-od-javen-karakter/",
+            "mk",
+            "public-information",
+            "main.site-main .page-content__body",
+        ),
+        "electronic-documents": (
+            "https://finki.ukim.mk/elektronski-dokumenti/",
+            "mk",
+            "forms",
+            "main.site-main .page-content__body",
+        ),
+        "grade-annulment": (
+            "https://finki.ukim.mk/procedura-za-ponishtuvanje-na-ocena/",
+            "mk",
+            "procedures",
+            "main.site-main .page-content__body",
+        ),
+        "transfer-from-another-faculty": (
+            "https://finki.ukim.mk/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/",
+            "mk",
+            "procedures",
+            "main.site-main .page-content__body",
+        ),
+        "course-enrollment-rules": (
+            "https://finki.ukim.mk/pravila-za-zapishuvanje-na-predmeti/",
+            "mk",
+            "procedures",
+            "main.site-main .page-content__body",
+        ),
+        "student-forms": (
+            "https://finki.ukim.mk/studii-2/poddrshka/obrasci/",
+            "mk",
+            "forms",
+            "main.site-main .page-content__body",
+        ),
+        "erasmus": (
+            "https://finki.ukim.mk/studii-2/poddrshka/erazmus/",
+            "mk",
+            "erasmus",
+            "main.site-main .page-content__body",
+        ),
+        "ug-study-program-choice": (
+            "https://finki.ukim.mk/upisi/dodiplomski-studii/izbor-na-studiska-programa/",
+            "mk",
+            "programmes",
+            ".page-content__body",
+        ),
+        "ug-required-subjects": (
+            "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-predmeti/",
+            "mk",
+            "studies",
+            ".page-content__body",
+        ),
+        "ug-required-documents": (
+            "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumenti/",
+            "mk",
+            "forms",
+            ".page-content__body",
+        ),
+        "ug-scholarships": (
+            "https://finki.ukim.mk/upisi/dodiplomski-studii/stipendii/",
+            "mk",
+            "student-support",
+            ".page-content__body",
+        ),
+        "masters-required-documents": (
+            "https://finki.ukim.mk/upisi/magisterski-studii/potrebni-dokumenti/",
+            "mk",
+            "forms",
+            ".page-content__body",
+        ),
+        "masters-admission-conditions": (
+            "https://finki.ukim.mk/upisi/magisterski-studii/uslovi/",
+            "mk",
+            "studies",
+            ".page-content__body",
+        ),
+        "doctoral-required-documents": (
+            "https://finki.ukim.mk/upisi/doktorski-studii/potrebni-dokumenti/",
+            "mk",
+            "forms",
+            ".page-content__body",
+        ),
+        "doctoral-admission-conditions": (
+            "https://finki.ukim.mk/upisi/doktorski-studii/uslovi/",
+            "mk",
+            "studies",
+            ".page-content__body",
+        ),
+        "international-undergraduate-admissions": (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/",
+            "en",
+            "international-study",
+            ".page-content__body",
+        ),
+        "international-masters-admissions": (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/masters-studies-for-international-students/",
+            "en",
+            "international-study",
+            ".page-content__body",
+        ),
+    }
+    structured_ids = {"finki-centers", "ug-required-subjects"}
+    link_catalog_ids = {"student-forms"}
+    sources = load_sources(SOURCES, today=date(2026, 9, 7))
+    records = {
+        source.id: (
+            source.source_url,
+            source.canonical_url,
+            source.language,
+            source.category,
+            source.content_selectors[0],
+            source.content_kind,
+        )
+        for source in sources
+    }
 
-    assert 2 <= len(sources) <= 50
-    assert len({source.id for source in sources}) == len(sources)
-    assert len({source.canonical_url for source in sources}) == len(sources)
-    assert {source.id for source in sources} == {
-        "about-faculty",
-        "student-practice",
-        "strategic-goals",
+    assert records == {
+        source_id: (
+            url,
+            url,
+            language,
+            category,
+            selector,
+            (
+                "structured"
+                if source_id in structured_ids
+                else "link-catalog"
+                if source_id in link_catalog_ids
+                else "prose"
+            ),
+        )
+        for source_id, (url, language, category, selector) in expected.items()
+    }
+    assert sum(source.content_kind == "prose" for source in sources) == 22
+    assert {
+        source.id for source in sources if source.content_kind == "structured"
+    } == structured_ids
+    assert {
+        source.id for source in sources if source.content_kind == "link-catalog"
+    } == link_catalog_ids
+    assert {source.last_verified for source in sources} == {date(2026, 9, 7)}
+    assert not {
         "study-guide",
-    }
-    assert {source.language for source in sources} == {"en", "mk"}
-    assert {source.category for source in sources} <= ALLOWED_CATEGORIES
-    assert all(
-        source.source_url.startswith("https://finki.ukim.mk/") for source in sources
-    )
-    assert all(source.content_selectors for source in sources)
-
-
-def test_committed_sources_have_reviewed_current_host_contract() -> None:
-    sources = {
-        source.id: source for source in load_sources(SOURCES, today=date(2026, 9, 6))
-    }
-
-    assert sources["about-faculty"].language == "en"
-    assert sources["about-faculty"].category == "institutional"
-    assert sources["about-faculty"].content_selectors == ("#tabs-14368-panel-misija",)
-    assert sources["strategic-goals"].language == "en"
-    assert sources["strategic-goals"].category == "institutional"
-    assert sources["strategic-goals"].content_selectors == (
-        "#tabs-14368-panel-strateshki-celi",
-    )
+        "student-practice",
+        "about-faculty",
+        "strategic-goals",
+    }.intersection(records)
 
 
 def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
@@ -130,9 +297,248 @@ def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    sources = load_sources(path, today=date(2026, 9, 6))
+    sources = load_sources(path, today=date(2026, 9, 7))
 
     assert len(sources) == 2
+
+
+def _kind_contract_toml(*, version: int, content_kind: str | None) -> str:
+    kind_line = f'content_kind = "{content_kind}"\n' if content_kind is not None else ""
+    return (
+        f"version = {version}\n\n"
+        "[[sources]]\n"
+        'id = "kind-page"\n'
+        'source_url = "https://finki.ukim.mk/za-nas/about/"\n'
+        'canonical_url = "https://finki.ukim.mk/za-nas/about/"\n'
+        'language = "mk"\n'
+        'category = "studies"\n'
+        f"{kind_line}"
+        'last_verified = "2026-09-07"\n'
+        'content_selectors = ["main"]\n'
+    )
+
+
+def test_source_contract_requires_v2_and_explicit_known_content_kind(
+    tmp_path: Path,
+) -> None:
+    version_one = tmp_path / "version-one.toml"
+    version_one.write_text(
+        _kind_contract_toml(version=1, content_kind="prose"), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="version"):
+        load_sources(version_one, today=date(2026, 9, 7))
+
+    missing_kind = tmp_path / "missing-kind.toml"
+    missing_kind.write_text(
+        _kind_contract_toml(version=2, content_kind=None), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="content_kind"):
+        load_sources(missing_kind, today=date(2026, 9, 7))
+
+    unknown_kind = tmp_path / "unknown-kind.toml"
+    unknown_kind.write_text(
+        _kind_contract_toml(version=2, content_kind="catalog"), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="content_kind"):
+        load_sources(unknown_kind, today=date(2026, 9, 7))
+
+
+def test_structured_content_kind_accepts_repeated_headings_and_rejects_bad_shell() -> (
+    None
+):
+    structured = "\n".join(
+        [
+            "## Институти",
+            _prose("Центр за истражување"),
+            "## Институти",
+            _prose("Центар за поддршка"),
+            "## Институти",
+            _prose("Центар за развој"),
+        ]
+    )
+    assert (
+        website_reference_module.validate_reference_body(
+            structured, "finki-centers", content_kind="structured"
+        )
+        == structured
+    )
+
+    link_dominated_shell = "\n".join(
+        [_prose("Структурирана содржина")]
+        + ["- [Home](https://example.com/home)"] * 300
+    )
+    with pytest.raises(ValueError, match="navigation|quality"):
+        website_reference_module.validate_reference_body(
+            link_dominated_shell, "finki-centers", content_kind="structured"
+        )
+
+
+def test_link_catalog_requires_distinct_labeled_http_links() -> None:
+    body = (
+        "- [Detailed undergraduate application instructions and required supporting documents](https://finki.ukim.mk/forms/undergraduate)\n"
+        "- [Detailed graduate application instructions and required supporting documents](https://finki.ukim.mk/forms/graduate)\n"
+        "- [Detailed doctoral application instructions and required supporting documents](https://finki.ukim.mk/forms/doctoral)"
+    )
+    assert (
+        website_reference_module.validate_reference_body(
+            body, "student-forms", content_kind="link-catalog"
+        )
+        == body
+    )
+
+    invalid_bodies = (
+        _prose("Plain prose only"),
+        "\n".join(["- [Same form](https://example.com/form)"] * 3),
+        "- [](https://example.com/blank)",
+        "\n".join(["- [Home](https://example.com/home)"] * 3),
+        "- [Unsafe](javascript:alert(1))",
+        "- [Placeholder](#)",
+    )
+    for invalid_body in invalid_bodies:
+        with pytest.raises(ValueError, match="link|catalog|navigation|quality"):
+            website_reference_module.validate_reference_body(
+                invalid_body, "student-forms", content_kind="link-catalog"
+            )
+
+
+def test_link_catalog_refresh_preserves_links_without_fetching_targets(
+    tmp_path: Path,
+) -> None:
+    source = replace(
+        _source("student-forms", "/en/forms/"), content_kind="link-catalog"
+    )
+    body = (
+        '<a href="https://example.com/form-one">Detailed form instructions for undergraduate students and required supporting documents</a>'
+        '<a href="https://example.com/form-two">Detailed form instructions for graduate students and required supporting documents</a>'
+        '<a href="https://example.com/form-three">Detailed form instructions for doctoral students and required supporting documents</a>'
+    )
+    requested = _refresh_with_responses(
+        (source,),
+        tmp_path / "aggregate.md",
+        {
+            source.source_url: httpx2.Response(
+                200,
+                headers={"content-type": "text/html"},
+                text=_html("Forms", body),
+            )
+        },
+    )
+    aggregate = (tmp_path / "aggregate.md").read_text(encoding="utf-8")
+    assert requested == [source.source_url]
+    assert "https://example.com/form-one" in aggregate
+    assert "https://example.com/form-two" in aggregate
+    assert "https://example.com/form-three" in aggregate
+
+
+def test_aggregate_round_trip_preserves_and_validates_content_kind() -> None:
+    body = _prose("Structured information")
+    page = ReferencePage(
+        source_id="structured-page",
+        source_url="https://finki.ukim.mk/en/structured/",
+        canonical_url="https://finki.ukim.mk/en/structured/",
+        language="en",
+        category="studies",
+        content_kind="structured",
+        last_verified=date(2026, 9, 1),
+        title="Structured",
+        body=body,
+        content_sha256=sha256(f"Structured\n\n{body}".encode()).hexdigest(),
+    )
+    rendered = render_aggregate((page,))
+    assert "content_kind: structured\n" in rendered
+    assert parse_aggregate(rendered)[0].content_kind == "structured"
+    tampered = rendered.replace("content_kind: structured", "content_kind: prose")
+    source = ReferenceSource(
+        id=page.source_id,
+        source_url=page.source_url,
+        canonical_url=page.canonical_url,
+        language=page.language,
+        category=page.category,
+        content_kind=page.content_kind,
+        last_verified=page.last_verified,
+        content_selectors=("main",),
+    )
+    with pytest.raises(ValueError, match="content_kind|metadata"):
+        validate_aggregate(tampered, (source,))
+
+    missing_kind = rendered.replace("content_kind: structured\n", "")
+    with pytest.raises(ValueError, match="metadata|content_kind"):
+        parse_aggregate(missing_kind)
+    unknown_kind = rendered.replace("content_kind: structured", "content_kind: catalog")
+    with pytest.raises(ValueError, match="content_kind"):
+        parse_aggregate(unknown_kind)
+
+
+def test_structured_body_can_pass_structured_quality_without_prose_quality() -> None:
+    long_link_label = " ".join(["Detailed linked information"] * 30)
+    body = f"{_prose('Structured information')}\n[{long_link_label}](https://example.com/details)"
+
+    assert not has_substantive_prose(body)
+    assert (
+        website_reference_module.validate_reference_body(
+            body, "finki-centers", content_kind="structured"
+        )
+        == body
+    )
+
+
+@pytest.mark.parametrize("content_kind", ["structured", "link-catalog"])
+def test_sensitive_identifiers_rejected_for_non_prose_shapes(
+    tmp_path: Path, content_kind: str
+) -> None:
+    if content_kind == "structured":
+        body = _prose("Structured content") + "\nCandidate identifier: 1234567"
+    else:
+        body = (
+            "- [Detailed form instructions for undergraduate student applications and supporting documents](https://example.com/one)\n"
+            "- [Detailed form instructions for graduate student applications and supporting documents](https://example.com/two)\n"
+            "- [Detailed form instructions for doctoral student applications and supporting documents](https://example.com/three)\n"
+            "Candidate identifier: 1234567"
+        )
+    source = replace(
+        _source(f"{content_kind}-sensitive", "/en/sensitive/"),
+        content_kind=content_kind,
+    )
+    with pytest.raises(ValueError, match="identifier"):
+        _refresh_with_responses(
+            (source,),
+            tmp_path / f"{content_kind}.md",
+            {
+                source.source_url: httpx2.Response(
+                    200,
+                    headers={"content-type": "text/html"},
+                    text=_html("Sensitive", body),
+                )
+            },
+        )
+
+
+def test_invalid_programmatic_content_kind_is_rejected_before_fetch(
+    tmp_path: Path,
+) -> None:
+    source = replace(
+        _source("invalid-kind", "/en/invalid-kind/"), content_kind="invalid"
+    )
+    requested: list[str] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requested.append(str(request.url))
+        return httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html("Invalid", f"<p>{_prose('Invalid kind')}</p>"),
+        )
+
+    client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    try:
+        with pytest.raises(ValueError, match="content_kind"):
+            refresh_reference((source,), tmp_path / "aggregate.md", client=client)
+    finally:
+        import anyio
+
+        anyio.run(client.aclose)
+
+    assert requested == []
 
 
 def _selector_allowlist(
@@ -149,20 +555,129 @@ def _selector_allowlist(
         else ""
     )
     return (
-        "version = 1\n\n"
+        "version = 2\n\n"
         "[[sources]]\n"
         'id = "finki-legal-acts"\n'
         'source_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"\n'
         'canonical_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"\n'
-        'language = "mk"\ncategory = "legal"\nlast_verified = "2026-09-06"\n'
+        'language = "mk"\ncategory = "legal"\ncontent_kind = "prose"\nlast_verified = "2026-09-07"\n'
         f"{first}\n"
         "[[sources]]\n"
         'id = "student-service"\n'
         'source_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"\n'
         'canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"\n'
-        'language = "mk"\ncategory = "procedures"\nlast_verified = "2026-09-06"\n'
+        'language = "mk"\ncategory = "procedures"\ncontent_kind = "prose"\nlast_verified = "2026-09-07"\n'
         f"{second}"
     )
+
+
+def _route_allowlist(url: str, *, language: str = "mk") -> str:
+    text = _selector_allowlist()
+    old_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"
+    text = text.replace(old_url, url)
+    return text.replace('language = "mk"', f'language = "{language}"', 1)
+
+
+@pytest.mark.parametrize(
+    ("url", "language"),
+    [
+        ("https://finki.ukim.mk/za-nas/about/", "mk"),
+        ("https://finki.ukim.mk/upisi/programmes/", "mk"),
+        ("https://finki.ukim.mk/studii-2/support/", "mk"),
+        ("https://finki.ukim.mk/elektronski-dokumenti/", "mk"),
+        ("https://finki.ukim.mk/procedura-za-ponishtuvanje-na-ocena/", "mk"),
+        ("https://finki.ukim.mk/pravila-za-zapishuvanje-na-predmeti/", "mk"),
+        (
+            "https://finki.ukim.mk/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/",
+            "mk",
+        ),
+        (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/",
+            "en",
+        ),
+        (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/masters-studies-for-international-students/",
+            "en",
+        ),
+    ],
+)
+def test_allowlist_accepts_bounded_unprefixed_routes(
+    tmp_path: Path, url: str, language: str
+) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(_route_allowlist(url, language=language), encoding="utf-8")
+
+    sources = load_sources(path, today=date(2026, 9, 7))
+
+    assert sources[0].source_url == url
+    assert sources[0].language == language
+
+
+@pytest.mark.parametrize(
+    ("url", "language"),
+    [
+        ("https://finki.ukim.mk/unknown/root/", "mk"),
+        ("https://finki.ukim.mk/documents/guide/", "mk"),
+        ("https://finki.ukim.mk/announcements/other/", "mk"),
+        (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/other/",
+            "en",
+        ),
+        ("https://finki.ukim.mk/za-nas/about/", "en"),
+        (
+            "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/",
+            "mk",
+        ),
+        ("https://finki.ukim.mk/za-nas/%6eews/", "mk"),
+        ("https://finki.ukim.mk/za-nas/assets/file.pdf", "mk"),
+        ("https://finki.ukim.mk/za-nas/wp-admin/", "mk"),
+        ("https://finki.ukim.mk/za-nas/feed/", "mk"),
+        ("https://finki.ukim.mk/za-nas/2026/09/", "mk"),
+        ("https://finki.ukim.mk/za-nas/about/?candidate=1234567", "mk"),
+    ],
+)
+def test_allowlist_rejects_unbounded_unprefixed_routes(
+    tmp_path: Path, url: str, language: str
+) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(_route_allowlist(url, language=language), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError, match="(route|language|forbidden|asset|candidate|query)"
+    ):
+        load_sources(path, today=date(2026, 9, 7))
+
+
+def test_allowed_transfer_exception_still_rejects_sensitive_body(
+    tmp_path: Path,
+) -> None:
+    url = "https://finki.ukim.mk/announcements/soopshtenie-za-prefrluvanje-od-drug-fakultet-10/"
+    source = ReferenceSource(
+        id="transfer-from-another-faculty",
+        source_url=url,
+        canonical_url=url,
+        language="mk",
+        category="procedures",
+        content_kind="prose",
+        last_verified=date(2026, 9, 7),
+        content_selectors=("main",),
+    )
+
+    with pytest.raises(ValueError, match="identifier"):
+        _refresh_with_responses(
+            (source,),
+            tmp_path / "aggregate.md",
+            {
+                url: httpx2.Response(
+                    200,
+                    headers={"content-type": "text/html"},
+                    text=_html(
+                        "Transfer",
+                        f"<p>{_prose('Candidate identifier 1234567')}</p>",
+                    ),
+                )
+            },
+        )
 
 
 @pytest.mark.parametrize(
@@ -191,7 +706,7 @@ def test_allowlist_rejects_invalid_content_selector_values(
     path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
 
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_allowlist_rejects_missing_content_selectors(tmp_path: Path) -> None:
@@ -199,7 +714,7 @@ def test_allowlist_rejects_missing_content_selectors(tmp_path: Path) -> None:
     path.write_text(_selector_allowlist(first_selector=None), encoding="utf-8")
 
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) -> None:
@@ -212,7 +727,7 @@ def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) ->
     )
 
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 @pytest.mark.parametrize("control", [*range(0x20), 0x7F])
@@ -230,7 +745,7 @@ def test_allowlist_rejects_every_selector_boundary_control(
     path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
 
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_allowlist_accepts_a_valid_selector_after_boundary_control_checks(
@@ -241,7 +756,7 @@ def test_allowlist_accepts_a_valid_selector_after_boundary_control_checks(
         _selector_allowlist(first_selector='["#article-body"]'), encoding="utf-8"
     )
 
-    sources = load_sources(path, today=date(2026, 9, 6))
+    sources = load_sources(path, today=date(2026, 9, 7))
 
     assert sources[0].content_selectors == ("#article-body",)
 
@@ -263,7 +778,7 @@ def test_allowlist_accepts_direct_macedonian_routes_on_all_finki_hosts(
     )
     path = tmp_path / "sources.toml"
     path.write_text(text, encoding="utf-8")
-    assert load_sources(path, today=date(2026, 9, 6))[0].language == "mk"
+    assert load_sources(path, today=date(2026, 9, 7))[0].language == "mk"
 
 
 @pytest.mark.parametrize(
@@ -285,7 +800,7 @@ def test_allowlist_rejects_non_canonical_curated_routes(
     path = tmp_path / "sources.toml"
     path.write_text(text, encoding="utf-8")
     with pytest.raises(ValueError, match="(URL|route|host|query|asset|language)"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_curated_adapter_uses_selector_and_never_follows_page_links(
@@ -334,7 +849,8 @@ def test_current_source_redirects_only_to_its_legacy_canonical(
         canonical_url="https://oldsite.finki.ukim.mk/mk/studies/study-guide",
         language="mk",
         category="studies",
-        last_verified=date(2026, 9, 6),
+        content_kind="prose",
+        last_verified=date(2026, 9, 7),
         content_selectors=("#node-24594 .field-item > div:nth-child(1)",),
     )
     response = _prose("Студискиот водич")
@@ -375,6 +891,21 @@ def test_quality_gates_distinguish_prose_from_navigation() -> None:
     assert is_navigation_shaped(repeated_links)
     assert has_substantive_prose(prose)
     assert not is_navigation_shaped(prose)
+
+
+def test_navigation_shape_ignores_repeated_long_instructional_prose() -> None:
+    repeated_prose = "Поднесете го барањето преку системот денес."
+    repeated_short_label = "Студии"
+    repeated_thirty_nine = "Choose a study programme from this menu"
+    repeated_forty = "Choose a study programme from this menu."
+
+    assert len(repeated_prose) == 43
+    assert len(repeated_thirty_nine) == 39
+    assert len(repeated_forty) == 40
+    assert not is_navigation_shaped("\n".join([repeated_prose] * 3))
+    assert is_navigation_shaped("\n".join([repeated_short_label] * 3))
+    assert is_navigation_shaped("\n".join([repeated_thirty_nine] * 3))
+    assert not is_navigation_shaped("\n".join([repeated_forty] * 3))
 
 
 @pytest.mark.parametrize(
@@ -462,7 +993,7 @@ def test_direct_legacy_source_refreshes_without_following_page_links(
     ],
 )
 def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None:
-    first_source = load_sources(SOURCES, today=date(2026, 9, 6))[0]
+    first_source = load_sources(SOURCES, today=date(2026, 9, 7))[0]
     text = SOURCES.read_text(encoding="utf-8")
     text = text.replace(
         f'source_url = "{first_source.source_url}"',
@@ -478,7 +1009,7 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
     path.write_text(text, encoding="utf-8")
 
     with pytest.raises(ValueError, match="(URL|route|candidate|HTTPS|host|query)"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 @pytest.mark.parametrize(
@@ -492,12 +1023,12 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
 def test_allowlist_requires_macedonian_legacy_routes(
     tmp_path: Path, field: str, value: str
 ) -> None:
-    original = SOURCES.read_text(encoding="utf-8")
-    route_host = "finki.ukim.mk" if field == "source_url" else "oldsite.finki.ukim.mk"
+    original = _selector_allowlist()
+    route_host = "oldsite.finki.ukim.mk"
     old_value = (
         'language = "mk"'
         if field == "language"
-        else f'{field} = "https://{route_host}/mk/studies/study-guide"'
+        else f'{field} = "https://{route_host}/mk/zafakultetot/pravni_akti"'
     )
     path = tmp_path / "sources.toml"
     path.write_text(
@@ -505,30 +1036,30 @@ def test_allowlist_requires_macedonian_legacy_routes(
     )
 
     with pytest.raises(ValueError, match="Macedonian|/mk/|language"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
     original = SOURCES.read_text(encoding="utf-8")
-    stale = date(2026, 9, 6) - MAX_REVIEW_AGE - timedelta(days=1)
+    stale = date(2026, 9, 7) - MAX_REVIEW_AGE - timedelta(days=1)
     path = tmp_path / "sources.toml"
     path.write_text(
         original.replace(
-            'last_verified = "2026-09-06"', f'last_verified = "{stale}"', 1
+            'last_verified = "2026-09-07"', f'last_verified = "{stale}"', 1
         ),
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="review"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
     path.write_text(
         original.replace(
-            'last_verified = "2026-09-06"', 'last_verified = "2026-09-07"', 1
+            'last_verified = "2026-09-07"', 'last_verified = "2026-09-08"', 1
         ),
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="future"):
-        load_sources(path, today=date(2026, 9, 6))
+        load_sources(path, today=date(2026, 9, 7))
 
 
 def test_parse_aggregate_exposes_metadata_and_verifies_hash() -> None:
@@ -540,6 +1071,7 @@ def test_parse_aggregate_exposes_metadata_and_verifies_hash() -> None:
         "canonical_url: https://finki.ukim.mk/en/studies/\n"
         "language: en\n"
         "category: studies\n"
+        "content_kind: prose\n"
         "last_verified: 2026-09-01\n"
         "title: Study overview\n"
         f"sha256: {digest}\n\n"
@@ -563,7 +1095,7 @@ def test_parse_aggregate_rejects_boundary_injection_and_bad_hash() -> None:
         "<!-- finki-static-page:start id=safe -->\n"
         "source_url: https://finki.ukim.mk/en/safe/\n"
         "canonical_url: https://finki.ukim.mk/en/safe/\n"
-        "language: en\ncategory: studies\nlast_verified: 2026-09-01\n"
+        "language: en\ncategory: studies\ncontent_kind: prose\nlast_verified: 2026-09-01\n"
         "title: Title\n"
         f"sha256: {digest}\n\n{body}\n"
         "<!-- finki-static-page:end -->\n"
@@ -579,7 +1111,7 @@ def test_parse_aggregate_rejects_bad_hash() -> None:
         "<!-- finki-static-page:start id=safe -->\n"
         "source_url: https://finki.ukim.mk/en/safe/\n"
         "canonical_url: https://finki.ukim.mk/en/safe/\n"
-        "language: en\ncategory: studies\nlast_verified: 2026-09-01\n"
+        "language: en\ncategory: studies\ncontent_kind: prose\nlast_verified: 2026-09-01\n"
         "title: Title\n"
         "sha256: 0000000000000000000000000000000000000000000000000000000000000000\n\n"
         f"{body}\n"
@@ -598,6 +1130,7 @@ def test_render_rejects_a_validly_hashed_low_quality_body() -> None:
         canonical_url="https://finki.ukim.mk/en/safe/",
         language="en",
         category="studies",
+        content_kind="prose",
         last_verified=date(2026, 9, 1),
         title="Navigation",
         body=body,
@@ -613,7 +1146,7 @@ def test_offline_check_rejects_a_validly_hashed_low_quality_body(
 ) -> None:
     sources_path = tmp_path / "sources.toml"
     sources_path.write_text(_selector_allowlist(), encoding="utf-8")
-    source = load_sources(sources_path, today=date(2026, 9, 6))[0]
+    source = load_sources(sources_path, today=date(2026, 9, 7))[0]
     body = "Home\nHome\nHome"
     title = "Navigation"
     digest = sha256(f"{title}\n\n{body}".encode()).hexdigest()
@@ -623,6 +1156,7 @@ def test_offline_check_rejects_a_validly_hashed_low_quality_body(
         f"canonical_url: {source.canonical_url}\n"
         f"language: {source.language}\n"
         f"category: {source.category}\n"
+        f"content_kind: {source.content_kind}\n"
         f"last_verified: {source.last_verified.isoformat()}\n"
         f"title: {title}\n"
         f"sha256: {digest}\n\n{body}\n"
@@ -651,6 +1185,7 @@ def test_render_parse_is_byte_stable_and_sorted() -> None:
             canonical_url="https://finki.ukim.mk/en/z/",
             language="en",
             category="studies",
+            content_kind="prose",
             last_verified=date(2026, 9, 1),
             title="Zed",
             body=_prose("Z body"),
@@ -662,6 +1197,7 @@ def test_render_parse_is_byte_stable_and_sorted() -> None:
             canonical_url="https://finki.ukim.mk/en/a/",
             language="en",
             category="studies",
+            content_kind="prose",
             last_verified=date(2026, 9, 1),
             title="A title",
             body=f"{_prose('A body')}\r\n",
@@ -690,6 +1226,7 @@ def test_render_rejects_unsafe_metadata(field: str) -> None:
         canonical_url="https://finki.ukim.mk/en/safe/",
         language="en",
         category="studies",
+        content_kind="prose",
         last_verified=date(2026, 9, 1),
         title="Safe title",
         body="Safe body",
@@ -843,6 +1380,7 @@ def test_check_rejects_crlf_aggregate_without_newline_normalization(
         canonical_url=source.canonical_url,
         language=source.language,
         category=source.category,
+        content_kind=source.content_kind,
         last_verified=source.last_verified,
         title="Safe",
         body=_prose("Content"),
@@ -1009,7 +1547,7 @@ def test_validate_aggregate_alias_checks_allowlist() -> None:
 
 def test_committed_aggregate_matches_allowlist_exactly() -> None:
     aggregate_path = ROOT / "website-reference" / "finki-static-pages.md"
-    sources = load_sources(SOURCES, today=date(2026, 9, 6))
+    sources = load_sources(SOURCES, today=date(2026, 9, 7))
     text = aggregate_path.read_text(encoding="utf-8", newline="")
 
     pages = validate_aggregate(text, sources)
@@ -1022,7 +1560,7 @@ def test_committed_aggregate_matches_allowlist_exactly() -> None:
 
 
 def test_committed_aggregate_has_only_qualified_source_contract() -> None:
-    sources = load_sources(SOURCES, today=date(2026, 9, 6))
+    sources = load_sources(SOURCES, today=date(2026, 9, 7))
     pages = validate_aggregate(
         (ROOT / "website-reference" / "finki-static-pages.md").read_text(
             encoding="utf-8"
@@ -1035,7 +1573,6 @@ def test_committed_aggregate_has_only_qualified_source_contract() -> None:
         "student-service",
         "thesis-procedure",
         "course-enrollment",
-        "electronic-documents",
         "institutional-contact",
     }
 
