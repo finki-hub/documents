@@ -1,17 +1,19 @@
 version = 1
 
 [[sources]]
-id = "finki-legal-acts"
-source_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"
-canonical_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"
+id = "study-guide"
+source_url = "https://finki.ukim.mk/mk/studies/study-guide"
+canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/study-guide"
 language = "mk"
-category = "legal"
+category = "studies"
 last_verified = "2026-09-06"
+content_selectors = ["#node-24594 .field-item > div:nth-child(1)"]
 
 [[sources]]
-id = "student-service"
-source_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"
-canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"
+id = "student-practice"
+source_url = "https://finki.ukim.mk/mk/studies/studentska-praksa"
+canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-praksa"
 language = "mk"
 category = "procedures"
 last_verified = "2026-09-06"
+content_selectors = ["#node-24592 .field-item > div"]

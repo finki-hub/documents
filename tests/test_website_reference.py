@@ -95,9 +95,9 @@ def test_seed_contains_curated_stable_sources() -> None:
     assert {source.language for source in sources} == {"mk"}
     assert {source.category for source in sources} <= ALLOWED_CATEGORIES
     assert all(
-        source.source_url.startswith("https://oldsite.finki.ukim.mk/mk/")
-        for source in sources
+        source.source_url.startswith("https://finki.ukim.mk/mk/") for source in sources
     )
+    assert all(source.content_selectors for source in sources)
 
 
 def test_allowlist_accepts_amended_two_source_floor(tmp_path: Path) -> None:
@@ -119,21 +119,29 @@ def _selector_allowlist(
     first_selector: str | None = '["#article-body"]',
     second_selector: str | None = '["main"]',
 ) -> str:
-    original = SOURCES.read_text(encoding="utf-8")
-    lines = original.splitlines()
-    output: list[str] = []
-    selector_values = (first_selector, second_selector)
-    source_index = -1
-    for line in lines:
-        output.append(line)
-        if line == "[[sources]]":
-            source_index += 1
-        if (
-            line.startswith("last_verified")
-            and selector_values[source_index] is not None
-        ):
-            output.append(f"content_selectors = {selector_values[source_index]}")
-    return "\n".join(output) + "\n"
+    first = (
+        f"content_selectors = {first_selector}\n" if first_selector is not None else ""
+    )
+    second = (
+        f"content_selectors = {second_selector}\n"
+        if second_selector is not None
+        else ""
+    )
+    return (
+        "version = 1\n\n"
+        "[[sources]]\n"
+        'id = "finki-legal-acts"\n'
+        'source_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"\n'
+        'canonical_url = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"\n'
+        'language = "mk"\ncategory = "legal"\nlast_verified = "2026-09-06"\n'
+        f"{first}\n"
+        "[[sources]]\n"
+        'id = "student-service"\n'
+        'source_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"\n'
+        'canonical_url = "https://oldsite.finki.ukim.mk/mk/studies/studentska-sluzba"\n'
+        'language = "mk"\ncategory = "procedures"\nlast_verified = "2026-09-06"\n'
+        f"{second}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -142,7 +150,11 @@ def _selector_allowlist(
         '"#article-body"',
         "[]",
         '[""]',
+        '["   "]',
         '["#article\\rbody"]',
+        '["[broken"]',
+        '["> main"]',
+        '["main >> div"]',
         '["<!-- finki-static-page:start -->"]',
     ],
 )
@@ -159,6 +171,19 @@ def test_allowlist_rejects_invalid_content_selector_values(
 def test_allowlist_rejects_missing_content_selectors(tmp_path: Path) -> None:
     path = tmp_path / "sources.toml"
     path.write_text(_selector_allowlist(first_selector=None), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="content_selectors"):
+        load_sources(path, today=date(2026, 9, 6))
+
+
+def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(
+        _selector_allowlist(first_selector=None, second_selector=None).replace(
+            'category = "legal"', 'category = "studies"', 1
+        ),
+        encoding="utf-8",
+    )
 
     with pytest.raises(ValueError, match="content_selectors"):
         load_sources(path, today=date(2026, 9, 6))
@@ -241,6 +266,39 @@ def test_curated_adapter_uses_selector_and_never_follows_page_links(
     assert "substantive institutional information" in body
     assert "Home Studies Contact" not in body
     assert "Linked label" not in body
+
+
+def test_current_source_redirects_only_to_its_legacy_canonical(
+    tmp_path: Path,
+) -> None:
+    source = ReferenceSource(
+        id="study-guide",
+        source_url="https://finki.ukim.mk/mk/studies/study-guide",
+        canonical_url="https://oldsite.finki.ukim.mk/mk/studies/study-guide",
+        language="mk",
+        category="studies",
+        last_verified=date(2026, 9, 6),
+        content_selectors=("#node-24594 .field-item > div:nth-child(1)",),
+    )
+    response = _prose("Студискиот водич")
+    responses = {
+        source.source_url: httpx2.Response(
+            307,
+            headers={"location": source.canonical_url},
+        ),
+        source.canonical_url: httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html(
+                "Водич за студирање",
+                f'<div id="node-24594"><div class="field-item"><div>{response}</div></div></div>',
+            ),
+        ),
+    }
+
+    requested = _refresh_with_responses((source,), tmp_path / "aggregate.md", responses)
+
+    assert requested == [source.source_url, source.canonical_url]
 
 
 def test_quality_gates_distinguish_prose_from_navigation() -> None:
@@ -378,10 +436,11 @@ def test_allowlist_requires_macedonian_legacy_routes(
     tmp_path: Path, field: str, value: str
 ) -> None:
     original = SOURCES.read_text(encoding="utf-8")
+    route_host = "finki.ukim.mk" if field == "source_url" else "oldsite.finki.ukim.mk"
     old_value = (
         'language = "mk"'
         if field == "language"
-        else f'{field} = "https://oldsite.finki.ukim.mk/mk/zafakultetot/pravni_akti"'
+        else f'{field} = "https://{route_host}/mk/studies/study-guide"'
     )
     path = tmp_path / "sources.toml"
     path.write_text(

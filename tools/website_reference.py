@@ -198,7 +198,48 @@ def _content_selectors(value: object) -> tuple[str, ...]:
         raise _error("content_selectors must be a non-empty list")
     selectors: list[str] = []
     for selector in value:
-        selectors.append(_text(selector, "content_selectors"))
+        selector_text = _text(selector, "content_selectors")
+        stripped = selector_text.strip()
+        if not stripped:
+            raise _error("content_selectors must not contain blank selectors")
+        if (
+            stripped[0] in ">+,"
+            or stripped[-1] in ">+~,"
+            or re.search(r"(?:[>+~]\s*){2,}", stripped) is not None
+        ):
+            raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
+        stack: list[str] = []
+        quote: str | None = None
+        escaped = False
+        pairs = {
+            "]": "[",
+            ")": "(",
+        }
+        for character in stripped:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif quote is not None:
+                if character == quote:
+                    quote = None
+            elif character in {"'", '"'}:
+                quote = character
+            elif character in "[(":
+                stack.append(character)
+            elif character in pairs and (not stack or stack.pop() != pairs[character]):
+                raise _error(
+                    f"content_selectors contains invalid CSS: {selector_text!r}"
+                )
+        if quote is not None or stack or escaped:
+            raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
+        try:
+            HTMLParser("<div id='__selector_probe__'></div>").css_first(stripped)
+        except (TypeError, ValueError) as exc:
+            raise _error(
+                f"content_selectors contains invalid CSS: {selector_text!r}"
+            ) from exc
+        selectors.append(selector_text)
     return tuple(selectors)
 
 
@@ -263,6 +304,20 @@ def _language_for_route(url: str) -> str:
     return "mk" if first_segment == "mk" else "en"
 
 
+def _routes_match(source_url: str, canonical_url: str) -> bool:
+    normalized_source = _validate_route(source_url, "source_url")
+    normalized_canonical = _validate_route(canonical_url, "canonical_url")
+    if normalized_source == normalized_canonical:
+        return True
+    source_host = (urlsplit(source_url).hostname or "").casefold()
+    canonical_host = (urlsplit(canonical_url).hostname or "").casefold()
+    return (
+        source_host in {"finki.ukim.mk", "www.finki.ukim.mk"}
+        and canonical_host == LEGACY_HOST
+        and urlsplit(normalized_source).path == urlsplit(normalized_canonical).path
+    )
+
+
 def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     if not isinstance(raw, Mapping):
         raise _error("each source must be a table")
@@ -283,7 +338,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     content_selectors = _content_selectors(raw["content_selectors"])
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
-    if normalized_source != normalized_canonical:
+    if not _routes_match(source_url, canonical_url):
         raise _error("source_url and canonical_url identify different routes")
     if language != CURATED_SOURCE_LANGUAGE:
         raise _error("initial curated sources must use Macedonian language")
@@ -323,19 +378,6 @@ def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
     raw_sources = raw_document["sources"]
     if not isinstance(raw_sources, list):
         raise _error("sources must be an array of tables")
-    # Task 3 adds selectors to the committed two-source seed.  Until then,
-    # retain that exact seed's behavior with the same safe root selector while
-    # requiring the field for every newly authored source table.
-    if (
-        len(raw_sources) == 2
-        and {item.get("id") for item in raw_sources if isinstance(item, Mapping)}
-        == {"finki-legal-acts", "student-service"}
-        and all(
-            isinstance(item, Mapping) and "content_selectors" not in item
-            for item in raw_sources
-        )
-    ):
-        raw_sources = [{**item, "content_selectors": ["main"]} for item in raw_sources]
     sources = tuple(_source_from_mapping(raw, today=today) for raw in raw_sources)
     if not 2 <= len(sources) <= 50:
         raise _error("allowlist must contain between 2 and 50 sources")
@@ -438,7 +480,7 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
     canonical_url = metadata["canonical_url"]
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
-    if normalized_source != normalized_canonical:
+    if not _routes_match(source_url, canonical_url):
         raise _error("aggregate source and canonical URLs differ")
     language = _text(metadata["language"], "language")
     if language not in ALLOWED_LANGUAGES:
@@ -508,7 +550,7 @@ def _validate_page_for_render(page: ReferencePage) -> str:
     canonical_url = _text(page.canonical_url, "canonical_url")
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
-    if normalized_source != normalized_canonical:
+    if not _routes_match(source_url, canonical_url):
         raise _error("source_url and canonical_url identify different routes")
     language = _text(page.language, "language")
     if language not in ALLOWED_LANGUAGES:
@@ -634,7 +676,7 @@ def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
     if len(set(urls)) != len(urls):
         raise _error("refresh canonical URLs must be unique")
     for source in sources:
-        if _validate_route(source.source_url, "source_url") != source.canonical_url:
+        if not _routes_match(source.source_url, source.canonical_url):
             raise _error(f"source URL differs from canonical URL for {source.id}")
         if not isinstance(source.content_selectors, tuple):
             raise _error(f"content_selectors must be a tuple for {source.id}")
