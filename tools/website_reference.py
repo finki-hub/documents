@@ -79,6 +79,15 @@ _START_PATTERN = re.compile(
 _END_MARKER = "<!-- finki-static-page:end -->"
 _MARKER_PREFIX = "<!-- finki-static-page:"
 _MARKDOWN_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_CSS_IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_-]*"
+_CSS_SIMPLE_SELECTOR = (
+    rf"(?:{_CSS_IDENTIFIER}|\#{_CSS_IDENTIFIER}|\.{_CSS_IDENTIFIER})"
+    rf"(?:\#{_CSS_IDENTIFIER})?(?:\.{_CSS_IDENTIFIER})*"
+    rf"(?::nth-child\([1-9][0-9]*\))?"
+)
+_CSS_SELECTOR = re.compile(
+    rf"{_CSS_SIMPLE_SELECTOR}(?:(?:\s+|\s*>\s*){_CSS_SIMPLE_SELECTOR})*"
+)
 _FORBIDDEN_ROUTE_SEGMENTS = frozenset(
     {
         "admission",
@@ -202,43 +211,10 @@ def _content_selectors(value: object) -> tuple[str, ...]:
         stripped = selector_text.strip()
         if not stripped:
             raise _error("content_selectors must not contain blank selectors")
-        if (
-            stripped[0] in ">+,"
-            or stripped[-1] in ">+~,"
-            or re.search(r"(?:[>+~]\s*){2,}", stripped) is not None
-        ):
+        if any(ord(character) < 32 or ord(character) == 127 for character in stripped):
             raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
-        stack: list[str] = []
-        quote: str | None = None
-        escaped = False
-        pairs = {
-            "]": "[",
-            ")": "(",
-        }
-        for character in stripped:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif quote is not None:
-                if character == quote:
-                    quote = None
-            elif character in {"'", '"'}:
-                quote = character
-            elif character in "[(":
-                stack.append(character)
-            elif character in pairs and (not stack or stack.pop() != pairs[character]):
-                raise _error(
-                    f"content_selectors contains invalid CSS: {selector_text!r}"
-                )
-        if quote is not None or stack or escaped:
+        if _CSS_SELECTOR.fullmatch(stripped) is None:
             raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
-        try:
-            HTMLParser("<div id='__selector_probe__'></div>").css_first(stripped)
-        except (TypeError, ValueError) as exc:
-            raise _error(
-                f"content_selectors contains invalid CSS: {selector_text!r}"
-            ) from exc
         selectors.append(selector_text)
     return tuple(selectors)
 
@@ -436,6 +412,23 @@ def is_navigation_shaped(markdown: str) -> bool:
     return any(count >= 3 for count in labels.values())
 
 
+def _validate_reference_body(markdown: str, page_id: str) -> str:
+    body = _normalize_body(markdown)
+    if (
+        not body
+        or body.casefold() in _BOILERPLATE_OUTPUT
+        or not has_substantive_prose(body)
+        or not _has_substantive_markdown(body)
+        or is_navigation_shaped(body)
+    ):
+        raise _error(
+            f"page {page_id} has empty, markup-only, boilerplate, or navigation-shaped output"
+        )
+    if _MARKER_PREFIX in body:
+        raise _error(f"page {page_id} contains an aggregate boundary marker")
+    return body
+
+
 def _content_hash(title: str, body: str) -> str:
     return sha256(f"{title}\n\n{body}".encode()).hexdigest()
 
@@ -472,10 +465,8 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
     }
     if set(metadata) != required or index >= len(lines) or lines[index] != "":
         raise _error("aggregate metadata is incomplete")
-    body = _normalize_body("\n".join(lines[index + 1 :]))
+    body = _validate_reference_body("\n".join(lines[index + 1 :]), source_id)
     title = _text(metadata["title"], "title")
-    if not body:
-        raise _error("aggregate page body cannot be empty")
     source_url = metadata["source_url"]
     canonical_url = metadata["canonical_url"]
     normalized_source = _validate_route(source_url, "source_url")
@@ -574,14 +565,10 @@ def render_aggregate(pages: Iterable[ReferencePage]) -> str:
     rendered: list[str] = []
     for page in ordered:
         canonical_url = _validate_page_for_render(page)
-        body = _normalize_body(page.body)
-        if not body:
-            raise _error(f"aggregate page {page.source_id} has an empty body")
+        body = _validate_reference_body(page.body, page.source_id)
         digest = _content_hash(page.title, body)
         if page.content_sha256 != digest:
             raise _error(f"hash verification failed for {page.source_id}")
-        if _MARKER_PREFIX in body:
-            raise _error(f"aggregate page {page.source_id} contains a boundary marker")
         rendered.extend(
             [
                 f"<!-- finki-static-page:start id={page.source_id} -->",
@@ -714,18 +701,9 @@ async def _fetch_reference_pages(
         except WebsiteContentError as exc:
             raise _error(f"cannot convert page {source.id}: {exc}") from exc
         title = _normalized_title(document.title)
-        body = _normalize_body(document.markdown)
+        body = _validate_reference_body(document.markdown, source.id)
         if not title:
             raise _error(f"page {source.id} has an empty title")
-        if (
-            not has_substantive_prose(body)
-            or body.casefold() in _BOILERPLATE_OUTPUT
-            or not _has_substantive_markdown(body)
-            or is_navigation_shaped(body)
-        ):
-            raise _error(
-                f"page {source.id} has empty, markup-only, boilerplate, or navigation-shaped output"
-            )
         if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
             raise _error(f"page {source.id} contains an aggregate boundary marker")
         if contains_sensitive_personal_identifier(title=title, markdown=body):

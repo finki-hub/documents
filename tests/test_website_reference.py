@@ -155,6 +155,11 @@ def _selector_allowlist(
         '["[broken"]',
         '["> main"]',
         '["main >> div"]',
+        '["main\\tdiv"]',
+        '["main:"]',
+        '["main::"]',
+        '["main[attr=value]"]',
+        '["main + div"]',
         '["<!-- finki-static-page:start -->"]',
     ],
 )
@@ -475,7 +480,7 @@ def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
 
 
 def test_parse_aggregate_exposes_metadata_and_verifies_hash() -> None:
-    body = "Overview of evergreen study information."
+    body = _prose("Overview of evergreen study information")
     digest = sha256(f"Study overview\n\n{body}".encode()).hexdigest()
     text = (
         "<!-- finki-static-page:start id=studies-overview -->\n"
@@ -517,7 +522,7 @@ def test_parse_aggregate_rejects_boundary_injection_and_bad_hash() -> None:
 
 
 def test_parse_aggregate_rejects_bad_hash() -> None:
-    body = "safe body"
+    body = _prose("safe body")
     text = (
         "<!-- finki-static-page:start id=safe -->\n"
         "source_url: https://finki.ukim.mk/en/safe/\n"
@@ -533,6 +538,59 @@ def test_parse_aggregate_rejects_bad_hash() -> None:
         parse_aggregate(text)
 
 
+def test_render_rejects_a_validly_hashed_low_quality_body() -> None:
+    body = "Home\nHome\nHome"
+    page = ReferencePage(
+        source_id="safe-page",
+        source_url="https://finki.ukim.mk/en/safe/",
+        canonical_url="https://finki.ukim.mk/en/safe/",
+        language="en",
+        category="studies",
+        last_verified=date(2026, 9, 1),
+        title="Navigation",
+        body=body,
+        content_sha256=sha256(f"Navigation\n\n{body}".encode()).hexdigest(),
+    )
+
+    with pytest.raises(ValueError, match="navigation|empty"):
+        render_aggregate((page,))
+
+
+def test_offline_check_rejects_a_validly_hashed_low_quality_body(
+    tmp_path: Path,
+) -> None:
+    sources_path = tmp_path / "sources.toml"
+    sources_path.write_text(_selector_allowlist(), encoding="utf-8")
+    source = load_sources(sources_path, today=date(2026, 9, 6))[0]
+    body = "Home\nHome\nHome"
+    title = "Navigation"
+    digest = sha256(f"{title}\n\n{body}".encode()).hexdigest()
+    aggregate = (
+        f"<!-- finki-static-page:start id={source.id} -->\n"
+        f"source_url: {source.source_url}\n"
+        f"canonical_url: {source.canonical_url}\n"
+        f"language: {source.language}\n"
+        f"category: {source.category}\n"
+        f"last_verified: {source.last_verified.isoformat()}\n"
+        f"title: {title}\n"
+        f"sha256: {digest}\n\n{body}\n"
+        "<!-- finki-static-page:end -->\n"
+    )
+    aggregate_path = tmp_path / "aggregate.md"
+    aggregate_path.write_bytes(aggregate.encode())
+
+    with pytest.raises(ValueError, match="navigation|empty"):
+        website_reference_module.main(
+            [
+                "--check",
+                "--sources",
+                str(sources_path),
+                "--aggregate",
+                str(aggregate_path),
+            ]
+        )
+
+
 def test_render_parse_is_byte_stable_and_sorted() -> None:
     pages = (
         ReferencePage(
@@ -543,8 +601,8 @@ def test_render_parse_is_byte_stable_and_sorted() -> None:
             category="studies",
             last_verified=date(2026, 9, 1),
             title="Zed",
-            body="Z body",
-            content_sha256=sha256(b"Zed\n\nZ body").hexdigest(),
+            body=_prose("Z body"),
+            content_sha256=sha256(f"Zed\n\n{_prose('Z body')}".encode()).hexdigest(),
         ),
         ReferencePage(
             source_id="a-page",
@@ -554,8 +612,10 @@ def test_render_parse_is_byte_stable_and_sorted() -> None:
             category="studies",
             last_verified=date(2026, 9, 1),
             title="A title",
-            body="A body\r\n",
-            content_sha256=sha256(b"A title\n\nA body").hexdigest(),
+            body=f"{_prose('A body')}\r\n",
+            content_sha256=sha256(
+                f"A title\n\n{_prose('A body')}".encode()
+            ).hexdigest(),
         ),
     )
 
@@ -733,8 +793,8 @@ def test_check_rejects_crlf_aggregate_without_newline_normalization(
         category=source.category,
         last_verified=source.last_verified,
         title="Safe",
-        body="Content.",
-        content_sha256=sha256(b"Safe\n\nContent.").hexdigest(),
+        body=_prose("Content"),
+        content_sha256=sha256(f"Safe\n\n{_prose('Content')}".encode()).hexdigest(),
     )
     aggregate = tmp_path / "aggregate.md"
     aggregate.write_bytes(render_aggregate((page,)).replace("\n", "\r\n").encode())
