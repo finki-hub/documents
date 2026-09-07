@@ -194,6 +194,37 @@ def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) ->
         load_sources(path, today=date(2026, 9, 6))
 
 
+@pytest.mark.parametrize("control", [*range(0x20), 0x7F])
+@pytest.mark.parametrize("position", ["prefix", "suffix"])
+def test_allowlist_rejects_every_selector_boundary_control(
+    tmp_path: Path, control: int, position: str
+) -> None:
+    escaped = f"\\u{control:04x}"
+    value = (
+        f'["{escaped}#article-body"]'
+        if position == "prefix"
+        else f'["#article-body{escaped}"]'
+    )
+    path = tmp_path / "sources.toml"
+    path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="content_selectors"):
+        load_sources(path, today=date(2026, 9, 6))
+
+
+def test_allowlist_accepts_a_valid_selector_after_boundary_control_checks(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "sources.toml"
+    path.write_text(
+        _selector_allowlist(first_selector='["#article-body"]'), encoding="utf-8"
+    )
+
+    sources = load_sources(path, today=date(2026, 9, 6))
+
+    assert sources[0].content_selectors == ("#article-body",)
+
+
 @pytest.mark.parametrize(
     "url",
     [

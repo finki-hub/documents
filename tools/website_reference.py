@@ -208,11 +208,13 @@ def _content_selectors(value: object) -> tuple[str, ...]:
     selectors: list[str] = []
     for selector in value:
         selector_text = _text(selector, "content_selectors")
+        if any(
+            ord(character) < 32 or ord(character) == 127 for character in selector_text
+        ):
+            raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
         stripped = selector_text.strip()
         if not stripped:
             raise _error("content_selectors must not contain blank selectors")
-        if any(ord(character) < 32 or ord(character) == 127 for character in stripped):
-            raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
         if _CSS_SELECTOR.fullmatch(stripped) is None:
             raise _error(f"content_selectors contains invalid CSS: {selector_text!r}")
         selectors.append(selector_text)
