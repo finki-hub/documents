@@ -17,12 +17,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import TYPE_CHECKING, Final, cast
+from typing import Final
 
 from . import document_metadata, website_privacy, website_reference
-
-if TYPE_CHECKING:
-    from typing import BinaryIO
 
 _RELEASE_SCHEMA_VERSION: Final = 2
 _LEGAL_SOURCE_CLASS: Final = "official_legal"
@@ -555,9 +552,8 @@ def _main(argv: Sequence[str] | None = None) -> int:
         if stdout_buffer is None:
             sys.stdout.write(encoded)
         else:
-            binary_stdout = cast("BinaryIO", stdout_buffer)
-            binary_stdout.write(encoded.encode("utf-8"))
-            binary_stdout.flush()
+            stdout_buffer.write(encoded.encode("utf-8"))
+            stdout_buffer.flush()
         return 0
     bundle = build_bundle(arguments.repo_root)
     print(f"source_revision={bundle.source_commit}")
