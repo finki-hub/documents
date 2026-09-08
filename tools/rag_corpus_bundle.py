@@ -17,9 +17,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import BinaryIO, Final, cast
+from typing import TYPE_CHECKING, Final, cast
 
 from . import document_metadata, website_privacy, website_reference
+
+if TYPE_CHECKING:
+    from typing import BinaryIO
 
 _RELEASE_SCHEMA_VERSION: Final = 2
 _LEGAL_SOURCE_CLASS: Final = "official_legal"
