@@ -9,6 +9,7 @@ processed/   reviewed Markdown — the tracked corpus (one file per document)
 raw/         original PDFs/DOCX — the corpus source files, tracked here
 tools/       offline CLI: preprocess.py + docpipe.py + website_content.py
 website/     ignored local website snapshot created by website_content.py
+rag-corpus/  optional local destination for an exported chat-bot RAG bundle
 ```
 
 Both the originals (`raw/`) and the reviewed Markdown (`processed/`) are versioned here — this repo is the source of truth. Cloudflare R2 is an optional downstream mirror of the originals; chunks and embeddings live in the chat-bot's Postgres (regenerable from the Markdown at any time).
@@ -64,6 +65,51 @@ For safety, the generator writes a complete sibling staging snapshot before movi
 Use `--max-pages 20` for a quick network smoke test. For a complete local audit, run the full command and require `crawl_truncated` to be `false` in `manifest.json`. Generated website snapshots are ignored and must not be committed: a complete crawl includes thousands of unreviewed, duplicated, historical, and time-sensitive pages that do not satisfy this repository's corpus standards. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
 
 Website output is ephemeral informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync`, or track a curated subset, until the chat-bot has a dedicated website-ingestion contract with default-deny relevance, currentness, and conflict-resolution rules.
+
+### RAG corpus release export
+
+The repository's reviewed content is the complete source authority for a fast
+RAG export: every Markdown document under `processed/` and every page block in
+the checked-in `website-reference/` aggregate is discovered automatically.
+There is no separate allowlist or manifest, and export eligibility never
+depends on the wall clock or a document's currentness status. Raw PDFs/DOCX,
+code, tests, build configuration, generated website snapshots, and exporter
+artifacts are not emitted; raw files remain provenance inputs for processed
+documents.
+
+Run the release export from a clean, pinned checkout. The exporter has no
+filesystem output-path option: it emits the complete bundle on stdout and
+keeps all source/release reports on stderr. Capture stdout into the external
+release directory chosen by the operator:
+
+```bash
+uv run --locked python -m tools.rag_corpus_bundle
+tmp="$(mktemp ../release-bundle.json.XXXXXX)"
+if uv run --locked python -m tools.rag_corpus_bundle --release \
+    >"$tmp" 2>../release-bundle.report; then
+  mv -n "$tmp" ../release-bundle.json
+else
+  rm -f "$tmp"
+  exit 1
+fi
+uv run --locked pytest tests/test_rag_corpus_fast_export.py -q
+```
+
+The final export is credential-free, atomically written, and emits stable
+canonical JSON. The command prints `bundle_sha256`, the SHA-256 of the exact
+JSON bytes; provide that value to the importer as its trusted expected bundle
+hash. Every discovered corpus file and every referenced raw provenance file
+must be tracked in, byte-for-byte identical to, and present in `HEAD`; raw
+identities and bytes contribute to `source_tree_sha256`. The exporter requires
+`raw/`, rejects traversal, external, and symlinked corpus/provenance inputs,
+and derives the eligible corpus path inventory from `HEAD`, rejecting sparse
+or skip-worktree omissions and unexpected materialized files. It rejects any
+dirty repository (including unrelated files) for release. `bundle_sha256` is
+reported on stderr, so redirected stdout remains the exact deterministic JSON
+artifact. The caller owns final placement/atomic installation in the external
+directory (the example stages and atomically installs with `mv -n`); the
+exporter never opens or overwrites a caller-provided path and does not crawl,
+fetch, or reprocess raw files.
 
 ### Curated website reference
 
