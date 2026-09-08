@@ -32,6 +32,7 @@ explicit_package_bases = true
 show_error_codes = true
 warn_unused_configs = true
 files = [
+  "tools/rag_corpus_bundle.py",
   "tools/website_content.py",
   "tools/website_fetch.py",
   "tools/website_http.py",
@@ -43,6 +44,7 @@ files = [
   "tools/website_privacy.py",
   "tools/website_reference.py",
   "tests/test_website_cli.py",
+  "tests/test_rag_corpus_fast_export.py",
   "tests/test_website_content.py",
   "tests/test_website_fetch.py",
   "tests/test_website_http.py",
