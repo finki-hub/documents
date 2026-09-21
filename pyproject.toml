@@ -7,7 +7,7 @@ dependencies = [
   "httpx2[brotli,http2,zstd]>=2.13.0,<3",
   "markdownify>=1.2.3,<2",
   "pydantic>=2.13.5,<3",
-  "selectolax>=0.4.11,<1",
+  "selectolax>=0.4.12,<1",
 ]
 
 [dependency-groups]
