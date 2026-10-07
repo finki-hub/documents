@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 
 import anyio
 import httpx2
-from selectolax.parser import HTMLParser
+from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from tools.website_http import (
     PAGE_FETCH_POLICY,

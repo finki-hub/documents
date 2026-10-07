@@ -6,7 +6,8 @@ from collections.abc import Sequence
 from urllib.parse import urljoin, urlsplit
 
 from markdownify import markdownify
-from selectolax.parser import HTMLParser, Node
+from selectolax.lexbor import LexborHTMLParser as HTMLParser
+from selectolax.lexbor import LexborNode as Node
 
 from tools.website_markdown_safety import (
     neutralize_markdown_blocks,
