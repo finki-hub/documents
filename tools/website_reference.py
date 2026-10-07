@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 
 import anyio
 import httpx2
-from selectolax.parser import HTMLParser
+from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from .website_http import PAGE_FETCH_POLICY, fetch_public
 from .website_markdown import WebsiteContentError, document_from_page
