@@ -61,6 +61,36 @@ last_verified = "2026-09-07"
 content_selectors = [".page-content__body"]
 
 [[sources]]
+id = "finki-deanery"
+source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/"
+canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/"
+language = "mk"
+category = "institutional"
+content_kind = "person-list"
+last_verified = "2026-10-15"
+content_selectors = [".dekanat-section"]
+
+[[sources]]
+id = "finki-deanery-administration"
+source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanatska-uprava/"
+canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanatska-uprava/"
+language = "mk"
+category = "institutional"
+content_kind = "person-list"
+last_verified = "2026-10-15"
+content_selectors = [".dekanat-section"]
+
+[[sources]]
+id = "finki-teaching-scientific-council"
+source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-nauchen-sovet/"
+canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-nauchen-sovet/"
+language = "mk"
+category = "institutional"
+content_kind = "person-list"
+last_verified = "2026-10-15"
+content_selectors = [".kadar-grid"]
+
+[[sources]]
 id = "finki-laboratories"
 source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/"
 canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/"

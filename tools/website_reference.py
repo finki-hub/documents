@@ -26,7 +26,9 @@ from .website_privacy import contains_sensitive_personal_identifier
 
 ALLOWED_LANGUAGES = frozenset({"en", "mk"})
 CURATED_SOURCE_LANGUAGE = "mk"
-ALLOWED_CONTENT_KINDS = frozenset({"prose", "structured", "link-catalog"})
+ALLOWED_CONTENT_KINDS = frozenset(
+    {"prose", "structured", "link-catalog", "person-list"}
+)
 LEGACY_HOST = "oldsite.finki.ukim.mk"
 _FINKI_HOSTS = frozenset({"finki.ukim.mk", "www.finki.ukim.mk", LEGACY_HOST})
 ALLOWED_CATEGORIES = frozenset(
@@ -502,6 +504,48 @@ def _link_catalog_links(markdown: str) -> tuple[tuple[str, str], ...]:
     return tuple(links)
 
 
+def _person_list_links(markdown: str) -> tuple[tuple[str, str], ...]:
+    matches = tuple(_MARKDOWN_LINK_WITH_TARGET.finditer(markdown))
+    profiles: list[tuple[str, str]] = []
+    for match in matches:
+        label = " ".join(match.group(1).split())
+        target = match.group(2).strip().strip("<>")
+        parsed = urlsplit(target)
+        if parsed.scheme.casefold() == "mailto":
+            if not parsed.path or parsed.query or parsed.fragment:
+                raise _error("person-list contains an unsafe email link")
+            continue
+        if (
+            parsed.scheme.casefold() != "https"
+            or parsed.hostname != "finki.ukim.mk"
+            or parsed.username
+            or parsed.password
+            or parsed.port is not None
+            or parsed.query
+            or parsed.fragment
+            or re.fullmatch(r"/kadar/[a-z0-9]+(?:-[a-z0-9]+)*/", parsed.path) is None
+        ):
+            raise _error("person-list links must be official FINKI profile URLs")
+        alphabetic = sum(character.isalpha() for character in label)
+        if (
+            alphabetic < 2
+            or not all(
+                character.isalpha() or character in " .'-" for character in label
+            )
+            or label.casefold()
+            in {"home", "menu", "profile", "read more", "view profile"}
+        ):
+            raise _error("person-list profile labels must be human names")
+        profiles.append((target, label))
+    if len(profiles) < 2:
+        raise _error("person-list requires multiple distinct FINKI profiles")
+    targets = [target for target, _ in profiles]
+    labels = [label.casefold() for _, label in profiles]
+    if len(set(targets)) != len(targets) or len(set(labels)) != len(labels):
+        raise _error("person-list contains duplicate profiles or names")
+    return tuple(profiles)
+
+
 def _validate_reference_body(markdown: str, page_id: str, *, content_kind: str) -> str:
     body = _normalize_body(markdown)
     _content_kind(content_kind)
@@ -526,6 +570,10 @@ def _validate_reference_body(markdown: str, page_id: str, *, content_kind: str) 
             or not _has_substantive_non_link_prose(body)
             or (link_dominated and is_navigation_shaped(body, ignore_headings=True))
         )
+    elif content_kind == "person-list":
+        quality_failure = common_failure or is_navigation_shaped(body)
+        if not quality_failure:
+            _person_list_links(body)
     else:
         quality_failure = common_failure or is_navigation_shaped(body)
         if not quality_failure:
