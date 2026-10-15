@@ -236,35 +236,35 @@ category: institutional
 content_kind: person-list
 last_verified: 2026-10-15
 title: Деканат – ФИНКИ
-sha256: 59b6d0681e47bd4212f605481d199707f522b807171a2adb1857a16c4bab2cd6
-
-Декан
+sha256: a583bed0e43338f9ea9eb4ff3d2877978750434f54d79e45c7094fc4549c94e4
 
 ### [д-р Петре Ламески](https://finki.ukim.mk/kadar/d-r-petre-lameski/)
 
-[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
+Декан
 
-Продекан за настава
+[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
 
 ### [д-р Дејан Спасов](https://finki.ukim.mk/kadar/d-r-dejan-spasov/)
 
-[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
+Продекан за настава
 
-Продекан за наука и соработка
+[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
 
 ### [д-р Ристе Стојанов](https://finki.ukim.mk/kadar/d-r-riste-stojanov/)
 
-[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
+Продекан за наука и соработка
 
-Продекан за финансии
+[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
 
 ### [д-р Александра Поповска Митровиќ](https://finki.ukim.mk/kadar/d-r-aleksandra-popovska-mitrovikj/)
 
+Продекан за финансии
+
 [aleksandra.popovska.mitrovikj@finki.ukim.mk](mailto:aleksandra.popovska.mitrovikj@finki.ukim.mk)
 
-Секретар
-
 ### [м-р Игор Цветановски](https://finki.ukim.mk/kadar/m-r-igor-cvetanovski/)
+
+Секретар
 
 [igor.cvetanovski@finki.ukim.mk](mailto:igor.cvetanovski@finki.ukim.mk)
 <!-- finki-static-page:end -->
@@ -277,53 +277,53 @@ category: institutional
 content_kind: person-list
 last_verified: 2026-10-15
 title: Деканатска управа – ФИНКИ
-sha256: eaacef7b365183c94482fdaa0362f243e0cad0c915606871fb248905eefc62f0
-
-Декан
+sha256: 7b9b7a5dd7e3d8ca91be7a0b38429c64dda2707cd3bce69431b6120e7a3a52db
 
 ### [д-р Петре Ламески](https://finki.ukim.mk/kadar/d-r-petre-lameski/)
 
-[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
+Декан
 
-Продекан за настава
+[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
 
 ### [д-р Дејан Спасов](https://finki.ukim.mk/kadar/d-r-dejan-spasov/)
 
-[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
+Продекан за настава
 
-Продекан за наука и соработка
+[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
 
 ### [д-р Ристе Стојанов](https://finki.ukim.mk/kadar/d-r-riste-stojanov/)
 
-[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
+Продекан за наука и соработка
 
-Продекан за финансии
+[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
 
 ### [д-р Александра Поповска Митровиќ](https://finki.ukim.mk/kadar/d-r-aleksandra-popovska-mitrovikj/)
 
-[aleksandra.popovska.mitrovikj@finki.ukim.mk](mailto:aleksandra.popovska.mitrovikj@finki.ukim.mk)
+Продекан за финансии
 
-Раководител на институт за теориски основи на информатика и пресметковно инженерство
+[aleksandra.popovska.mitrovikj@finki.ukim.mk](mailto:aleksandra.popovska.mitrovikj@finki.ukim.mk)
 
 ### [д-р Весна Димитрова](https://finki.ukim.mk/kadar/d-r-vesna-dimitrova/)
 
-[vesna.dimitrova@finki.ukim.mk](mailto:vesna.dimitrova@finki.ukim.mk)
+Раководител на институт за теориски основи на информатика и пресметковно инженерство
 
-Раководител на институт за софтверско инженерство
+[vesna.dimitrova@finki.ukim.mk](mailto:vesna.dimitrova@finki.ukim.mk)
 
 ### [д-р Иван Чорбев](https://finki.ukim.mk/kadar/d-r-ivan-chorbev/)
 
-[ivan.chorbev@finki.ukim.mk](mailto:ivan.chorbev@finki.ukim.mk)
+Раководител на институт за софтверско инженерство
 
-Раководител на институт за информациски системи и мрежни технологии
+[ivan.chorbev@finki.ukim.mk](mailto:ivan.chorbev@finki.ukim.mk)
 
 ### [д-р Боро Јакимовски](https://finki.ukim.mk/kadar/d-r-boro-jakimovski/)
 
+Раководител на институт за информациски системи и мрежни технологии
+
 [boro.jakimovski@finki.ukim.mk](mailto:boro.jakimovski@finki.ukim.mk)
 
-Раководител на институт за интелигентни системи
-
 ### [д-р Невена Ацковска](https://finki.ukim.mk/kadar/d-r-nevena-ackovska/)
+
+Раководител на институт за интелигентни системи
 
 [nevena.ackovska@finki.ukim.mk](mailto:nevena.ackovska@finki.ukim.mk)
 <!-- finki-static-page:end -->

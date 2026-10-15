@@ -417,10 +417,16 @@ def test_person_list_preserves_official_profiles_roles_and_public_emails() -> No
     html = _html(
         "Deanery",
         """<section class="dekanat-section">
-        <article><p>Dean</p><a href="https://finki.ukim.mk/kadar/person-one/">Dr. Ana Example</a>
-        <a href="mailto:ana@example.invalid">ana@example.invalid</a></article>
-        <article><p>Vice Dean for Teaching</p><a href="/kadar/person-two/">Dr. Boro Example</a>
-        <a href="mailto:boro@example.invalid">boro@example.invalid</a></article>
+        <article class="dekanat-card"><div class="dekanat-card__body">
+        <p class="dekanat-card__position">Dean</p>
+        <h3 class="dekanat-card__name"><a href="https://finki.ukim.mk/kadar/person-one/">Dr. Ana Example</a></h3>
+        <p class="dekanat-card__email"><a href="mailto:ana@example.invalid">ana@example.invalid</a></p>
+        </div></article>
+        <article class="dekanat-card"><div class="dekanat-card__body">
+        <p class="dekanat-card__position">Vice Dean for Teaching</p>
+        <h3 class="dekanat-card__name"><a href="/kadar/person-two/">Dr. Boro Example</a></h3>
+        <p class="dekanat-card__email"><a href="mailto:boro@example.invalid">boro@example.invalid</a></p>
+        </div></article>
         </section>""",
     )
 
@@ -437,6 +443,10 @@ def test_person_list_preserves_official_profiles_roles_and_public_emails() -> No
     assert "mailto:boro@example.invalid" in body
     assert "https://finki.ukim.mk/kadar/person-one/" in body
     assert "https://finki.ukim.mk/kadar/person-two/" in body
+    assert body.index("### [Dr. Ana Example]") < body.index("Dean")
+    assert body.index("Dean") < body.index("ana@example.invalid")
+    assert body.index("### [Dr. Boro Example]") < body.index("Vice Dean for Teaching")
+    assert body.index("Vice Dean for Teaching") < body.index("boro@example.invalid")
 
 
 def test_person_list_rejects_empty_boilerplate_navigation_and_invalid_profiles() -> (
@@ -1758,3 +1768,83 @@ def test_committed_aggregate_has_only_qualified_source_contract() -> None:
     council = page_by_id["finki-teaching-scientific-council"].body
     assert council.count("](https://finki.ukim.mk/kadar/") == 60
     assert "д-р Марјан Гушев" in council
+
+
+def test_governance_roster_roles_follow_their_own_profile_headings() -> None:
+    sources = load_sources(SOURCES, today=date(2026, 10, 15))
+    pages = validate_aggregate(
+        (ROOT / "website-reference" / "finki-static-pages.md").read_text(
+            encoding="utf-8"
+        ),
+        sources,
+    )
+    page_by_id = {page.source_id: page for page in pages}
+    expected_roles = {
+        "finki-deanery": (
+            ("д-р Петре Ламески", "Декан", "petre.lameski@finki.ukim.mk"),
+            ("д-р Дејан Спасов", "Продекан за настава", "dejan.spasov@finki.ukim.mk"),
+            (
+                "д-р Ристе Стојанов",
+                "Продекан за наука и соработка",
+                "riste.stojanov@finki.ukim.mk",
+            ),
+            (
+                "д-р Александра Поповска Митровиќ",
+                "Продекан за финансии",
+                "aleksandra.popovska.mitrovikj@finki.ukim.mk",
+            ),
+            ("м-р Игор Цветановски", "Секретар", "igor.cvetanovski@finki.ukim.mk"),
+        ),
+        "finki-deanery-administration": (
+            ("д-р Петре Ламески", "Декан", "petre.lameski@finki.ukim.mk"),
+            ("д-р Дејан Спасов", "Продекан за настава", "dejan.spasov@finki.ukim.mk"),
+            (
+                "д-р Ристе Стојанов",
+                "Продекан за наука и соработка",
+                "riste.stojanov@finki.ukim.mk",
+            ),
+            (
+                "д-р Александра Поповска Митровиќ",
+                "Продекан за финансии",
+                "aleksandra.popovska.mitrovikj@finki.ukim.mk",
+            ),
+            (
+                "д-р Весна Димитрова",
+                "Раководител на институт за теориски основи на информатика и пресметковно инженерство",
+                "vesna.dimitrova@finki.ukim.mk",
+            ),
+            (
+                "д-р Иван Чорбев",
+                "Раководител на институт за софтверско инженерство",
+                "ivan.chorbev@finki.ukim.mk",
+            ),
+            (
+                "д-р Боро Јакимовски",
+                "Раководител на институт за информациски системи и мрежни технологии",
+                "boro.jakimovski@finki.ukim.mk",
+            ),
+            (
+                "д-р Невена Ацковска",
+                "Раководител на институт за интелигентни системи",
+                "nevena.ackovska@finki.ukim.mk",
+            ),
+        ),
+    }
+
+    for source_id, people in expected_roles.items():
+        body = page_by_id[source_id].body
+        assert body.startswith(f"### [{people[0][0]}]")
+        for name, role, email in people:
+            heading = f"### [{name}]"
+            start = body.index(heading)
+            next_heading = body.find("\n### [", start + len(heading))
+            section = body[start : next_heading if next_heading >= 0 else len(body)]
+            assert role in section
+            assert email in section
+            assert section.index(role) < section.index(email)
+
+    council = page_by_id["finki-teaching-scientific-council"].body
+    assert all(
+        not line or (line.startswith("[") and "](https://finki.ukim.mk/kadar/" in line)
+        for line in council.splitlines()
+    )
