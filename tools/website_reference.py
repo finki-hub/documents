@@ -812,6 +812,44 @@ def _strip_images(html: str) -> str:
     return parser.root.html or ""
 
 
+def _roles_after_person_names(html: str) -> str:
+    parser = HTMLParser(html)
+    if parser.root is None:
+        return ""
+    rendered_html = parser.root.html or ""
+    for card in parser.root.css("article.dekanat-card"):
+        role = card.css_first("p.dekanat-card__position")
+        heading = card.css_first("h3.dekanat-card__name")
+        if (
+            role is None
+            or heading is None
+            or heading.css_first('a[href*="/kadar/"]') is None
+        ):
+            continue
+        card_html = card.html or ""
+        role_html = role.html or ""
+        heading_html = heading.html or ""
+        role_offset = card_html.find(role_html)
+        heading_offset = card_html.find(heading_html)
+        if not role_html or not heading_html or role_offset < 0 or heading_offset < 0:
+            raise WebsiteContentError(
+                "Cannot associate a person-list role with its profile"
+            )
+        if role_offset > heading_offset:
+            continue
+        if rendered_html.count(card_html) != 1:
+            raise WebsiteContentError("Cannot isolate a person-list profile card")
+        card_without_role = card_html.replace(role_html, "", 1)
+        heading_end = card_without_role.find(heading_html) + len(heading_html)
+        reordered_card = (
+            card_without_role[:heading_end]
+            + role_html
+            + card_without_role[heading_end:]
+        )
+        rendered_html = rendered_html.replace(card_html, reordered_card, 1)
+    return rendered_html
+
+
 def _normalized_title(title: str) -> str:
     return " ".join(title.replace("\r", " ").replace("\n", " ").split())
 
@@ -830,8 +868,11 @@ def extract_reference_document(html: str, source: ReferenceSource) -> WebsiteDoc
         document_url = urlunsplit(
             ("https", "finki.ukim.mk", parsed.path, parsed.query, parsed.fragment)
         )
+    cleaned_html = _strip_images(html)
+    if source.content_kind == "person-list":
+        cleaned_html = _roles_after_person_names(cleaned_html)
     return document_from_page(
-        _strip_images(html),
+        cleaned_html,
         document_url,
         content_selectors=source.content_selectors,
     )
