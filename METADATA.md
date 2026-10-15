@@ -2,6 +2,8 @@
 
 Audit date: **2026-09-07**
 
+UKIM study-rules addition reviewed: **2026-10-16** (37 processed documents; the earlier corpus-wide audit date is unchanged).
+
 This ledger records the authority evidence behind the machine-readable headers in `processed/`. It deliberately distinguishes an act's legal date from a report's coverage period, a consolidated text's amendment cutoff, and a file's technical timestamps.
 
 ## Status vocabulary
@@ -23,6 +25,7 @@ This ledger records the authority evidence behind the machine-readable headers i
 | `264-statut-ukim-6-6-2019` | 2019-06 | adopted / month | current | Text says “Скопје, јуни 2019” and repeals the 2008 statute; [official UKIM PDF](https://ukim.edu.mk/wp-content/uploads/2021/05/264_statut_ukim-6.6.2019.pdf). |
 | `cenovnik-finki-2024-25-2` | 2024-07-04 | adopted / day | presumed_current | Date and 2024/25 applicability are printed in the text; it remains valid until replaced; [official FINKI PDF](https://finki.ukim.mk/wp-content/uploads/2026/07/cenovnik_finki_2024-25-2.pdf). |
 | `delovnik-za-rabota-glasnik-682` | 2024-04-22 | published / day | presumed_current | University Gazette 682; adopted 2024-04-01 and effective on publication; [FINKI legal acts](https://www.finki.ukim.mk/mk/zafakultetot/pravni_akti). |
+| `dopolnuvanje-pravilnik-studii-ukim-607-2022` | 2022-03-31 | adopted / day | currentness_unresolved | Senate session 19; Gazette 607, published/effective 2022-04-06. Adds only article 82(4) to 417/2019, plus its own commencement clause. [Official PDF](https://ukim.edu.mk/wp-content/uploads/2024/10/77_427342087.pdf); full scope and conflict evidence below. |
 | `etichki-kodeks-ukim-finki` | 2021-05-10 | published / day | current | University Gazette 549; adopted 2021-05-06 and effective on publication; [UKIM ethical code](https://ukim.edu.mk/univerzitet/dokumenti-2/normativni-akti-2/drugi-akti/etichki-kodeks/). |
 | `grading-scale-finki` | unresolved | unresolved / none | current | The PDF carries no authoritative issuance date; FINKI's current [undergraduate documents and procedures page](https://finki.ukim.mk/studii-2/poddrshka/dokumenti-i-proceduri/dokumenti-i-proceduri-dodiplomski/) links it as the official grading scale. |
 | `izveshtaj-samoevaluacija-finki-2023-2024` | 2023/2024 | coverage_period / academic_year | informational | The report states its coverage period; no signed issuance date is visible; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
@@ -36,6 +39,7 @@ This ledger records the authority evidence behind the machine-readable headers i
 | `pravilnik-kvalitet-nastava-finki` | 2024-05-16 | adopted / day | current | Decision 02-629/2 and immediate effect are printed; [FINKI reports](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/izveshtai-za-fakultetot/). |
 | `pravilnik-standardi-evaluacija-153-2022` | 2022-07-06 | published / day | presumed_current | Official Gazette 153/2022; effective 2022-07-14; [UKIM quality system](https://ukim.edu.mk/univerzitet/kvalitet/sistem-za-kvalitet/). |
 | `pravilnik-studii-prv-vtor-ciklus-finki` | 2013-07-04 | adopted / day | currentness_unresolved | FINKI decision 02-959/1; no later-currentness evidence was established; [FINKI legal acts](https://www.finki.ukim.mk/mk/zafakultetot/pravni_akti). |
+| `pravilnik-studii-prv-vtor-ciklus-ukim-417-2019` | 2018-11-27 | adopted / day | currentness_unresolved | Senate session 26; Gazette 417, published/effective 2019-01-29. Full Macedonian text, articles 1–101, from the [official archive PDF](https://archive.ukim.edu.mk/dokumentacija/74_668210497.pdf). Header uses the approved-host [UKIM rules index](https://ukim.edu.mk/doktorska-shkola/studii/dokumenti/normativni-akti/); its current direct 417 link serves an English version, not these archived Macedonian bytes. See provenance and transitional limits below. |
 | `pravilnik-za-obezbeduvanje-kvalitet-na-univerzitetot-sv-kiril-i-metodij-vo-skopje` | 2024-03-04 | published / day | current | University Gazette 674/2024; adopted 2024-02-28 and effective on publication; [UKIM quality system](https://ukim.edu.mk/univerzitet/kvalitet/sistem-za-kvalitet/). |
 | `pravilnik-za-rabota-na-ovlasteno-lice-za-prierm-na-prijavi-na-korupcija` | unresolved | unresolved / none | currentness_unresolved | Officially linked, but the text has no adoption/publication date; [official PDF](https://finki.ukim.mk/sites/default/files/u703/pravilnik-za-rabota-na-ovlasteno-lice-za-prierm-na-prijavi-na-korupcija.pdf). |
 | `procedura-pristap-ispravka-lichni-podatoci` | 2017-10-17 | issued / day | likely_superseded | Document 03-197; current FINKI privacy page links a newer 2026 upload: [privacy documents](https://finki.ukim.mk/za-nas/administracija-i-dokumenti/zashtita-na-lichni-podatoci/dokumenti/). |
@@ -95,3 +99,49 @@ The 33 direct-file URLs below were downloaded and verified byte-identical to the
 - `zakon-za-visokoto-obrazovanie-nov` — <https://finki.ukim.mk/wp-content/uploads/2026/06/zakon_za_visokoto_obrazovanie_nov.pdf>
 - `zakon-zashtita-lichni-podatoci-42-2020` — <https://azlp.mk/wp-content/uploads/2022/11/zakon_za_zastita_na_licnite_podatoci.pdf>
 - `правилник-за-дисциплинска-одговорност-на-студентите` — <https://finki.ukim.mk/za-nas/administracija-i-dokumenti/pravni-akti-i-dokumenti/>
+
+## UKIM study rules: provenance, scope and conflicts (2026-10-16)
+
+This is repository review evidence, not part of either act. Production import of the two additions is deferred pending downstream conflict handling. The exporter automatically discovers all `processed/` files regardless of status; this ledger, the import deferral and the conflict notes are **not** exported as machine-readable conflict metadata. A successful export or metadata audit is not authorization to ingest these additions.
+
+### Originals and extraction
+
+Both URLs below were fetched again on 2026-10-16 and matched the retained originals byte-for-byte by SHA-256:
+
+| Tracked original in `raw/` | Official download | SHA-256 | Scope of processed text |
+|---|---|---|---|
+| `pravilnik-studii-prv-vtor-ciklus-ukim-417-2019.pdf` | <https://archive.ukim.edu.mk/dokumentacija/74_668210497.pdf> | `9852f353799149f039fa7e6c58a76bc79641d9f211eec99728cb091c6e4b5bc2` | PDF pages 1–22 = Gazette pages 3–24: preamble, all 101 articles, rector signature. PDF page 23 = printed page 25 contains only the running header/page number. |
+| `dopolnuvanje-pravilnik-studii-ukim-607-2022.pdf` | <https://ukim.edu.mk/wp-content/uploads/2024/10/77_427342087.pdf> | `1f4d8a427f53d7d41dc8056defb196d1ce8510dc6c16b662e9370688f4234827` | PDF page 1 = Gazette page 14, right column from the amendment preamble; PDF page 2 = Gazette page 15, left column through the Senate president signature. Other acts on these pages are retained in the raw PDF but excluded from this act's Markdown. |
+
+The [official rules index](https://ukim.edu.mk/doktorska-shkola/studii/dokumenti/normativni-akti/) lists the base rule, this amendment and a separate Annex 1. The archive host is not in the existing metadata host allowlist, so the base document uses this approved official index as `authority_url`, with the exact Macedonian download and hash recorded here. No new metadata fields or host-policy changes are needed. The 2024 upload directory is not an adoption date.
+
+Extraction used local PyMuPDF 1.28.2 text spans, with left-column-then-right-column ordering, the full-width 417 preamble handled separately, and running headers/footers removed. The 417 legacy-font alphabet was mapped to Unicode Macedonian by font, preserving the Latin ECTS grades and “Diploma Supplement”. Wrapped lines were reflowed, three discretionary word splits joined, and embedded Latin `e`/`o` homoglyphs in Macedonian words normalized. No OCR or translation was used. All source text was reviewed in reading order against the PDFs; targeted rendered-page checks covered the typography, grade table, disputed provisions, terminal clauses and both amendment pages. Article headings and PDF/printed-page comment locators are retained; `source_pages` uses PDF page numbers. Source wording/typos are not silently rewritten: for example, article 70 has “од од”, article 90 “Едницата”, and article 81 visibly prints `сP` (Latin P), which is preserved rather than guessing the intended glyph. The raw source remains decisive for these anomalies.
+
+The base is the publication text, not a consolidation through 2022. The amendment is a separate complete two-article act. Article 97 refers to Annex 1 and article 99 requires its later adoption; that separate annex is not contained in the 417 source and is not synthesized here. No claim is made that this pair is the entire later amendment/annex chain.
+
+### Closing clauses and currentness
+
+The preamble dates adoption of 417 to **27 November 2018**; the Gazette header dates publication to **29 January 2019**. On printed page 24 (PDF page 22):
+
+- **Article 98** permits faculty/institute general acts for their specifics, then states: “Одлуките од ставот 1 на овој член не смеат да бидат во спротивност со овој Правилник. Во случај на спротивност, се применува овој Правилник.” This supplies an express priority rule for conflicting unit acts; it is stronger evidence than merely choosing the newer date.
+- **Article 99**: “Анексот 1 од член 97 од овој Правилник ќе се донесе во рок од 6 месеци од влегувањето во сила на овој Правилник.”
+- **Article 100**: “Овој Правилник влегува во сила со денот на објавувањето во Универзитетски гласник.” Thus the recorded effective date is 2019-01-29.
+- **Article 101**: “Студентите запишани до влегувањето во сила на овој Правилник, продолжуваат да студираат според правилата утврдени со студиските програми и одредбите од овој Правилник доколку се поповолни за нив.” Preserve this cohort/favourability condition when answering transitional questions.
+
+There is **no explicit repeal clause** in the complete 417 text and no express wholesale repeal of FINKI's 2013 decision. Article 98 resolves the general priority of conflicting provisions, but does not justify marking every provision of the older faculty document superseded. FINKI 2013 article 32 (PDF page 14) explicitly repeals its own 2012 predecessor, not the later UKIM act.
+
+607's preamble dates adoption to **31 March 2022**, and its Gazette headers show **6 April 2022**. Article 1 adds article 82(4): when an emergency, crisis or war is declared in the country from which a student transfers, the competent unit body may allow transfer even if fewer than 60% of programme credits will be completed at UKIM. Article 2 says: “Овој Правилник влегува во сила со денот на објавувањето во Универзитетски гласник.” Thus its effective date is 2022-04-06. It does not amend examination, objection or grade-entry rules.
+
+These originals and the current index establish provenance and the specific amendment relationship, but not an exhaustive absence of later changes or present applicability to every cohort. Both additions therefore use `currentness_unresolved`; the existing 2013 document retains that status. No `amended_through` claim or synthetic consolidated text is supplied.
+
+### Conflicting exam provisions
+
+These are comparisons of the original Macedonian acts, not translations presented as legal text. The FINKI references below are to `raw/Pravilnik_studii_prv_vtor_ciklus_FINKI.pdf`.
+
+| Topic | FINKI decision 02-959/1 (2013) | UKIM Gazette 417/2019 | Review finding |
+|---|---|---|---|
+| Commission examination | Article 11, PDF p. 4: “четвртиот пат, по барање на студентот” before a three-member commission. | Article 51, printed pp. 13–14 / PDF pp. 11–12: “Ако наставникот двапати го оцени испитот на студентот” with grade 5, the student may request a three-member commission from the dean/director; the original examiner is excluded. | Fourth attempt versus a right after two failing grades. Article 98's priority rule must be considered, along with article 101 for pre-entry-into-force students. |
+| Objection | Article 14, PDF p. 5: to the dean within 24 hours of electronic grade entry; teacher reconsideration within 24 hours if the dean finds the conditions met, with a subsequent commission procedure. | Article 50, printed p. 13 / PDF p. 11: to the subject teacher within 3 working days of publication; reconsideration within 7 working days if the teacher finds the conditions met. Unit acts may regulate commission examination in these cases. | Different recipient, trigger, deadline and procedure. Do not combine the 24-hour trigger with the UKIM procedure. |
+| Grade entry | Article 13, PDF p. 5: electronic entry within 10 working days plus 1 working day per 50 students from the exam; return of applications within 10 working days after the exam. | Article 56, printed p. 14 / PDF p. 12: final grades entered electronically and on applications, and delivered with the final-assessment report, within 5 working days from finality of the grade. Article 49 separately regulates publication within 7 working days of examination and inspection within 2 working days of publication. | The clock starts at different events; publication, finality and entry must remain distinct. |
+
+**Higher-grade repeats are not a local-only rule.** UKIM article 60 (printed p. 15 / PDF p. 13) expressly allows a requested repeat for a higher final grade within at most four months of the exam; request goes to the dean, who annuls the grade by decision, and the repeat grade is final. FINKI article 14 also contains a four-month repeat rule, with different administrative routing.

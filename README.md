@@ -29,6 +29,8 @@ Every reviewed file starts with one HTML comment containing pipe-separated metad
 
 Use optional typed fields such as `issued`, `published`, `effective_from`, `amended_through`, `valid_until`, or `coverage_period` when they add meaning beyond the primary date. File creation, modification, export, and upload timestamps are never legal issuance evidence; they may only be recorded separately as weak provenance. See [METADATA.md](METADATA.md) for the corpus evidence ledger and allowed status values.
 
+The UKIM study rules (Gazette 417/2019) and separate amendment (607/2022) have [provenance, transitional provisions and conflict evidence](METADATA.md#ukim-study-rules-provenance-scope-and-conflicts-2026-10-16) recorded in the ledger. **Production import of these additions is deferred pending downstream conflict handling.** Export discovery still includes them automatically: neither `currentness_unresolved` nor repository review notes enforce an ingestion exclusion, and these notes are not exported as conflict metadata.
+
 ## Working with it
 
 Run from the repo root with [`uv`](https://github.com/astral-sh/uv):
