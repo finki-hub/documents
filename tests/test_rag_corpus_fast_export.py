@@ -124,6 +124,25 @@ def test_fast_path_exports_pages_without_allowlist_or_wall_clock_filter(
     assert any(entry.name.startswith("website/") for entry in bundle.entries)
 
 
+def test_fast_export_discovers_person_list_metadata(tmp_path: Path) -> None:
+    root = _source_tree(tmp_path)
+    entries = {
+        entry.name: entry
+        for entry in bundle_module._discover_entries(root)  # noqa: SLF001
+    }
+
+    for source_id in (
+        "finki-deanery",
+        "finki-deanery-administration",
+        "finki-teaching-scientific-council",
+    ):
+        entry = entries[f"website/{source_id}"]
+        assert entry.metadata["content_kind"] == "person-list"
+        assert entry.metadata["category"] == "institutional"
+        assert entry.metadata["source_class"] == "official_website_informational"
+        assert entry.metadata["authority_rank"] == "informational"
+
+
 def test_fast_path_requires_raw_directory_and_provenance_files(tmp_path: Path) -> None:
     root = _source_tree(tmp_path)
     shutil.rmtree(root / "raw")

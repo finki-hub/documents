@@ -87,7 +87,7 @@ def _refresh_with_responses(
     return requested
 
 
-def test_task3_source_config_contains_exact_approved_25_pages() -> None:
+def test_task3_source_config_contains_exact_approved_28_pages() -> None:
     expected = {
         "finki-about": (
             "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/",
@@ -124,6 +124,24 @@ def test_task3_source_config_contains_exact_approved_25_pages() -> None:
             "mk",
             "organizations",
             ".page-content__body",
+        ),
+        "finki-deanery": (
+            "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/",
+            "mk",
+            "institutional",
+            ".dekanat-section",
+        ),
+        "finki-deanery-administration": (
+            "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanatska-uprava/",
+            "mk",
+            "institutional",
+            ".dekanat-section",
+        ),
+        "finki-teaching-scientific-council": (
+            "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-nauchen-sovet/",
+            "mk",
+            "institutional",
+            ".kadar-grid",
         ),
         "finki-laboratories": (
             "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/laboratorii/",
@@ -240,9 +258,17 @@ def test_task3_source_config_contains_exact_approved_25_pages() -> None:
             ".page-content__body",
         ),
     }
-    structured_ids = {"finki-centers", "ug-required-subjects"}
+    structured_ids = {
+        "finki-centers",
+        "ug-required-subjects",
+    }
+    person_list_ids = {
+        "finki-deanery",
+        "finki-deanery-administration",
+        "finki-teaching-scientific-council",
+    }
     link_catalog_ids = {"student-forms"}
-    sources = load_sources(SOURCES, today=date(2026, 9, 7))
+    sources = load_sources(SOURCES, today=date(2026, 10, 15))
     records = {
         source.id: (
             source.source_url,
@@ -265,6 +291,8 @@ def test_task3_source_config_contains_exact_approved_25_pages() -> None:
             (
                 "structured"
                 if source_id in structured_ids
+                else "person-list"
+                if source_id in person_list_ids
                 else "link-catalog"
                 if source_id in link_catalog_ids
                 else "prose"
@@ -272,14 +300,21 @@ def test_task3_source_config_contains_exact_approved_25_pages() -> None:
         )
         for source_id, (url, language, category, selector) in expected.items()
     }
+    assert len(sources) == 28
     assert sum(source.content_kind == "prose" for source in sources) == 22
     assert {
         source.id for source in sources if source.content_kind == "structured"
     } == structured_ids
     assert {
+        source.id for source in sources if source.content_kind == "person-list"
+    } == person_list_ids
+    assert {
         source.id for source in sources if source.content_kind == "link-catalog"
     } == link_catalog_ids
-    assert {source.last_verified for source in sources} == {date(2026, 9, 7)}
+    assert {source.last_verified for source in sources} == {
+        date(2026, 9, 7),
+        date(2026, 10, 15),
+    }
     assert not {
         "study-guide",
         "student-practice",
@@ -371,6 +406,61 @@ def test_structured_content_kind_accepts_repeated_headings_and_rejects_bad_shell
         website_reference_module.validate_reference_body(
             link_dominated_shell, "finki-centers", content_kind="structured"
         )
+
+
+def test_person_list_preserves_official_profiles_roles_and_public_emails() -> None:
+    source = replace(
+        _source("deanery", "/en/deanery/"),
+        content_kind="person-list",
+        content_selectors=(".dekanat-section",),
+    )
+    html = _html(
+        "Deanery",
+        """<section class="dekanat-section">
+        <article><p>Dean</p><a href="https://finki.ukim.mk/kadar/person-one/">Dr. Ana Example</a>
+        <a href="mailto:ana@example.invalid">ana@example.invalid</a></article>
+        <article><p>Vice Dean for Teaching</p><a href="/kadar/person-two/">Dr. Boro Example</a>
+        <a href="mailto:boro@example.invalid">boro@example.invalid</a></article>
+        </section>""",
+    )
+
+    document = website_reference_module.extract_reference_document(html, source)
+    body = website_reference_module.validate_reference_body(
+        document.markdown, source.id, content_kind="person-list"
+    )
+
+    assert "Dean" in body
+    assert "Vice Dean for Teaching" in body
+    assert "Dr. Ana Example" in body
+    assert "Dr. Boro Example" in body
+    assert "ana@example.invalid" in body
+    assert "mailto:boro@example.invalid" in body
+    assert "https://finki.ukim.mk/kadar/person-one/" in body
+    assert "https://finki.ukim.mk/kadar/person-two/" in body
+
+
+def test_person_list_rejects_empty_boilerplate_navigation_and_invalid_profiles() -> (
+    None
+):
+    duplicate_profile = "- [Ana Example](https://finki.ukim.mk/kadar/ana/)"
+    valid_profile = "- [Boro Example](https://finki.ukim.mk/kadar/boro/)"
+    invalid_bodies = (
+        "",
+        "Navigation",
+        "- [Ana Example](https://finki.ukim.mk/kadar/ana/)",
+        "\n".join([duplicate_profile] * 3),
+        f"{duplicate_profile}\n- [Ana Example](https://finki.ukim.mk/kadar/other/)",
+        f"{duplicate_profile}\n- [Home](https://finki.ukim.mk/kadar/boro/)",
+        f"{duplicate_profile}\n- [Boro Example](https://example.com/kadar/boro/)",
+        f"{duplicate_profile}\n- [Boro Example](https://finki.ukim.mk/people/boro/)",
+        f"{duplicate_profile}\n{valid_profile}\n{valid_profile}",
+        "\n".join(["- [Home](https://finki.ukim.mk/house/)"] * 3),
+    )
+    for invalid_body in invalid_bodies:
+        with pytest.raises(ValueError, match="person-list|navigation|quality"):
+            website_reference_module.validate_reference_body(
+                invalid_body, "finki-council", content_kind="person-list"
+            )
 
 
 def test_link_catalog_requires_distinct_labeled_http_links() -> None:
@@ -1066,7 +1156,7 @@ def test_direct_legacy_source_refreshes_without_following_page_links(
     ],
 )
 def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None:
-    first_source = load_sources(SOURCES, today=date(2026, 9, 7))[0]
+    first_source = load_sources(SOURCES, today=date(2026, 10, 15))[0]
     text = SOURCES.read_text(encoding="utf-8")
     text = text.replace(
         f'source_url = "{first_source.source_url}"',
@@ -1082,7 +1172,7 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
     path.write_text(text, encoding="utf-8")
 
     with pytest.raises(ValueError, match="(URL|route|candidate|HTTPS|host|query)"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=date(2026, 10, 15))
 
 
 @pytest.mark.parametrize(
@@ -1620,7 +1710,7 @@ def test_validate_aggregate_alias_checks_allowlist() -> None:
 
 def test_committed_aggregate_matches_allowlist_exactly() -> None:
     aggregate_path = ROOT / "website-reference" / "finki-static-pages.md"
-    sources = load_sources(SOURCES, today=date(2026, 9, 7))
+    sources = load_sources(SOURCES, today=date(2026, 10, 15))
     text = aggregate_path.read_text(encoding="utf-8", newline="")
 
     pages = validate_aggregate(text, sources)
@@ -1633,7 +1723,7 @@ def test_committed_aggregate_matches_allowlist_exactly() -> None:
 
 
 def test_committed_aggregate_has_only_qualified_source_contract() -> None:
-    sources = load_sources(SOURCES, today=date(2026, 9, 7))
+    sources = load_sources(SOURCES, today=date(2026, 10, 15))
     pages = validate_aggregate(
         (ROOT / "website-reference" / "finki-static-pages.md").read_text(
             encoding="utf-8"
@@ -1657,3 +1747,14 @@ def test_committed_aggregate_has_only_qualified_source_contract() -> None:
         for source in sources
         for page in [page_by_id[source.id]]
     )
+    deanery = page_by_id["finki-deanery"].body
+    assert deanery.count("](https://finki.ukim.mk/kadar/") == 5
+    assert "Продекан за настава" in deanery
+    assert "petre.lameski@finki.ukim.mk" in deanery
+    administration = page_by_id["finki-deanery-administration"].body
+    assert administration.count("](https://finki.ukim.mk/kadar/") == 8
+    assert "Раководител на институт за софтверско инженерство" in administration
+    assert "vesna.dimitrova@finki.ukim.mk" in administration
+    council = page_by_id["finki-teaching-scientific-council"].body
+    assert council.count("](https://finki.ukim.mk/kadar/") == 60
+    assert "д-р Марјан Гушев" in council

@@ -228,6 +228,106 @@ sha256: c0cc2931eefcfafb2de0566d2e64d013d387f8fe9e1fbbf613da09f9326b6e7b
 - [Простор за фокусирање при учење, колегијална поддршка и намалување на академскиот стрес – ФОКУС Лаб](https://finki.ukim.mk/wp-content/uploads/2026/08/fokus-lab-odluka.pdf); [Раководител](https://finki.ukim.mk/kadar/d-r-ana-madevska-bogdanova/)
 <!-- finki-static-page:end -->
 
+<!-- finki-static-page:start id=finki-deanery -->
+source_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/
+canonical_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/
+language: mk
+category: institutional
+content_kind: person-list
+last_verified: 2026-10-15
+title: Деканат – ФИНКИ
+sha256: 59b6d0681e47bd4212f605481d199707f522b807171a2adb1857a16c4bab2cd6
+
+Декан
+
+### [д-р Петре Ламески](https://finki.ukim.mk/kadar/d-r-petre-lameski/)
+
+[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
+
+Продекан за настава
+
+### [д-р Дејан Спасов](https://finki.ukim.mk/kadar/d-r-dejan-spasov/)
+
+[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
+
+Продекан за наука и соработка
+
+### [д-р Ристе Стојанов](https://finki.ukim.mk/kadar/d-r-riste-stojanov/)
+
+[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
+
+Продекан за финансии
+
+### [д-р Александра Поповска Митровиќ](https://finki.ukim.mk/kadar/d-r-aleksandra-popovska-mitrovikj/)
+
+[aleksandra.popovska.mitrovikj@finki.ukim.mk](mailto:aleksandra.popovska.mitrovikj@finki.ukim.mk)
+
+Секретар
+
+### [м-р Игор Цветановски](https://finki.ukim.mk/kadar/m-r-igor-cvetanovski/)
+
+[igor.cvetanovski@finki.ukim.mk](mailto:igor.cvetanovski@finki.ukim.mk)
+<!-- finki-static-page:end -->
+
+<!-- finki-static-page:start id=finki-deanery-administration -->
+source_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanatska-uprava/
+canonical_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanatska-uprava/
+language: mk
+category: institutional
+content_kind: person-list
+last_verified: 2026-10-15
+title: Деканатска управа – ФИНКИ
+sha256: eaacef7b365183c94482fdaa0362f243e0cad0c915606871fb248905eefc62f0
+
+Декан
+
+### [д-р Петре Ламески](https://finki.ukim.mk/kadar/d-r-petre-lameski/)
+
+[petre.lameski@finki.ukim.mk](mailto:petre.lameski@finki.ukim.mk)
+
+Продекан за настава
+
+### [д-р Дејан Спасов](https://finki.ukim.mk/kadar/d-r-dejan-spasov/)
+
+[dejan.spasov@finki.ukim.mk](mailto:dejan.spasov@finki.ukim.mk)
+
+Продекан за наука и соработка
+
+### [д-р Ристе Стојанов](https://finki.ukim.mk/kadar/d-r-riste-stojanov/)
+
+[riste.stojanov@finki.ukim.mk](mailto:riste.stojanov@finki.ukim.mk)
+
+Продекан за финансии
+
+### [д-р Александра Поповска Митровиќ](https://finki.ukim.mk/kadar/d-r-aleksandra-popovska-mitrovikj/)
+
+[aleksandra.popovska.mitrovikj@finki.ukim.mk](mailto:aleksandra.popovska.mitrovikj@finki.ukim.mk)
+
+Раководител на институт за теориски основи на информатика и пресметковно инженерство
+
+### [д-р Весна Димитрова](https://finki.ukim.mk/kadar/d-r-vesna-dimitrova/)
+
+[vesna.dimitrova@finki.ukim.mk](mailto:vesna.dimitrova@finki.ukim.mk)
+
+Раководител на институт за софтверско инженерство
+
+### [д-р Иван Чорбев](https://finki.ukim.mk/kadar/d-r-ivan-chorbev/)
+
+[ivan.chorbev@finki.ukim.mk](mailto:ivan.chorbev@finki.ukim.mk)
+
+Раководител на институт за информациски системи и мрежни технологии
+
+### [д-р Боро Јакимовски](https://finki.ukim.mk/kadar/d-r-boro-jakimovski/)
+
+[boro.jakimovski@finki.ukim.mk](mailto:boro.jakimovski@finki.ukim.mk)
+
+Раководител на институт за интелигентни системи
+
+### [д-р Невена Ацковска](https://finki.ukim.mk/kadar/d-r-nevena-ackovska/)
+
+[nevena.ackovska@finki.ukim.mk](mailto:nevena.ackovska@finki.ukim.mk)
+<!-- finki-static-page:end -->
+
 <!-- finki-static-page:start id=finki-history -->
 source_url: https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/istorijat/
 canonical_url: https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/istorijat/
@@ -339,6 +439,137 @@ sha256: 8274472669441b8d9f73131827a1a7aba5f07e50f86c0b4a710314059734fcee
 8. Поддршка на дигиталната трансформација на општеството преку развој на современи информатички решенија.
 9. Јакнење на системот за обезбедување квалитет и институционална извонредност.
 10. Развој на човечките ресурси преку континуирана едукација, професионален развој и доживотно учење.
+<!-- finki-static-page:end -->
+
+<!-- finki-static-page:start id=finki-teaching-scientific-council -->
+source_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-nauchen-sovet/
+canonical_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-nauchen-sovet/
+language: mk
+category: institutional
+content_kind: person-list
+last_verified: 2026-10-15
+title: Наставно-научен совет – ФИНКИ
+sha256: 76725335783333abd10d6e54e9c93cb8888b3fe71bdf38205154250341a23496
+
+[д-р Марјан Гушев](https://finki.ukim.mk/kadar/d-r-marjan-gushev/)
+
+[д-р Катерина Здравкова](https://finki.ukim.mk/kadar/d-r-katerina-zdravkova/)
+
+[д-р Сузана Лошковска](https://finki.ukim.mk/kadar/d-r-suzana-loshkovska/)
+
+[д-р Верица Бакева](https://finki.ukim.mk/kadar/d-r-verica-bakeva/)
+
+[д-р Владимир Трајковиќ](https://finki.ukim.mk/kadar/d-r-vladimir-trajkovikj/)
+
+[д-р Ана Мадевска Богданова](https://finki.ukim.mk/kadar/d-r-ana-madevska-bogdanova/)
+
+[д-р Дејан Ѓорѓевиќ](https://finki.ukim.mk/kadar/d-r-dejan-gjorgjevikj/)
+
+[д-р Димитар Трајанов](https://finki.ukim.mk/kadar/d-r-dimitar-trajanov/)
+
+[д-р Андреа Кулаков](https://finki.ukim.mk/kadar/d-r-andrea-kulakov/)
+
+[д-р Љупчо Антовски](https://finki.ukim.mk/kadar/d-r-ljupcho-antovski/)
+
+[д-р Марија Михова](https://finki.ukim.mk/kadar/d-r-marija-mihova/)
+
+[д-р Слободан Калајџиски](https://finki.ukim.mk/kadar/d-r-slobodan-kalajdzhiski/)
+
+[д-р Невена Ацковска](https://finki.ukim.mk/kadar/d-r-nevena-ackovska/)
+
+[д-р Горан Велинов](https://finki.ukim.mk/kadar/d-r-goran-velinov/)
+
+[д-р Анастас Мишев](https://finki.ukim.mk/kadar/d-r-anastas-mishev/)
+
+[д-р Соња Филипоска](https://finki.ukim.mk/kadar/d-r-sonja-filiposka/)
+
+[д-р Иван Чорбев](https://finki.ukim.mk/kadar/d-r-ivan-chorbev/)
+
+[д-р Ласко Баснарков](https://finki.ukim.mk/kadar/d-r-lasko-basnarkov/)
+
+[д-р Боро Јакимовски](https://finki.ukim.mk/kadar/d-r-boro-jakimovski/)
+
+[д-р Весна Димитрова](https://finki.ukim.mk/kadar/d-r-vesna-dimitrova/)
+
+[д-р Гоце Арменски](https://finki.ukim.mk/kadar/d-r-goce-armenski/)
+
+[д-р Соња Гиевска](https://finki.ukim.mk/kadar/d-r-sonja-gievska/)
+
+[д-р Дејан Спасов](https://finki.ukim.mk/kadar/d-r-dejan-spasov/)
+
+[д-р Ивица Димитровски](https://finki.ukim.mk/kadar/d-r-ivica-dimitrovski/)
+
+[д-р Игор Мишковски](https://finki.ukim.mk/kadar/d-r-igor-mishkovski/)
+
+[д-р Ѓорѓи Маџаров](https://finki.ukim.mk/kadar/d-r-gjorgji-madzharov/)
+
+[д-р Смилка Јанеска-Саркањац](https://finki.ukim.mk/kadar/d-r-smilka-janeska-sarkanjac/)
+
+[д-р Вангел Ајановски](https://finki.ukim.mk/kadar/d-r-vangel-ajanovski/)
+
+[д-р Весна Димитриевска Ристовска](https://finki.ukim.mk/kadar/d-r-vesna-dimitrievska-ristovska/)
+
+[д-р Миле Јованов](https://finki.ukim.mk/kadar/d-r-mile-jovanov/)
+
+[д-р Билјана Стојкоска](https://finki.ukim.mk/kadar/d-r-biljana-stojkoska/)
+
+[д-р Кире Триводалиев](https://finki.ukim.mk/kadar/d-r-kire-trivodaliev/)
+
+[д-р Сашо Граматиков](https://finki.ukim.mk/kadar/d-r-sasho-gramatikov/)
+
+[д-р Мирослав Мирчев](https://finki.ukim.mk/kadar/d-r-miroslav-mirchev/)
+
+[д-р Георгина Мирчева](https://finki.ukim.mk/kadar/d-r-georgina-mircheva/)
+
+[д-р Магдалена Костоска](https://finki.ukim.mk/kadar/d-r-magdalena-kostoska/)
+
+[д-р Александра Поповска Митровиќ](https://finki.ukim.mk/kadar/d-r-aleksandra-popovska-mitrovikj/)
+
+[д-р Наташа Илиевска](https://finki.ukim.mk/kadar/d-r-natasha-ilievska/)
+
+[д-р Андреја Наумоски](https://finki.ukim.mk/kadar/d-r-andreja-naumoski/)
+
+[д-р Билјана Тојтовска](https://finki.ukim.mk/kadar/d-r-biljana-tojtovska/)
+
+[д-р Милош Јовановиќ](https://finki.ukim.mk/kadar/d-r-milos-jovanovik/)
+
+[д-р Панче Рибарски](https://finki.ukim.mk/kadar/d-r-panche-ribarski/)
+
+[д-р Христина Михајлоска](https://finki.ukim.mk/kadar/d-r-hristina-mihajloska/)
+
+[д-р Иван Китановски](https://finki.ukim.mk/kadar/d-r-ivan-kitanovski/)
+
+[д-р Ефтим Здравевски](https://finki.ukim.mk/kadar/d-r-eftim-zdravevski/)
+
+[д-р Петре Ламески](https://finki.ukim.mk/kadar/d-r-petre-lameski/)
+
+[д-р Катарина Тројачанец Динева](https://finki.ukim.mk/kadar/d-r-katarina-trojachanec-dineva/)
+
+[д-р Владимир Здравески](https://finki.ukim.mk/kadar/d-r-vladimir-zdraveski/)
+
+[д-р Бојана Котеска](https://finki.ukim.mk/kadar/d-r-bojana-koteska/)
+
+[д-р Моника Симјаноска](https://finki.ukim.mk/kadar/d-r-monika-simjanoska/)
+
+[д-р Методија Јанчески](https://finki.ukim.mk/kadar/d-r-metodija-jancheski/)
+
+[д-р Ристе Стојанов](https://finki.ukim.mk/kadar/d-r-riste-stojanov/)
+
+[д-р Александра Дединец](https://finki.ukim.mk/kadar/d-r-aleksandra-dedinec/)
+
+[д-р Бобан Јоксимоски](https://finki.ukim.mk/kadar/d-r-boban-joksimoski/)
+
+[д-р Емил Станков](https://finki.ukim.mk/kadar/d-r-emil-stankov/)
+
+[д-р Илинка Иваноска](https://finki.ukim.mk/kadar/d-r-ilinka-ivanoska/)
+
+[д-р Бојан Илијоски](https://finki.ukim.mk/kadar/d-r-bojan-ilijoski/)
+
+[д-р Костадин Мишев](https://finki.ukim.mk/kadar/d-r-kostadin-mishev/)
+
+[д-р Александар Стојменски](https://finki.ukim.mk/kadar/d-r-aleksandar-stojmenski/)
+
+[м-р. Александар Тенев](https://finki.ukim.mk/kadar/m-r-aleksandar-tenev/)
 <!-- finki-static-page:end -->
 
 <!-- finki-static-page:start id=finki-vision -->
