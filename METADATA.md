@@ -102,7 +102,7 @@ The 33 direct-file URLs below were downloaded and verified byte-identical to the
 
 ## UKIM study rules: provenance, scope and conflicts (2026-10-16)
 
-This is repository review evidence, not part of either act. Production import of the two additions is deferred pending downstream conflict handling. The exporter automatically discovers all `processed/` files regardless of status; this ledger, the import deferral and the conflict notes are **not** exported as machine-readable conflict metadata. A successful export or metadata audit is not authorization to ingest these additions.
+This is repository review evidence, not part of either act. The objection and grade-entry conflicts below are resolved downstream rather than in this repository: in practice FINKI applies neither procedure, which the chat-bot FAQ „Закаснет внес на оцена и запишување семестар без оцени“ and its assistant note state. This ledger and the conflict notes are still **not** exported as machine-readable conflict metadata.
 
 ### Originals and extraction
 
