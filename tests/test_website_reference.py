@@ -378,6 +378,57 @@ def test_source_contract_requires_v2_and_explicit_known_content_kind(
         load_sources(unknown_kind, today=date(2026, 9, 7))
 
 
+def test_source_title_override_is_optional_and_must_be_non_blank(
+    tmp_path: Path,
+) -> None:
+    today = date(2026, 10, 15)
+    sources = load_sources(SOURCES, today=today)
+    first = next(source for source in sources if source.title is None)
+    text = SOURCES.read_text(encoding="utf-8")
+    id_line = f'id = "{first.id}"\n'
+
+    titled = tmp_path / "titled.toml"
+    titled.write_text(
+        text.replace(id_line, f'{id_line}title = "  Specific   title "\n', 1),
+        encoding="utf-8",
+    )
+    titled_sources = load_sources(titled, today=today)
+    assert [source.title for source in titled_sources if source.id == first.id] == [
+        "Specific title"
+    ]
+    assert [source.title for source in sources if source.title is not None]
+
+    blank = tmp_path / "blank.toml"
+    blank.write_text(
+        text.replace(id_line, f'{id_line}title = "  "\n', 1), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="title"):
+        load_sources(blank, today=today)
+
+
+def test_refresh_uses_source_title_override_and_check_enforces_it(
+    tmp_path: Path,
+) -> None:
+    source = replace(_source("titled-page", "/en/studies/"), title="Specific title")
+    output = tmp_path / "aggregate.md"
+    _refresh_with_responses(
+        (source,),
+        output,
+        {
+            source.source_url: httpx2.Response(
+                200,
+                headers={"content-type": "text/html; charset=utf-8"},
+                text=_html("Generic title", f"<p>{_prose('Studies')}</p>"),
+            )
+        },
+    )
+
+    text = output.read_text(encoding="utf-8")
+    assert parse_aggregate(text)[0].title == "Specific title"
+    with pytest.raises(ValueError, match="metadata differs"):
+        validate_aggregate(text, (replace(source, title="Other title"),))
+
+
 def test_structured_content_kind_accepts_repeated_headings_and_rejects_bad_shell() -> (
     None
 ):

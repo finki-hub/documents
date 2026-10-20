@@ -77,6 +77,8 @@ _SOURCE_KEYS = frozenset(
         "content_selectors",
     }
 )
+# Overrides the scraped title, e.g. when several pages share one generic title.
+_OPTIONAL_SOURCE_KEYS = frozenset({"title"})
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _START_PATTERN = re.compile(
@@ -172,6 +174,7 @@ class ReferenceSource:
     content_kind: str
     last_verified: date
     content_selectors: tuple[str, ...]
+    title: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -356,9 +359,9 @@ def _routes_match(source_url: str, canonical_url: str) -> bool:
 def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     if not isinstance(raw, Mapping):
         raise _error("each source must be a table")
-    if set(raw) != _SOURCE_KEYS:
+    if set(raw) - _OPTIONAL_SOURCE_KEYS != _SOURCE_KEYS:
         missing = sorted(_SOURCE_KEYS - set(raw))
-        extra = sorted(set(raw) - _SOURCE_KEYS)
+        extra = sorted(set(raw) - _SOURCE_KEYS - _OPTIONAL_SOURCE_KEYS)
         detail = f"missing {missing}" if missing else f"unknown fields {extra}"
         raise _error(f"source has {detail}")
     source_id = _text(raw["id"], "id")
@@ -372,6 +375,11 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     source_url = _text(raw["source_url"], "source_url")
     canonical_url = _text(raw["canonical_url"], "canonical_url")
     content_selectors = _content_selectors(raw["content_selectors"])
+    title = None
+    if "title" in raw:
+        title = _normalized_title(_text(raw["title"], "title"))
+        if not title or _MARKER_PREFIX in title:
+            raise _error("title must be a non-empty single-line title")
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
     if not _routes_match(source_url, canonical_url):
@@ -394,6 +402,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         content_kind=content_kind,
         last_verified=verified,
         content_selectors=content_selectors,
+        title=title,
     )
 
 
@@ -779,6 +788,7 @@ def check_aggregate(
             or page.category != source.category
             or page.content_kind != source.content_kind
             or page.last_verified != source.last_verified
+            or (source.title is not None and page.title != source.title)
         ):
             raise _error(f"aggregate metadata differs for {page.source_id}")
         if contains_sensitive_personal_identifier(title=page.title, markdown=page.body):
@@ -929,7 +939,7 @@ async def _fetch_reference_pages(
             document = extract_reference_document(html, source)
         except WebsiteContentError as exc:
             raise _error(f"cannot convert page {source.id}: {exc}") from exc
-        title = _normalized_title(document.title)
+        title = source.title or _normalized_title(document.title)
         body = _validate_reference_body(
             document.markdown, source.id, content_kind=source.content_kind
         )
