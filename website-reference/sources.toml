@@ -122,12 +122,13 @@ content_selectors = ["main.site-main .page-content__body"]
 
 [[sources]]
 id = "electronic-documents"
+title = "Упатство за е-Документи: барање електронски и хартиени документи преку iKnow – ФИНКИ"
 source_url = "https://finki.ukim.mk/elektronski-dokumenti/"
 canonical_url = "https://finki.ukim.mk/elektronski-dokumenti/"
 language = "mk"
 category = "forms"
 content_kind = "prose"
-last_verified = "2026-09-07"
+last_verified = "2026-10-20"
 content_selectors = ["main.site-main .page-content__body"]
 
 [[sources]]
@@ -210,7 +211,7 @@ canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumen
 language = "mk"
 category = "forms"
 content_kind = "prose"
-last_verified = "2026-09-07"
+last_verified = "2026-10-20"
 content_selectors = [".page-content__body"]
 
 [[sources]]

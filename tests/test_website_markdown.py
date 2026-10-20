@@ -158,6 +158,30 @@ def test_document_from_page_keeps_encoded_html_inert() -> None:
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in document.markdown
 
 
+def test_document_from_page_keeps_link_spacing_and_drops_link_tooltips() -> None:
+    document = document_from_page(
+        "<main><h1>Notice</h1>"
+        '<p>регистрирај се на<strong>&nbsp;<a href="https://upisi.ukim.mk/">'
+        "upisi.ukim.mk</a>\xa0</strong>и пополни "
+        '<a href="/form.pdf" title="https://finki.ukim.mk/sites/default/files/old.pdf">'
+        "образец</a>, <a href='/izjava.pdf'><b>изјава</b></a><b>&nbsp;</b>за упис, "
+        "или отвори "
+        '<a href="https://dokumenti.iknow.ukim.mk">https://dokumenti.iknow.ukim.mk</a>'
+        "</p></main>",
+        "https://finki.ukim.mk/notice/",
+    )
+
+    assert "на **[upisi.ukim.mk](https://upisi.ukim.mk/)** и" in document.markdown
+    assert "[образец](https://finki.ukim.mk/form.pdf)," in document.markdown
+    assert "[**изјава**](https://finki.ukim.mk/izjava.pdf) за упис" in document.markdown
+    assert "sites/default/files" not in document.markdown
+    assert (
+        "[https://dokumenti.iknow.ukim.mk](https://dokumenti.iknow.ukim.mk)"
+        in document.markdown
+    )
+    assert "&lt;https" not in document.markdown
+
+
 def test_document_from_page_preserves_all_articles_in_main() -> None:
     document = document_from_page(
         """
