@@ -182,6 +182,7 @@ content_selectors = ["main.site-main .page-content__body"]
 
 [[sources]]
 id = "ug-study-program-choice"
+title = "Избор на студиска програма при упис на прв циклус (додипломски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/izbor-na-studiska-programa/"
 canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/izbor-na-studiska-programa/"
 language = "mk"
@@ -192,6 +193,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "ug-required-subjects"
+title = "Потребни предмети од државна матура за упис на прв циклус (додипломски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-predmeti/"
 canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-predmeti/"
 language = "mk"
@@ -213,6 +215,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "ug-scholarships"
+title = "Стипендии за новозапишани студенти на прв циклус (додипломски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/stipendii/"
 canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/stipendii/"
 language = "mk"
@@ -267,6 +270,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "international-undergraduate-admissions"
+title = "Undergraduate Studies for International Students – ФИНКИ"
 source_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/"
 canonical_url = "https://finki.ukim.mk/internacionalni-studenti/admissions/undergraduate-studies-for-international-students/"
 language = "en"
