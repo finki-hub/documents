@@ -97,6 +97,19 @@ def _sanitize_html(value: str, base_url: str) -> str:
         heading_text = heading.text(separator=" ", strip=True).replace("\xa0", " ")
         if not heading_text.strip():
             heading.decompose()
+    # markdownify drops whitespace-only inline tags, space included: "</a><b>&nbsp;</b>за".
+    for node in parser.root.css("b, strong, i, em, span"):
+        child = node.child
+        if (
+            child is not None
+            and child.next is None
+            and child.tag == "-text"
+            and not node.text().replace("\xa0", " ").strip()
+        ):
+            node.replace_with(" ")
+    for node in parser.root.css("a[title]"):
+        # Sites keep stale URLs in link tooltips; the target is the only useful part.
+        del node.attrs["title"]
     for node in parser.root.css("a[href]"):
         href = node.attributes.get("href")
         if href and (safe_link := _safe_link(href, base_url)) is not None:
@@ -113,8 +126,12 @@ def _sanitize_html(value: str, base_url: str) -> str:
 
 
 def _markdown_from_html(value: str, base_url: str) -> str:
+    # markdownify moves plain spaces out of inline tags but drops non-breaking ones,
+    # which glues "на<strong>&nbsp;<a>…</a>&nbsp;</strong>и" into "на**[…]**и".
+    sanitized = _sanitize_html(value, base_url).replace("&nbsp;", " ")
     converted = markdownify(
-        _sanitize_html(value, base_url),
+        sanitized.replace("\xa0", " "),
+        autolinks=False,
         bullets="-",
         heading_style="ATX",
         strip=["script", "style", "noscript", "template", "svg"],
