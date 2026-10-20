@@ -202,6 +202,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "ug-required-documents"
+title = "Потребни документи за упис на прв циклус (додипломски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumenti/"
 canonical_url = "https://finki.ukim.mk/upisi/dodiplomski-studii/potrebni-dokumenti/"
 language = "mk"
@@ -222,6 +223,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "masters-required-documents"
+title = "Потребни документи за упис на втор циклус (магистерски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/magisterski-studii/potrebni-dokumenti/"
 canonical_url = "https://finki.ukim.mk/upisi/magisterski-studii/potrebni-dokumenti/"
 language = "mk"
@@ -232,6 +234,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "masters-admission-conditions"
+title = "Услови за упис на втор циклус (магистерски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/magisterski-studii/uslovi/"
 canonical_url = "https://finki.ukim.mk/upisi/magisterski-studii/uslovi/"
 language = "mk"
@@ -242,6 +245,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "doctoral-required-documents"
+title = "Потребни документи за упис на трет циклус (докторски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/doktorski-studii/potrebni-dokumenti/"
 canonical_url = "https://finki.ukim.mk/upisi/doktorski-studii/potrebni-dokumenti/"
 language = "mk"
@@ -252,6 +256,7 @@ content_selectors = [".page-content__body"]
 
 [[sources]]
 id = "doctoral-admission-conditions"
+title = "Услови за упис на трет циклус (докторски) студии – ФИНКИ"
 source_url = "https://finki.ukim.mk/upisi/doktorski-studii/uslovi/"
 canonical_url = "https://finki.ukim.mk/upisi/doktorski-studii/uslovi/"
 language = "mk"
