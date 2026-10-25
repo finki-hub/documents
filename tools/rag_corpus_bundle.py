@@ -217,6 +217,8 @@ def _website_entry(
         "category": page.category,
         "content_kind": page.content_kind,
     }
+    if page.assistant_note is not None:
+        metadata["assistant_note"] = page.assistant_note
     emitted = _canonical_markdown(page.body)
     return CorpusEntry(
         name=f"website/{page.source_id}",

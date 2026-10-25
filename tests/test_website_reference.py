@@ -1900,3 +1900,77 @@ def test_governance_roster_roles_follow_their_own_profile_headings() -> None:
         not line or (line.startswith("[") and "](https://finki.ukim.mk/kadar/" in line)
         for line in council.splitlines()
     )
+
+
+def test_source_assistant_note_round_trips_and_check_enforces_it(
+    tmp_path: Path,
+) -> None:
+    today = date(2026, 10, 20)
+    text = SOURCES.read_text(encoding="utf-8")
+    first = next(
+        source
+        for source in load_sources(SOURCES, today=today)
+        if source.assistant_note is None
+    )
+    id_line = f'id = "{first.id}"\n'
+    note = "Internal guidance for the assistant."
+
+    noted = tmp_path / "noted.toml"
+    noted.write_text(
+        text.replace(id_line, f'{id_line}assistant_note = "{note}"\n', 1),
+        encoding="utf-8",
+    )
+    sources = load_sources(noted, today=today)
+    assert [s.assistant_note for s in sources if s.id == first.id] == [note]
+
+    body = _prose("Noted page")
+    page = ReferencePage(
+        source_id="noted-page",
+        source_url="https://finki.ukim.mk/en/noted/",
+        canonical_url="https://finki.ukim.mk/en/noted/",
+        language="en",
+        category="studies",
+        content_kind="prose",
+        last_verified=date(2026, 9, 1),
+        title="Noted",
+        body=body,
+        content_sha256=sha256(f"Noted\n\n{body}".encode()).hexdigest(),
+        assistant_note=note,
+    )
+    source = replace(_source("noted-page", "/en/noted/"), assistant_note=note)
+    rendered = render_aggregate((page,))
+    assert f"title: Noted\nassistant_note: {note}\nsha256: " in rendered
+    assert validate_aggregate(rendered, (source,))[0].assistant_note == note
+    assert parse_aggregate(rendered)[0].content_sha256 == page.content_sha256
+
+    with pytest.raises(ValueError, match="metadata differs"):
+        validate_aggregate(rendered, (replace(source, assistant_note=None),))
+    without_note = render_aggregate((replace(page, assistant_note=None),))
+    with pytest.raises(ValueError, match="metadata differs"):
+        validate_aggregate(without_note, (source,))
+
+
+@pytest.mark.parametrize(
+    ("note", "message"),
+    [
+        ("  ", "must not be blank"),
+        ("Two  spaces.", "one paragraph"),
+        ("Ask <@&198249751001563136>.", "Discord"),
+        ("x" * 501, "at most"),
+    ],
+)
+def test_source_assistant_note_rejects_invalid_text(
+    tmp_path: Path, note: str, message: str
+) -> None:
+    today = date(2026, 10, 20)
+    text = SOURCES.read_text(encoding="utf-8")
+    first = load_sources(SOURCES, today=today)[0]
+    id_line = f'id = "{first.id}"\n'
+    invalid = tmp_path / "invalid.toml"
+    invalid.write_text(
+        text.replace(id_line, f'{id_line}assistant_note = "{note}"\n', 1),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=f"assistant_note .*{message}"):
+        load_sources(invalid, today=today)

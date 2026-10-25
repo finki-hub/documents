@@ -262,3 +262,39 @@ def test_reviewed_corpus_satisfies_canonical_metadata_contract() -> None:
         "webadmin_finki_ukim_mk/Edd0HpQSmINIg35ovJGIItYBiZFzz3Vj3KdKGCck87oYKw"
     )
     assert fields["current_status"] == "current"
+
+
+def test_ingest_metadata_passes_assistant_note_through(tmp_path: Path) -> None:
+    note = "Пријавата се пополнува во системот за уписи, не преку iKnow."
+    document = tmp_path / "document.md"
+    content = _metadata_header(assistant_note=note) + "\n\nText"
+    document.write_text(content, encoding="utf-8")
+
+    assert document_metadata.validate_document(document) == "current"
+    assert document_metadata.ingest_metadata(content)["assistant_note"] == note
+
+
+@pytest.mark.parametrize(
+    ("note", "message"),
+    [
+        ("", "must not be blank"),
+        ("Прв ред.\nВтор ред.", "one paragraph"),
+        ("Прашај <@198249751001563136>.", "Discord"),
+        ("Прашај <#198249751001563136>.", "Discord"),
+        ("а" * (document_metadata.ASSISTANT_NOTE_MAX_CHARS + 1), "at most"),
+    ],
+)
+def test_audit_rejects_invalid_assistant_note(
+    tmp_path: Path, note: str, message: str
+) -> None:
+    out_dir = tmp_path / "processed"
+    out_dir.mkdir()
+    (out_dir / "document.md").write_text(
+        _metadata_header(assistant_note=note), encoding="utf-8"
+    )
+
+    with pytest.raises(
+        preprocess.MetadataError,
+        match=f"document.md: invalid assistant_note: .*{message}",
+    ):
+        preprocess.audit_corpus(out_dir)

@@ -29,6 +29,8 @@ Every reviewed file starts with one HTML comment containing pipe-separated metad
 
 Use optional typed fields such as `issued`, `published`, `effective_from`, `amended_through`, `valid_until`, or `coverage_period` when they add meaning beyond the primary date. File creation, modification, export, and upload timestamps are never legal issuance evidence; they may only be recorded separately as weak provenance. See [METADATA.md](METADATA.md) for the corpus evidence ledger and allowed status values.
 
+An optional `assistant_note` carries internal guidance for the chat-bot when a source must stay as published but misleads on its own. It must be one paragraph of at most 500 characters with no Discord mention or channel tokens (and, in a processed header, no `|`). It is passed through to ingest metadata unchanged; the chat-bot gives it to the model and never shows it to users.
+
 The UKIM study rules (Gazette 417/2019) and separate amendment (607/2022) have [provenance, transitional provisions and conflict evidence](METADATA.md#ukim-study-rules-provenance-scope-and-conflicts-2026-10-16) recorded in the ledger. The exam-objection and grade-entry conflicts are handled in the chat-bot: the FAQ „Закаснет внес на оцена и запишување семестар без оцени“ states that neither procedure is applied in practice, and its assistant note tells the model not to present either regulation's version as the procedure to follow. Both additions are approved for production import from release `440d77c`.
 
 ## Working with it
@@ -118,6 +120,8 @@ fetch, or reprocess raw files.
 The separate `website-reference/` corpus is classified as `official_website_informational`: a deliberately narrow, 28-page manually reviewed snapshot of public FINKI pages, lower authority than the reviewed legal documents in `processed/`. Directly selected pages may include admissions information, dates or quotas, public institutional contacts or person listings, payment/account details, and public PDF links. Each source declares an explicit `content_kind`: 22 prose pages, two structured pages, three person lists, and one link catalog. A person-list page must contain multiple distinct human-name labels linked to official FINKI profile routes; validation rejects the whole page if the roster is empty, duplicate-only, boilerplate, or navigation-shaped. Visible role text and published email links are preserved.
 
 Each source has an explicitly reviewed CSS selector and only exact source-page URLs are fetched. The refresh never crawls or fetches linked documents, PDFs, or assets; it retains only sanitized links found on directly selected pages. Candidate identifiers, undisclosed or private data, and asset ingestion remain prohibited. Every change requires manual review for upstream drift and suitability.
+
+A source may also set `assistant_note` (see [Document metadata](#document-metadata)). It is copied into the page's aggregate metadata, outside the page text and its `sha256`, and into the page's ingest metadata.
 
 FINKI website content is publicly attributed to FINKI and remains **all rights reserved**; this repository's copy is for internal informational/reference use, not republication or redistribution of the upstream material. The generator fetches only exact URLs in `website-reference/sources.toml`, never follows page links, never fetches PDFs/assets or external hosts, and permits only exact source-scoped canonical redirects. Use the bounded commands below from the repository root:
 
