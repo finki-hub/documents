@@ -19,6 +19,7 @@ import anyio
 import httpx2
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
+from .document_metadata import assistant_note_error
 from .website_http import PAGE_FETCH_POLICY, fetch_public
 from .website_markdown import WebsiteContentError, document_from_page
 from .website_models import WebsiteDocument, _normalized_path, normalize_url
@@ -77,8 +78,9 @@ _SOURCE_KEYS = frozenset(
         "content_selectors",
     }
 )
-# Overrides the scraped title, e.g. when several pages share one generic title.
-_OPTIONAL_SOURCE_KEYS = frozenset({"title"})
+# title overrides the scraped title, e.g. when several pages share one generic title.
+# assistant_note is chat-bot guidance kept out of the page text, which stays as scraped.
+_OPTIONAL_SOURCE_KEYS = frozenset({"title", "assistant_note"})
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _START_PATTERN = re.compile(
@@ -175,6 +177,7 @@ class ReferenceSource:
     last_verified: date
     content_selectors: tuple[str, ...]
     title: str | None = None
+    assistant_note: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +192,7 @@ class ReferencePage:
     title: str
     body: str
     content_sha256: str
+    assistant_note: str | None = None
 
     @property
     def id(self) -> str:
@@ -217,6 +221,13 @@ def _text(value: object, field: str) -> str:
     if _MARKER_PREFIX in value:
         raise _error(f"{field} contains an aggregate boundary marker")
     return value
+
+
+def _assistant_note(value: object) -> str:
+    note = _text(value, "assistant_note")
+    if (error := assistant_note_error(note)) is not None:
+        raise _error(f"assistant_note {error}")
+    return note
 
 
 def _parse_date(value: object, field: str) -> date:
@@ -380,6 +391,9 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         title = _normalized_title(_text(raw["title"], "title"))
         if not title or _MARKER_PREFIX in title:
             raise _error("title must be a non-empty single-line title")
+    assistant_note = (
+        _assistant_note(raw["assistant_note"]) if "assistant_note" in raw else None
+    )
     normalized_source = _validate_route(source_url, "source_url")
     normalized_canonical = _validate_route(canonical_url, "canonical_url")
     if not _routes_match(source_url, canonical_url):
@@ -403,6 +417,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
         last_verified=verified,
         content_selectors=content_selectors,
         title=title,
+        assistant_note=assistant_note,
     )
 
 
@@ -620,6 +635,7 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
             "content_kind",
             "last_verified",
             "title",
+            "assistant_note",
             "sha256",
         }:
             raise _error("malformed aggregate metadata")
@@ -637,7 +653,11 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
         "title",
         "sha256",
     }
-    if set(metadata) != required or index >= len(lines) or lines[index] != "":
+    if (
+        set(metadata) - {"assistant_note"} != required
+        or index >= len(lines)
+        or lines[index] != ""
+    ):
         raise _error("aggregate metadata is incomplete")
     content_kind = _content_kind(metadata["content_kind"])
     body = _validate_reference_body(
@@ -659,6 +679,11 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
     if category not in ALLOWED_CATEGORIES:
         raise _error(f"category {category!r} is not allowed")
     verified = _parse_date(metadata["last_verified"], "last_verified")
+    assistant_note = (
+        _assistant_note(metadata["assistant_note"])
+        if "assistant_note" in metadata
+        else None
+    )
     digest = metadata["sha256"]
     if _HASH_PATTERN.fullmatch(digest) is None or digest != _content_hash(title, body):
         raise _error(f"hash verification failed for {source_id}")
@@ -673,6 +698,7 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
         title=title,
         body=body,
         content_sha256=digest,
+        assistant_note=assistant_note,
     )
 
 
@@ -735,6 +761,8 @@ def _validate_page_for_render(page: ReferencePage) -> str:
     ):
         raise _error("last_verified must be an ISO date")
     _text(page.title, "title")
+    if page.assistant_note is not None:
+        _assistant_note(page.assistant_note)
     return normalized_canonical
 
 
@@ -760,6 +788,11 @@ def render_aggregate(pages: Iterable[ReferencePage]) -> str:
                 f"content_kind: {page.content_kind}",
                 f"last_verified: {page.last_verified.isoformat()}",
                 f"title: {page.title}",
+                *(
+                    [f"assistant_note: {page.assistant_note}"]
+                    if page.assistant_note is not None
+                    else []
+                ),
                 f"sha256: {digest}",
                 "",
                 body,
@@ -789,6 +822,7 @@ def check_aggregate(
             or page.content_kind != source.content_kind
             or page.last_verified != source.last_verified
             or (source.title is not None and page.title != source.title)
+            or page.assistant_note != source.assistant_note
         ):
             raise _error(f"aggregate metadata differs for {page.source_id}")
         if contains_sensitive_personal_identifier(title=page.title, markdown=page.body):
@@ -968,6 +1002,7 @@ async def _fetch_reference_pages(
                 title=title,
                 body=body,
                 content_sha256=digest,
+                assistant_note=source.assistant_note,
             )
         )
     return tuple(pages)

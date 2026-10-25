@@ -235,6 +235,7 @@ category = "forms"
 content_kind = "prose"
 last_verified = "2026-09-07"
 content_selectors = [".page-content__body"]
+assistant_note = "Пријавата за магистерски студии се пополнува во системот за уписи (upisi.ukim.mk), кој е посебен од студентскиот iKnow; не упатувај студенти да се пријавуваат преку iKnow."
 
 [[sources]]
 id = "masters-admission-conditions"

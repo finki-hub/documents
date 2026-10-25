@@ -283,3 +283,21 @@ def test_release_cli_emits_bundle_on_stdout_and_checksum_on_stderr(
     assert captured.out.startswith('{"entries":')
     assert "bundle_sha256=" not in captured.out
     assert f"bundle_sha256={bundle_sha256(captured.out)}" in captured.err
+
+
+def test_fast_export_passes_website_assistant_note_to_ingest_metadata(
+    tmp_path: Path,
+) -> None:
+    root = _source_tree(tmp_path)
+    entries = {
+        entry.name: entry
+        for entry in bundle_module._discover_entries(root)  # noqa: SLF001
+    }
+
+    note = entries["website/masters-required-documents"].metadata["assistant_note"]
+    assert "upisi.ukim.mk" in note
+    assert "iKnow" in note
+    assert note not in entries["website/masters-required-documents"].content
+    assert (
+        "assistant_note" not in entries["website/masters-admission-conditions"].metadata
+    )

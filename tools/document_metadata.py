@@ -36,7 +36,12 @@ INGEST_FIELDS: Final = (
     "valid_until",
     "coverage_period",
     "source_pages",
+    "assistant_note",
 )
+
+ASSISTANT_NOTE_MAX_CHARS: Final = 500
+# Same pattern the chat-bot redacts as an unresolved Discord mention or channel.
+_DISCORD_TOKEN: Final = re.compile(r"<(?:@!?|@&|#)[0-9]+>")
 
 ALLOWED_VALUES: Final = {
     "date_kind": frozenset(
@@ -75,6 +80,18 @@ class ValidatedDocument:
     path: Path
     content: str
     current_status: str
+
+
+def assistant_note_error(value: str) -> str | None:
+    if not value.strip():
+        return "must not be blank"
+    if " ".join(value.split()) != value:
+        return "must be one paragraph without line breaks or repeated whitespace"
+    if len(value) > ASSISTANT_NOTE_MAX_CHARS:
+        return f"must be at most {ASSISTANT_NOTE_MAX_CHARS} characters"
+    if _DISCORD_TOKEN.search(value) is not None:
+        return "must not contain Discord mention or channel tokens"
+    return None
 
 
 def header_fields(content: str, document_name: str = "document") -> dict[str, str]:
@@ -244,6 +261,10 @@ def _validate_document_content(path: Path, content: str) -> str:
     for field, precisions in optional_dates.items():
         if field in fields:
             _validate_date(path, field, fields[field], precisions)
+    if (note := fields.get("assistant_note")) is not None and (
+        error := assistant_note_error(note)
+    ) is not None:
+        raise MetadataError(f"{path.name}: invalid assistant_note: {error}")
     return values["current_status"]
 
 
