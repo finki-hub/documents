@@ -11,4 +11,4 @@ permissions:
 jobs:
   dependabot:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
-    uses: finki-hub/.github/.github/workflows/dependabot.yaml@dedc1c63b89b27c45b60497be05ef77379d8d608 # main, 2026-10-26
+    uses: finki-hub/.github/.github/workflows/dependabot.yaml@main
