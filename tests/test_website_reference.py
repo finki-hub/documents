@@ -361,22 +361,23 @@ def test_source_contract_requires_v2_and_explicit_known_content_kind(
     version_one.write_text(
         _kind_contract_toml(version=1, content_kind="prose"), encoding="utf-8"
     )
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="version"):
-        load_sources(version_one, today=date(2026, 9, 7))
+        load_sources(version_one, today=today)
 
     missing_kind = tmp_path / "missing-kind.toml"
     missing_kind.write_text(
         _kind_contract_toml(version=2, content_kind=None), encoding="utf-8"
     )
     with pytest.raises(ValueError, match="content_kind"):
-        load_sources(missing_kind, today=date(2026, 9, 7))
+        load_sources(missing_kind, today=today)
 
     unknown_kind = tmp_path / "unknown-kind.toml"
     unknown_kind.write_text(
         _kind_contract_toml(version=2, content_kind="catalog"), encoding="utf-8"
     )
     with pytest.raises(ValueError, match="content_kind"):
-        load_sources(unknown_kind, today=date(2026, 9, 7))
+        load_sources(unknown_kind, today=today)
 
 
 def test_source_title_override_is_optional_and_must_be_non_blank(
@@ -426,8 +427,9 @@ def test_refresh_uses_source_title_override_and_check_enforces_it(
 
     text = output.read_text(encoding="utf-8")
     assert parse_aggregate(text)[0].title == "Specific title"
+    expected_sources = (replace(source, title="Other title"),)
     with pytest.raises(ValueError, match="metadata differs"):
-        validate_aggregate(text, (replace(source, title="Other title"),))
+        validate_aggregate(text, expected_sources)
 
 
 def test_structured_content_kind_accepts_repeated_headings_and_rejects_bad_shell() -> (
@@ -637,8 +639,9 @@ def test_offline_check_rejects_validly_hashed_sensitive_aggregate() -> None:
     )
     source = replace(_source("sensitive-page", "/en/sensitive/"))
 
+    aggregate_text = render_aggregate((page,))
     with pytest.raises(ValueError, match="identifier"):
-        validate_aggregate(render_aggregate((page,)), (source,))
+        validate_aggregate(aggregate_text, (source,))
 
 
 def test_offline_check_rejects_validly_hashed_duplicate_aggregate() -> None:
@@ -660,8 +663,9 @@ def test_offline_check_rejects_validly_hashed_duplicate_aggregate() -> None:
     )
     sources = tuple(_source(page.source_id, f"/en/{page.source_id}/") for page in pages)
 
+    aggregate_text = render_aggregate(pages)
     with pytest.raises(ValueError, match="duplicate"):
-        validate_aggregate(render_aggregate(pages), sources)
+        validate_aggregate(aggregate_text, sources)
 
 
 def test_offline_check_rejects_noncanonical_aggregate_serialization() -> None:
@@ -724,17 +728,17 @@ def test_sensitive_identifiers_rejected_for_non_prose_shapes(
         _source(f"{content_kind}-sensitive", "/en/sensitive/"),
         content_kind=content_kind,
     )
+    output_path = tmp_path / f"{content_kind}.md"
+    responses = {
+        source.source_url: httpx2.Response(
+            200, headers={"content-type": "text/html"}, text=_html("Sensitive", body)
+        )
+    }
     with pytest.raises(ValueError, match="identifier"):
         _refresh_with_responses(
             (source,),
-            tmp_path / f"{content_kind}.md",
-            {
-                source.source_url: httpx2.Response(
-                    200,
-                    headers={"content-type": "text/html"},
-                    text=_html("Sensitive", body),
-                )
-            },
+            output_path,
+            responses,
         )
 
 
@@ -867,10 +871,11 @@ def test_allowlist_rejects_unbounded_unprefixed_routes(
     path = tmp_path / "sources.toml"
     path.write_text(_route_allowlist(url, language=language), encoding="utf-8")
 
+    today = date(2026, 9, 7)
     with pytest.raises(
         ValueError, match="(route|language|forbidden|asset|candidate|query)"
     ):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_allowed_transfer_exception_still_rejects_sensitive_body(
@@ -888,20 +893,19 @@ def test_allowed_transfer_exception_still_rejects_sensitive_body(
         content_selectors=("main",),
     )
 
+    output_path = tmp_path / "aggregate.md"
+    responses = {
+        url: httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html("Transfer", f"<p>{_prose('Candidate identifier 1234567')}</p>"),
+        )
+    }
     with pytest.raises(ValueError, match="identifier"):
         _refresh_with_responses(
             (source,),
-            tmp_path / "aggregate.md",
-            {
-                url: httpx2.Response(
-                    200,
-                    headers={"content-type": "text/html"},
-                    text=_html(
-                        "Transfer",
-                        f"<p>{_prose('Candidate identifier 1234567')}</p>",
-                    ),
-                )
-            },
+            output_path,
+            responses,
         )
 
 
@@ -930,16 +934,18 @@ def test_allowlist_rejects_invalid_content_selector_values(
     path = tmp_path / "sources.toml"
     path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
 
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_allowlist_rejects_missing_content_selectors(tmp_path: Path) -> None:
     path = tmp_path / "sources.toml"
     path.write_text(_selector_allowlist(first_selector=None), encoding="utf-8")
 
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) -> None:
@@ -951,8 +957,9 @@ def test_allowlist_does_not_grandfather_changed_seed_metadata(tmp_path: Path) ->
         encoding="utf-8",
     )
 
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 @pytest.mark.parametrize("control", [*range(0x20), 0x7F])
@@ -969,8 +976,9 @@ def test_allowlist_rejects_every_selector_boundary_control(
     path = tmp_path / "sources.toml"
     path.write_text(_selector_allowlist(first_selector=value), encoding="utf-8")
 
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="content_selectors"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_allowlist_accepts_a_valid_selector_after_boundary_control_checks(
@@ -1024,8 +1032,9 @@ def test_allowlist_rejects_non_canonical_curated_routes(
     )
     path = tmp_path / "sources.toml"
     path.write_text(text, encoding="utf-8")
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="(URL|route|host|query|asset|language)"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_curated_adapter_uses_selector_and_never_follows_page_links(
@@ -1153,17 +1162,18 @@ def test_refresh_quality_gates_leave_prior_aggregate_untouched(
     output = tmp_path / "aggregate.md"
     output.write_text("prior aggregate\n", encoding="utf-8")
 
+    responses = {
+        source.source_url: httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text=_html("Quality", f"<div>{body}</div>"),
+        )
+    }
     with pytest.raises(ValueError, match="empty|navigation"):
         _refresh_with_responses(
             (source,),
             output,
-            {
-                source.source_url: httpx2.Response(
-                    200,
-                    headers={"content-type": "text/html"},
-                    text=_html("Quality", f"<div>{body}</div>"),
-                )
-            },
+            responses,
         )
 
     assert output.read_text(encoding="utf-8") == "prior aggregate\n"
@@ -1233,8 +1243,9 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
     path = tmp_path / "sources.toml"
     path.write_text(text, encoding="utf-8")
 
+    today = date(2026, 10, 20)
     with pytest.raises(ValueError, match="(URL|route|candidate|HTTPS|host|query)"):
-        load_sources(path, today=date(2026, 10, 20))
+        load_sources(path, today=today)
 
 
 @pytest.mark.parametrize(
@@ -1260,8 +1271,9 @@ def test_allowlist_requires_macedonian_legacy_routes(
         original.replace(old_value, f'{field} = "{value}"', 1), encoding="utf-8"
     )
 
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="Macedonian|/mk/|language"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
@@ -1274,8 +1286,9 @@ def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
+    today = date(2026, 9, 7)
     with pytest.raises(ValueError, match="review"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
     path.write_text(
         original.replace(
@@ -1284,7 +1297,7 @@ def test_allowlist_rejects_stale_and_future_reviews(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="future"):
-        load_sources(path, today=date(2026, 9, 7))
+        load_sources(path, today=today)
 
 
 def test_parse_aggregate_exposes_metadata_and_verifies_hash() -> None:
@@ -1368,7 +1381,9 @@ def test_render_rejects_a_validly_hashed_low_quality_body() -> None:
 
 def test_offline_check_rejects_a_validly_hashed_low_quality_body(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr(website_reference_module, "_PROJECT_ROOT", tmp_path)
     sources_path = tmp_path / "sources.toml"
     sources_path.write_text(_selector_allowlist(), encoding="utf-8")
     source = load_sources(sources_path, today=date(2026, 9, 7))[0]
@@ -1390,16 +1405,15 @@ def test_offline_check_rejects_a_validly_hashed_low_quality_body(
     aggregate_path = tmp_path / "aggregate.md"
     aggregate_path.write_bytes(aggregate.encode())
 
+    argv = [
+        "--check",
+        "--sources",
+        str(sources_path),
+        "--aggregate",
+        str(aggregate_path),
+    ]
     with pytest.raises(ValueError, match="navigation|empty"):
-        website_reference_module.main(
-            [
-                "--check",
-                "--sources",
-                str(sources_path),
-                "--aggregate",
-                str(aggregate_path),
-            ]
-        )
+        website_reference_module.main(argv)
 
 
 def test_render_parse_is_byte_stable_and_sorted() -> None:
@@ -1581,23 +1595,26 @@ def test_refresh_failures_leave_prior_aggregate_untouched(
 
 def test_refresh_rejects_malformed_content_type(tmp_path: Path) -> None:
     source = _source("safe-page", "/en/safe/")
+    output_path = tmp_path / "aggregate.md"
+    responses = {
+        source.source_url: httpx2.Response(
+            200,
+            headers={"content-type": "application/not-text/html"},
+            text=_html("Safe", "<p>Content.</p>"),
+        )
+    }
     with pytest.raises(ValueError, match="HTML"):
         _refresh_with_responses(
             (source,),
-            tmp_path / "aggregate.md",
-            {
-                source.source_url: httpx2.Response(
-                    200,
-                    headers={"content-type": "application/not-text/html"},
-                    text=_html("Safe", "<p>Content.</p>"),
-                )
-            },
+            output_path,
+            responses,
         )
 
 
 def test_check_rejects_crlf_aggregate_without_newline_normalization(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(website_reference_module, "_PROJECT_ROOT", tmp_path)
     source = _source("safe-page", "/en/safe/")
     page = ReferencePage(
         source_id=source.id,
@@ -1623,16 +1640,15 @@ def test_check_rejects_crlf_aggregate_without_newline_normalization(
         fake_load_sources,
     )
 
+    argv = [
+        "--check",
+        "--sources",
+        str(tmp_path / "sources.toml"),
+        "--aggregate",
+        str(aggregate),
+    ]
     with pytest.raises(ValueError, match="LF-only"):
-        website_reference_module.main(
-            [
-                "--check",
-                "--sources",
-                str(tmp_path / "sources.toml"),
-                "--aggregate",
-                str(aggregate),
-            ]
-        )
+        website_reference_module.main(argv)
 
 
 @pytest.mark.parametrize(
@@ -1645,17 +1661,17 @@ def test_check_rejects_crlf_aggregate_without_newline_normalization(
 )
 def test_refresh_rejects_aggregate_boundary_forgery(tmp_path: Path, body: str) -> None:
     source = _source("safe-page", "/en/safe/")
+    output_path = tmp_path / "aggregate.md"
+    responses = {
+        source.source_url: httpx2.Response(
+            200, headers={"content-type": "text/html"}, text=_html("Safe", body)
+        )
+    }
     with pytest.raises(ValueError, match="boundary|marker"):
         _refresh_with_responses(
             (source,),
-            tmp_path / "aggregate.md",
-            {
-                source.source_url: httpx2.Response(
-                    200,
-                    headers={"content-type": "text/html"},
-                    text=_html("Safe", body),
-                )
-            },
+            output_path,
+            responses,
         )
 
 
@@ -1943,8 +1959,9 @@ def test_source_assistant_note_round_trips_and_check_enforces_it(
     assert validate_aggregate(rendered, (source,))[0].assistant_note == note
     assert parse_aggregate(rendered)[0].content_sha256 == page.content_sha256
 
+    expected_sources = (replace(source, assistant_note=None),)
     with pytest.raises(ValueError, match="metadata differs"):
-        validate_aggregate(rendered, (replace(source, assistant_note=None),))
+        validate_aggregate(rendered, expected_sources)
     without_note = render_aggregate((replace(page, assistant_note=None),))
     with pytest.raises(ValueError, match="metadata differs"):
         validate_aggregate(without_note, (source,))

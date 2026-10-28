@@ -11,6 +11,7 @@ from tools import document_api, document_metadata, document_ocr, document_storag
 RAW_DIR = Path("raw")
 OUT_DIR = Path("processed")
 R2_PREFIX = "documents/"
+DEFAULT_API_URL: Final = "http://localhost:8880"
 
 EXPLICITLY_EXCLUDED_SOURCES: Final = frozenset(
     {
@@ -97,6 +98,27 @@ def docx_to_markdown(path: Path) -> str:
     return "\n".join(output).strip()
 
 
+def _tier_a_output(source: Path) -> Path | None:
+    if source.is_dir():
+        return None
+    if source.name in CURATED_SOURCE_FILES:
+        print(f"SKIP  (curated set) {source.name}")
+        return None
+    if is_excluded(source.name):
+        print(f"SKIP  (excluded)   {source.name}")
+        return None
+    if needs_ocr(source.name):
+        print(f"SKIP  (Tier B OCR) {source.name}  -> run: preprocess.py ocr '{source}'")
+        return None
+
+    output = OUT_DIR / f"{slug(source.stem)}.md"
+    if output.exists():
+        print(f"SKIP  (processed exists) {source.name}  -> {output.name}")
+        return None
+
+    return output
+
+
 def extract_tier_a(raw_dir: Path) -> None:
     if __package__:
         from tools import docpipe
@@ -105,23 +127,8 @@ def extract_tier_a(raw_dir: Path) -> None:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     for source in sorted(raw_dir.iterdir()):
-        if source.is_dir():
-            continue
-        if source.name in CURATED_SOURCE_FILES:
-            print(f"SKIP  (curated set) {source.name}")
-            continue
-        if is_excluded(source.name):
-            print(f"SKIP  (excluded)   {source.name}")
-            continue
-        if needs_ocr(source.name):
-            print(
-                f"SKIP  (Tier B OCR) {source.name}  -> run: preprocess.py ocr '{source}'"
-            )
-            continue
-
-        output = OUT_DIR / f"{slug(source.stem)}.md"
-        if output.exists():
-            print(f"SKIP  (processed exists) {source.name}  -> {output.name}")
+        output = _tier_a_output(source)
+        if output is None:
             continue
 
         if source.suffix.lower() == ".docx":
@@ -192,7 +199,22 @@ def _print_help() -> None:
     print(
         "Usage: preprocess.py [extract [raw_dir] | ocr <pdf> [pages] | upload [raw_dir] | "
         "ingest [api_url] | fill [api_url] | sync [api_url] | audit]"
+        "\nRemote API URLs require their exact origin in DOCUMENT_API_ALLOWED_ORIGINS "
+        "(comma-separated); local loopback APIs are supported by default."
     )
+
+
+def _ocr_command() -> None:
+    if len(sys.argv) < 3:
+        sys.exit("Usage: preprocess.py ocr <pdf> [pages]")
+    ocr_pdf(Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
+
+
+def _audit_command() -> None:
+    statuses = audit_corpus()
+    print(f"OK    audited {sum(statuses.values())} documents")
+    for status, count in statuses.items():
+        print(f"  {status}: {count}")
 
 
 def main() -> None:
@@ -203,22 +225,15 @@ def main() -> None:
     elif command == "extract":
         extract_tier_a(Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR)
     elif command == "ocr":
-        if len(sys.argv) < 3:
-            sys.exit("Usage: preprocess.py ocr <pdf> [pages]")
-        ocr_pdf(Path(sys.argv[2]), sys.argv[3] if len(sys.argv) > 3 else None)
+        _ocr_command()
     elif command == "upload":
         upload_originals(Path(sys.argv[2]) if len(sys.argv) > 2 else RAW_DIR)
-    elif command == "ingest":
-        ingest(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
-    elif command == "fill":
-        fill(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
-    elif command == "sync":
-        sync(sys.argv[2] if len(sys.argv) > 2 else "http://localhost:8880")
+    elif command in {"ingest", "fill", "sync"}:
+        {"ingest": ingest, "fill": fill, "sync": sync}[command](
+            sys.argv[2] if len(sys.argv) > 2 else DEFAULT_API_URL
+        )
     elif command == "audit":
-        statuses = audit_corpus()
-        print(f"OK    audited {sum(statuses.values())} documents")
-        for status, count in statuses.items():
-            print(f"  {status}: {count}")
+        _audit_command()
     else:
         sys.exit(f"Unknown command: {command}")
 

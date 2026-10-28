@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import socket
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import ClassVar, Final
@@ -28,6 +28,7 @@ from tools.website_output import write_output
 from tools.website_privacy import contains_sensitive_personal_identifier
 
 DEFAULT_OUTPUT: Final = Path("website")
+type _RestCandidate = tuple[str, WebsiteDocument, WebsiteDocument]
 
 
 class CliArgs(BaseModel):
@@ -43,15 +44,13 @@ class UpdateResult:
     crawl_truncated: bool
 
 
-def build_documents(
-    inventory: RestInventory,
-    crawl: CrawlResult,
-) -> tuple[WebsiteDocument, ...]:
-    documents_by_url: dict[str, WebsiteDocument] = {}
-    blocked_urls: set[str] = set()
+@dataclass(slots=True)
+class _DocumentBuilder:
+    documents_by_url: dict[str, WebsiteDocument]
+    blocked_urls: set[str]
 
-    def is_blocked(document: WebsiteDocument) -> bool:
-        if document.url in blocked_urls:
+    def is_blocked(self, document: WebsiteDocument) -> bool:
+        if document.url in self.blocked_urls:
             return True
         emitted_text = "\n".join((document.markdown, document.url, *document.aliases))
         if not contains_sensitive_personal_identifier(
@@ -59,14 +58,16 @@ def build_documents(
             markdown=emitted_text,
         ):
             return False
-        blocked_urls.add(document.url)
-        _ = documents_by_url.pop(document.url, None)
+        self.blocked_urls.add(document.url)
+        _ = self.documents_by_url.pop(document.url, None)
         return True
 
-    def add(document: WebsiteDocument) -> None:
-        if not is_blocked(document):
-            documents_by_url[document.url] = document
+    def add(self, document: WebsiteDocument) -> None:
+        if not self.is_blocked(document):
+            self.documents_by_url[document.url] = document
 
+
+def _redirect_aliases(crawl: CrawlResult) -> tuple[dict[str, str], dict[str, set[str]]]:
     redirects = {*crawl.redirects}
     redirects.update(
         (page.final_url, alias) for page in crawl.pages for alias in page.aliases
@@ -75,8 +76,16 @@ def build_documents(
     final_by_alias = {alias: final_url for final_url, alias in redirects}
     for final_url, alias in redirects:
         aliases_by_url.setdefault(final_url, set()).add(alias)
+    return final_by_alias, aliases_by_url
 
-    rest_candidates: dict[str, list[tuple[str, WebsiteDocument, WebsiteDocument]]] = {}
+
+def _rest_candidates(
+    inventory: RestInventory,
+    final_by_alias: dict[str, str],
+    aliases_by_url: dict[str, set[str]],
+    builder: _DocumentBuilder,
+) -> dict[str, list[_RestCandidate]]:
+    rest_candidates: dict[str, list[_RestCandidate]] = {}
     for _url, record in sorted(inventory.records_by_url.items()):
         document = document_from_rest(record, include_excerpt=False)
         source_url = document.url
@@ -95,16 +104,27 @@ def build_documents(
             aliases=document.aliases,
             url=document.url,
         )
-        if is_blocked(document) or is_blocked(fallback):
+        if builder.is_blocked(document) or builder.is_blocked(fallback):
             continue
         rest_candidates.setdefault(final_url, []).append(
             (source_url, document, fallback)
         )
+    return rest_candidates
+
+
+def _candidate_order(final_url: str) -> Callable[[_RestCandidate], tuple[bool, str]]:
+    return lambda item: (item[0] != final_url, item[0])
+
+
+def _add_rest_documents(
+    rest_candidates: dict[str, list[_RestCandidate]],
+    builder: _DocumentBuilder,
+) -> list[WebsiteDocument]:
     rest_fallbacks: list[WebsiteDocument] = []
     for final_url, candidates in sorted(rest_candidates.items()):
-        if final_url in blocked_urls:
+        if final_url in builder.blocked_urls:
             continue
-        candidates.sort(key=lambda item: (item[0] != final_url, item[0]))
+        candidates.sort(key=_candidate_order(final_url))
         _source_url, document, fallback = candidates[0]
         merged_aliases = {
             alias
@@ -115,9 +135,17 @@ def build_documents(
         document = replace(document, aliases=tuple(sorted(merged_aliases)))
         fallback = replace(fallback, aliases=document.aliases)
         if document.markdown:
-            add(document)
+            builder.add(document)
         elif fallback.markdown:
             rest_fallbacks.append(fallback)
+    return rest_fallbacks
+
+
+def _add_rendered_documents(
+    crawl: CrawlResult,
+    aliases_by_url: dict[str, set[str]],
+    builder: _DocumentBuilder,
+) -> None:
     for page in sorted(crawl.pages, key=lambda item: item.final_url):
         if "pg=" in urlsplit(page.final_url).query:
             continue
@@ -125,9 +153,9 @@ def build_documents(
             document_from_page(page.html, page.final_url),
             aliases=page.aliases,
         )
-        if is_blocked(document):
+        if builder.is_blocked(document):
             continue
-        if existing := documents_by_url.get(page.final_url):
+        if existing := builder.documents_by_url.get(page.final_url):
             merged = replace(
                 existing,
                 aliases=tuple(
@@ -140,15 +168,28 @@ def build_documents(
                     )
                 ),
             )
-            if not is_blocked(merged):
-                documents_by_url[page.final_url] = merged
+            if not builder.is_blocked(merged):
+                builder.documents_by_url[page.final_url] = merged
             continue
         if document.markdown:
-            add(document)
+            builder.add(document)
+
+
+def build_documents(
+    inventory: RestInventory,
+    crawl: CrawlResult,
+) -> tuple[WebsiteDocument, ...]:
+    builder = _DocumentBuilder({}, set())
+    final_by_alias, aliases_by_url = _redirect_aliases(crawl)
+    candidates = _rest_candidates(inventory, final_by_alias, aliases_by_url, builder)
+    rest_fallbacks = _add_rest_documents(candidates, builder)
+    _add_rendered_documents(crawl, aliases_by_url, builder)
     for fallback in rest_fallbacks:
-        if fallback.url not in documents_by_url:
-            add(fallback)
-    return tuple(documents_by_url[url] for url in sorted(documents_by_url))
+        if fallback.url not in builder.documents_by_url:
+            builder.add(fallback)
+    return tuple(
+        builder.documents_by_url[url] for url in sorted(builder.documents_by_url)
+    )
 
 
 async def update_website(output_dir: Path, max_pages: int) -> UpdateResult:

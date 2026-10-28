@@ -48,6 +48,13 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
 - `sync [url]` then `fill [url]` — like `ingest`, but also **prunes** any stored document whose file was removed or **renamed**, so the API mirrors `processed/`. Use this whenever documents are renamed or retired. R2 originals are kept as an archive (orphaned keys are reported, not deleted).
 - `audit` — validate all reviewed headers, including the `authority_url` scheme and official host, and report the corpus status distribution without contacting external services. Check URL reachability separately when authority evidence is reviewed or updated.
 
+Document API commands accept loopback URLs by default. For a remote API, set
+`DOCUMENT_API_ALLOWED_ORIGINS` to a comma-separated list of trusted origins
+(scheme, hostname, and optional port), matching the URL passed to the command.
+Use HTTPS for remote deployments. API requests do not follow redirects or use
+environment-configured proxies, so the API key is not forwarded to another
+destination.
+
 ## Public website content
 
 Generate a fresh Markdown snapshot of the public FINKI website with:
@@ -130,6 +137,9 @@ uv run --locked python -m tools.website_reference --refresh
 uv run --locked python -m tools.website_reference --check
 uv run --locked python -m tools.website_reference --verify-live
 ```
+
+Custom `--sources` and `--aggregate` CLI paths must stay inside this repository;
+parent traversal, symlinks, junctions, and nonregular input files are rejected.
 
 Reviewer workflow: inspect every generated `finki-static-page` block, confirm the visible source and canonical URLs, check for prohibited or stale material, run `--check` and `--verify-live`, and review the resulting diff before accepting a change. Page-level ingestion is deferred until the chat-bot has a dedicated contract for relevance, currentness, provenance, conflict resolution, and this source class. The full `website/` snapshots remain ignored and must not be ingested; they are an unreviewed crawl, not a curated reference corpus.
 

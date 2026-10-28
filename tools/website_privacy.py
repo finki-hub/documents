@@ -15,6 +15,7 @@ _EXPLICIT_IDENTIFIER_MARKERS: Final = (
 _CANDIDATE_MARKERS: Final = ("candidate", "кандидат")
 _CODE_MARKERS: Final = ("code", "код")
 _MAX_DECODE_PASSES: Final = 20
+_WORD_SEPARATORS: Final = re.compile(r"[\W_]+")
 _FIN_SEVEN_DIGIT_CODE: Final = re.compile(
     r"(?<!\w)f[\W_]*i[\W_]*n[\W_]*\d(?:[\W_]*\d){6}(?!\d)"
 )
@@ -44,7 +45,7 @@ def _contains_seven_digit_sequence(value: str) -> bool:
 
 
 def _contains_candidate_identifier(*, title: str, value: str) -> bool:
-    normalized_title = re.sub(r"[\W_]+", " ", title)
+    normalized_title = _WORD_SEPARATORS.sub(" ", title)
     if any(
         marker in normalized_title for marker in _CANDIDATE_MARKERS
     ) and _CONTIGUOUS_SEVEN_DIGIT_CODE.search(value):
@@ -54,7 +55,7 @@ def _contains_candidate_identifier(*, title: str, value: str) -> bool:
         if not _contains_seven_digit_sequence(line):
             continue
         context = " ".join(lines[max(0, index - 2) : index + 3])
-        normalized_context = re.sub(r"[\W_]+", " ", context)
+        normalized_context = _WORD_SEPARATORS.sub(" ", context)
         has_candidate_marker = any(
             marker in normalized_context for marker in _CANDIDATE_MARKERS
         )
@@ -72,7 +73,7 @@ def contains_sensitive_personal_identifier(*, title: str, markdown: str) -> bool
     compatibility_text = _compatibility_text(f"{title}\n{markdown}")
     if compatibility_title is None or compatibility_text is None:
         return True
-    normalized_text = re.sub(r"[\W_]+", " ", compatibility_text)
+    normalized_text = _WORD_SEPARATORS.sub(" ", compatibility_text)
     if _contains_fin_identifier(compatibility_text) or any(
         marker in normalized_text for marker in _EXPLICIT_IDENTIFIER_MARKERS
     ):

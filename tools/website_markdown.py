@@ -52,7 +52,7 @@ class WebsiteContentError(ValueError):
 
 def _clean_markdown(value: str) -> str:
     cleaned = value.replace("\xa0", " ").replace("\r\n", "\n")
-    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = "\n".join(line.rstrip(" \t") for line in cleaned.split("\n"))
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -86,19 +86,16 @@ def _safe_image(raw_url: str, base_url: str) -> str | None:
         return None
 
 
-def _sanitize_html(value: str, base_url: str) -> str:
-    parser = HTMLParser(value)
-    if parser.root is None:
-        return ""
+def _sanitize_html_structure(root: Node) -> None:
     for selector in _REMOVED_SELECTORS:
-        for node in parser.root.css(selector):
+        for node in root.css(selector):
             node.decompose()
-    for heading in parser.root.css("h1, h2, h3, h4, h5, h6"):
+    for heading in root.css("h1, h2, h3, h4, h5, h6"):
         heading_text = heading.text(separator=" ", strip=True).replace("\xa0", " ")
         if not heading_text.strip():
             heading.decompose()
     # markdownify drops whitespace-only inline tags, space included: "</a><b>&nbsp;</b>за".
-    for node in parser.root.css("b, strong, i, em, span"):
+    for node in root.css("b, strong, i, em, span"):
         child = node.child
         if (
             child is not None
@@ -107,21 +104,32 @@ def _sanitize_html(value: str, base_url: str) -> str:
             and not node.text().replace("\xa0", " ").strip()
         ):
             node.replace_with(" ")
-    for node in parser.root.css("a[title]"):
+
+
+def _sanitize_html_targets(root: Node, base_url: str) -> None:
+    for node in root.css("a[title]"):
         # Sites keep stale URLs in link tooltips; the target is the only useful part.
         del node.attrs["title"]
-    for node in parser.root.css("a[href]"):
+    for node in root.css("a[href]"):
         href = node.attributes.get("href")
         if href and (safe_link := _safe_link(href, base_url)) is not None:
             node.attrs["href"] = safe_link
         else:
             del node.attrs["href"]
-    for node in parser.root.css("img[src]"):
+    for node in root.css("img[src]"):
         source = node.attributes.get("src")
         if source and (safe_image := _safe_image(source, base_url)) is not None:
             node.attrs["src"] = safe_image
         else:
             del node.attrs["src"]
+
+
+def _sanitize_html(value: str, base_url: str) -> str:
+    parser = HTMLParser(value)
+    if parser.root is None:
+        return ""
+    _sanitize_html_structure(parser.root)
+    _sanitize_html_targets(parser.root, base_url)
     return parser.root.html or ""
 
 

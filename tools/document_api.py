@@ -1,9 +1,13 @@
+import ipaddress
 import json
 import os
 import sys
 import urllib.parse
 import urllib.request
+from contextlib import suppress
+from http.client import HTTPResponse
 from pathlib import Path
+from typing import Never
 
 from tools.document_metadata import (
     header_value,
@@ -13,12 +17,80 @@ from tools.document_metadata import (
 )
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        _req: object,
+        _fp: object,
+        _code: int,
+        _msg: str,
+        _headers: object,
+        _newurl: str,
+    ) -> Never:
+        raise ValueError("API redirects are not permitted")
+
+
+def _validate_api_origin(parsed: urllib.parse.SplitResult) -> None:
+    origin = f"{parsed.scheme}://{parsed.netloc}".lower()
+    allowed = {
+        value.strip().lower().rstrip("/")
+        for value in os.environ.get("DOCUMENT_API_ALLOWED_ORIGINS", "").split(",")
+        if value.strip()
+    }
+    host = (parsed.hostname or "").casefold()
+    local = host == "localhost"
+    with suppress(ValueError):
+        local = local or ipaddress.ip_address(host).is_loopback
+    if not local and origin not in allowed:
+        raise ValueError(
+            "Remote API origin must be configured in DOCUMENT_API_ALLOWED_ORIGINS"
+        )
+
+
+def _api_base(api_url: str) -> str:
+    """The operator selects the API, not arbitrary URL schemes or metadata services.
+
+    Non-loopback private deployments require an explicitly configured origin.
+    Public remote deployments also require this separate trust configuration;
+    it prevents CLI input from choosing where the API credential is sent.
+    """
+    if any(character.isspace() or ord(character) < 32 for character in api_url):
+        raise ValueError("API URL must not contain whitespace or control characters")
+    parsed = urllib.parse.urlsplit(api_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("API URL must use http or https with a hostname")
+    if (
+        parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or "\\" in api_url
+    ):
+        raise ValueError(
+            "API URL must not contain credentials, query, fragment or backslashes"
+        )
+    port = parsed.port
+    _validate_api_origin(parsed)
+    if port == 0 or any(
+        part in {".", ".."} for part in urllib.parse.unquote(parsed.path).split("/")
+    ):
+        raise ValueError("Invalid API port or base path")
+    return api_url.rstrip("/")
+
+
+def _open_api_request(request: urllib.request.Request) -> HTTPResponse:
+    # Do not use environment proxies or follow redirects carrying the API key.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    return opener.open(request, timeout=60)
+
+
 def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
     api_key = os.environ.get("API_KEY")
     if not api_key:
         sys.exit("Set API_KEY in the environment to ingest.")
 
     documents = validated_corpus(out_dir)
+    api_url = _api_base(api_url)
     for document in documents:
         md_path = document.path
         content = document.content
@@ -47,7 +119,7 @@ def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request) as response:
+            with _open_api_request(request) as response:
                 result = json.loads(response.read())
                 print(
                     f"OK    ingested {md_path.name} -> {result.get('chunk_count')} chunks"
@@ -60,6 +132,7 @@ def ingest(api_url: str, out_dir: Path, r2_prefix: str) -> None:
 
 
 def fill(api_url: str) -> None:
+    api_url = _api_base(api_url)
     api_key = os.environ.get("API_KEY")
     if not api_key:
         sys.exit("Set API_KEY in the environment to fill embeddings.")
@@ -73,7 +146,7 @@ def fill(api_url: str) -> None:
     )
     ok = err = 0
     try:
-        with urllib.request.urlopen(request) as response:
+        with _open_api_request(request) as response:
             for raw in response:
                 line = raw.decode("utf-8").strip()
                 if not line.startswith("data:"):
@@ -97,6 +170,7 @@ def fill(api_url: str) -> None:
 
 
 def sync(api_url: str, out_dir: Path, r2_prefix: str) -> None:
+    api_url = _api_base(api_url)
     api_key = os.environ.get("API_KEY")
     if not api_key:
         sys.exit("Set API_KEY in the environment to sync.")
@@ -109,7 +183,7 @@ def sync(api_url: str, out_dir: Path, r2_prefix: str) -> None:
         method="GET",
     )
     try:
-        with urllib.request.urlopen(list_request) as response:
+        with _open_api_request(list_request) as response:
             stored = json.loads(response.read())
     except Exception as error:  # noqa: BLE001
         sys.exit(f"Failed to list documents: {error}")
@@ -129,7 +203,7 @@ def sync(api_url: str, out_dir: Path, r2_prefix: str) -> None:
                 method="DELETE",
             )
             try:
-                with urllib.request.urlopen(delete_request) as response:
+                with _open_api_request(delete_request) as response:
                     deleted = json.loads(response.read())
                 r2_key = (deleted.get("metadata") or {}).get("r2_key")
                 note = f"  (R2 original kept as archive: {r2_key})" if r2_key else ""

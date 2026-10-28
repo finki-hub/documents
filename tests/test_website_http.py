@@ -84,15 +84,17 @@ def test_curated_legacy_fetch_rejects_cross_host_or_unlisted_redirects(
         async with httpx2.AsyncClient(
             transport=httpx2.MockTransport(handler)
         ) as client:
+            allowed_redirect_urls = frozenset(
+                {"https://oldsite.finki.ukim.mk/mk/source"}
+            )
+            allowed_hosts = frozenset({"finki.ukim.mk", "oldsite.finki.ukim.mk"})
             with pytest.raises(PublicFetchError):
                 await fetch_public(
                     client,
                     "https://oldsite.finki.ukim.mk/mk/source",
                     PAGE_FETCH_POLICY,
-                    allowed_redirect_urls=frozenset(
-                        {"https://oldsite.finki.ukim.mk/mk/source"}
-                    ),
-                    allowed_hosts=frozenset({"finki.ukim.mk", "oldsite.finki.ukim.mk"}),
+                    allowed_redirect_urls=allowed_redirect_urls,
+                    allowed_hosts=allowed_hosts,
                 )
 
     anyio.run(run)
@@ -111,15 +113,15 @@ def test_curated_fetch_rejects_finki_to_legacy_redirect() -> None:
         async with httpx2.AsyncClient(
             transport=httpx2.MockTransport(handler)
         ) as client:
+            allowed_redirect_urls = frozenset({"https://finki.ukim.mk/en/source"})
+            allowed_hosts = frozenset({"oldsite.finki.ukim.mk"})
             with pytest.raises(PublicFetchError):
                 await fetch_public(
                     client,
                     "https://finki.ukim.mk/en/source",
                     PAGE_FETCH_POLICY,
-                    allowed_redirect_urls=frozenset(
-                        {"https://finki.ukim.mk/en/source"}
-                    ),
-                    allowed_hosts=frozenset({"oldsite.finki.ukim.mk"}),
+                    allowed_redirect_urls=allowed_redirect_urls,
+                    allowed_hosts=allowed_hosts,
                 )
 
     anyio.run(run)
@@ -140,14 +142,13 @@ def test_fetch_public_strict_redirect_mode_does_not_request_target() -> None:
         async with httpx2.AsyncClient(
             transport=httpx2.MockTransport(handler)
         ) as client:
+            allowed_redirect_urls = frozenset({"https://finki.ukim.mk/en/source/"})
             with pytest.raises(PublicFetchError, match="allowlisted"):
                 await fetch_public(
                     client,
                     "https://finki.ukim.mk/en/source/",
                     PAGE_FETCH_POLICY,
-                    allowed_redirect_urls=frozenset(
-                        {"https://finki.ukim.mk/en/source/"}
-                    ),
+                    allowed_redirect_urls=allowed_redirect_urls,
                 )
 
     anyio.run(run)

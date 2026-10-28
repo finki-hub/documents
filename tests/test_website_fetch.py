@@ -168,10 +168,11 @@ def test_crawl_pages_fails_when_a_page_returns_server_error() -> None:
         async with httpx2.AsyncClient(
             transport=httpx2.MockTransport(handler)
         ) as client:
+            plan = CrawlPlan(seed_urls=("https://finki.ukim.mk/unavailable/",))
             with pytest.raises(RuntimeError):
                 _ = await crawl_pages(
                     client,
-                    CrawlPlan(seed_urls=("https://finki.ukim.mk/unavailable/",)),
+                    plan,
                 )
 
     anyio.run(run)
@@ -189,10 +190,11 @@ def test_crawl_pages_rejects_oversized_html_response() -> None:
         async with httpx2.AsyncClient(
             transport=httpx2.MockTransport(handler)
         ) as client:
+            plan = CrawlPlan(seed_urls=("https://finki.ukim.mk/oversized/",))
             with pytest.raises(RuntimeError):
                 _ = await crawl_pages(
                     client,
-                    CrawlPlan(seed_urls=("https://finki.ukim.mk/oversized/",)),
+                    plan,
                 )
 
     anyio.run(run)
@@ -239,10 +241,11 @@ def test_crawl_pages_enforces_aggregate_response_byte_limit(
                 )
             )
         ) as client:
+            plan = CrawlPlan(seed_urls=("https://finki.ukim.mk/",), max_pages=1)
             with pytest.raises(CrawlIncompleteError, match="crawl byte limit exceeded"):
                 _ = await crawl_pages(
                     client,
-                    CrawlPlan(seed_urls=("https://finki.ukim.mk/",), max_pages=1),
+                    plan,
                 )
 
     anyio.run(run)
@@ -263,10 +266,11 @@ def test_crawl_pages_counts_discarded_response_bytes(
                 )
             )
         ) as client:
+            plan = CrawlPlan(seed_urls=("https://finki.ukim.mk/file",), max_pages=1)
             with pytest.raises(CrawlIncompleteError, match="crawl byte limit exceeded"):
                 _ = await crawl_pages(
                     client,
-                    CrawlPlan(seed_urls=("https://finki.ukim.mk/file",), max_pages=1),
+                    plan,
                 )
 
     anyio.run(run)

@@ -18,7 +18,8 @@ from urllib.parse import (
 from pydantic import BaseModel, ConfigDict, TypeAdapter
 
 BASE_URL: Final = "https://finki.ukim.mk/"
-PUBLIC_HOSTS: Final = frozenset({"finki.ukim.mk", "www.finki.ukim.mk"})
+FINKI_HOST: Final = "finki.ukim.mk"
+PUBLIC_HOSTS: Final = frozenset({FINKI_HOST, "www.finki.ukim.mk"})
 QUERY_KEYS: Final = frozenset({"kat", "pg"})
 NON_CONTENT_SEGMENTS: Final = frozenset(
     {"feed", "trackback", "wp-admin", "wp-json", "wp-login.php"}
@@ -198,7 +199,7 @@ def normalize_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
     query = urlencode(
         sorted((key, value) for key, value in parse_qsl(raw_query) if key in QUERY_KEYS)
     )
-    return urlunsplit(("https", "finki.ukim.mk", path, query, ""))
+    return urlunsplit(("https", FINKI_HOST, path, query, ""))
 
 
 def normalize_rest_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
@@ -211,7 +212,7 @@ def normalize_rest_url(raw_url: str, base_url: str = BASE_URL) -> str | None:
         "/wp-json/wp/v2/"
     ):
         return None
-    return urlunsplit(("https", "finki.ukim.mk", path, query, ""))
+    return urlunsplit(("https", FINKI_HOST, path, query, ""))
 
 
 def language_for_url(url: str) -> str:

@@ -57,8 +57,10 @@ def test_write_output_rejects_manifest_without_ownership_fields(tmp_path: Path) 
         encoding="utf-8",
     )
 
+    documents = [_document()]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OutputSafetyError, match="ownership manifest"):
-        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+        write_output(output_dir, documents, metadata)
 
     assert sentinel.read_text(encoding="utf-8") == "do not delete"
 
@@ -66,11 +68,13 @@ def test_write_output_rejects_manifest_without_ownership_fields(tmp_path: Path) 
 def test_write_output_rejects_current_directory_spelled_with_dot_dot() -> None:
     disguised_current = Path.cwd() / "missing-child" / ".."
 
+    documents = [_document()]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OutputSafetyError, match="protected path"):
         write_output(
             disguised_current,
-            [_document()],
-            GenerationMetadata(rest_totals={}),
+            documents,
+            metadata,
         )
 
 
@@ -84,8 +88,10 @@ def test_write_output_rejects_current_directory_spelled_with_dot_dot() -> None:
     ],
 )
 def test_write_output_rejects_corpus_directories(output_dir: Path) -> None:
+    documents = [_document()]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OutputSafetyError, match="protected path"):
-        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+        write_output(output_dir, documents, metadata)
 
 
 @pytest.mark.parametrize("language", ["../../escaped", "/absolute", "C:\\absolute"])
@@ -93,11 +99,14 @@ def test_write_output_rejects_unsafe_document_language(
     tmp_path: Path,
     language: str,
 ) -> None:
+    output_path = tmp_path / "website"
+    documents = [_document(language=language)]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OutputSafetyError, match="unsupported document language"):
         write_output(
-            tmp_path / "website",
-            [_document(language=language)],
-            GenerationMetadata(rest_totals={}),
+            output_path,
+            documents,
+            metadata,
         )
 
     assert not (tmp_path / "escaped").exists()
@@ -137,8 +146,10 @@ def test_failed_initial_install_preserves_staging_snapshot(
 
     monkeypatch.setattr(Path, "rename", fail_install)
 
+    documents = [_document()]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OSError, match="injected install failure"):
-        write_output(output_dir, [_document()], GenerationMetadata(rest_totals={}))
+        write_output(output_dir, documents, metadata)
 
     staging = next(tmp_path.glob(".website-*"))
     assert (staging / "manifest.json").is_file()

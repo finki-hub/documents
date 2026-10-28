@@ -19,7 +19,9 @@ def _r2_client() -> _R2Client:
         endpoint_url=endpoint,
         aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
-        region_name="auto",
+        region_name=os.environ.get("AWS_REGION")
+        or os.environ.get("AWS_DEFAULT_REGION")
+        or "auto",
     )
 
 

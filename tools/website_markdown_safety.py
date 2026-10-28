@@ -54,6 +54,24 @@ def _unescape_commonmark(value: str) -> str:
     return "".join(output)
 
 
+def _unsafe_destination(value: str, label_start: int, label_end: int, end: int) -> bool:
+    destination = html.unescape(value[label_end + 2 : end]).strip()
+    destination = _unescape_commonmark(destination)
+    destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
+    target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
+    try:
+        scheme = urlsplit(target).scheme.casefold()
+    except ValueError:
+        return True
+    image = (
+        label_start > 0
+        and value[label_start - 1] == "!"
+        and not _is_escaped(value, label_start - 1)
+    )
+    allowed = {"http", "https"} if image else {"http", "https", "mailto"}
+    return bool(scheme) and scheme not in allowed
+
+
 def sanitize_markdown_links(value: str) -> str:
     replacements: list[tuple[int, int]] = []
     inspected_characters = 0
@@ -71,23 +89,12 @@ def sanitize_markdown_links(value: str) -> str:
             replacements.append((destination_start + 1, destination_end))
             continue
         inspected_characters += destination_length
-        destination = html.unescape(value[label_end + 2 : destination_end]).strip()
-        destination = _unescape_commonmark(destination)
-        destination = re.sub(r"[\x00-\x1f\x7f]+", "", destination)
-        target = destination.split(maxsplit=1)[0].strip("<>") if destination else ""
-        try:
-            scheme = urlsplit(target).scheme.casefold()
-        except ValueError:
+        if _unsafe_destination(value, label_start, label_end, destination_end):
             replacements.append((destination_start + 1, destination_end))
-            continue
-        image = (
-            label_start > 0
-            and value[label_start - 1] == "!"
-            and not _is_escaped(value, label_start - 1)
-        )
-        allowed = {"http", "https"} if image else {"http", "https", "mailto"}
-        if scheme and scheme not in allowed:
-            replacements.append((destination_start + 1, destination_end))
+    return _replace_destinations(value, replacements)
+
+
+def _replace_destinations(value: str, replacements: list[tuple[int, int]]) -> str:
     output: list[str] = []
     cursor = 0
     for start, end in sorted(replacements):
@@ -99,20 +106,29 @@ def sanitize_markdown_links(value: str) -> str:
     return "".join(output)
 
 
+def _reference_definition_opening(
+    value: str, line_start: int, brackets: dict[int, int]
+) -> int | None:
+    opening = line_start
+    while opening < len(value) and opening - line_start < 3:
+        if value[opening] != " ":
+            break
+        opening += 1
+    if opening < len(value) and value[opening] == "[":
+        closing = brackets.get(opening)
+        if closing is not None and value[closing + 1 : closing + 2] == ":":
+            return opening
+    return None
+
+
 def _neutralize_reference_definitions(value: str) -> str:
     openings: set[int] = set()
     brackets = _delimiter_pairs(value, "[", "]")
     line_start = 0
     while line_start < len(value):
-        opening = line_start
-        while opening < len(value) and opening - line_start < 3:
-            if value[opening] != " ":
-                break
-            opening += 1
-        if opening < len(value) and value[opening] == "[":
-            closing = brackets.get(opening)
-            if closing is not None and value[closing + 1 : closing + 2] == ":":
-                openings.add(opening)
+        opening = _reference_definition_opening(value, line_start, brackets)
+        if opening is not None:
+            openings.add(opening)
         newline = value.find("\n", line_start)
         if newline < 0:
             break
@@ -126,7 +142,7 @@ def _neutralize_reference_definitions(value: str) -> str:
 def neutralize_markdown_blocks(value: str) -> str:
     value = _neutralize_reference_definitions(value)
     return re.sub(
-        r"(?m)^(?P<indent>[ ]{0,3})(?P<fence>`{3,}|~{3,})",
+        r"(?m)^(?P<indent> {0,3})(?P<fence>`{3,}|~{3,})",
         lambda match: f"{match.group('indent')}\\{match.group('fence')}",
         value,
     )

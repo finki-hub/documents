@@ -41,7 +41,7 @@ INGEST_FIELDS: Final = (
 
 ASSISTANT_NOTE_MAX_CHARS: Final = 500
 # Same pattern the chat-bot redacts as an unresolved Discord mention or channel.
-_DISCORD_TOKEN: Final = re.compile(r"<(?:@!?|@&|#)[0-9]+>")
+_DISCORD_TOKEN: Final = re.compile(r"<(?:@!?|@&|#)\d+>", re.ASCII)
 
 ALLOWED_VALUES: Final = {
     "date_kind": frozenset(
@@ -139,22 +139,23 @@ def ingest_metadata(content: str) -> dict[str, str]:
     return values
 
 
+def _calendar_date(value: str, precision: str) -> bool:
+    patterns = {"day": r"\d{4}-\d{2}-\d{2}", "month": r"\d{4}-\d{2}", "year": r"\d{4}"}
+    if re.fullmatch(patterns[precision], value) is None:
+        return False
+    if precision == "day":
+        date.fromisoformat(value)
+        return True
+    parts = list(map(int, value.split("-")))
+    date(*(parts + [1] * (3 - len(parts))))
+    return True
+
+
 def _is_valid_date(value: str, precision: str) -> bool:
     try:
-        if precision == "day":
-            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value) is None:
-                return False
-            date.fromisoformat(value)
-        elif precision == "month":
-            if re.fullmatch(r"\d{4}-\d{2}", value) is None:
-                return False
-            year, month = map(int, value.split("-"))
-            date(year, month, 1)
-        elif precision == "year":
-            if re.fullmatch(r"\d{4}", value) is None:
-                return False
-            date(int(value), 1, 1)
-        elif precision == "academic_year":
+        if precision in {"day", "month", "year"}:
+            return _calendar_date(value, precision)
+        if precision == "academic_year":
             if re.fullmatch(r"\d{4}/(?:\d{2}|\d{4})", value) is None:
                 return False
             start_text, end_text = value.split("/")
@@ -162,18 +163,16 @@ def _is_valid_date(value: str, precision: str) -> bool:
             end = int(end_text)
             expected = start + 1 if len(end_text) == 4 else (start + 1) % 100
             return start > 0 and end == expected
-        elif precision == "gazette_issue":
+        if precision == "gazette_issue":
             if re.fullmatch(r"\d+/\d{4}", value) is None:
                 return False
             issue, year = map(int, value.split("/"))
             return issue > 0 and year > 0
-        elif precision == "none":
+        if precision == "none":
             return value == "unresolved"
-        else:
-            return False
+        return False
     except ValueError:
         return False
-    return True
 
 
 def _validate_date(
@@ -195,8 +194,7 @@ def _validate_authority_url(path: Path, value: str) -> None:
             assert_never(unreachable)
 
 
-def _validate_document_content(path: Path, content: str) -> str:
-    fields = header_fields(content, path.name)
+def _required_values(path: Path, fields: dict[str, str]) -> dict[str, str]:
     values: dict[str, str] = {}
     for field in REQUIRED_FIELDS:
         value = fields.get(field)
@@ -206,6 +204,12 @@ def _validate_document_content(path: Path, content: str) -> str:
             raise MetadataError(f"{path.name}: empty {field}")
         values[field] = value
 
+    return values
+
+
+def _validate_document_content(path: Path, content: str) -> str:
+    fields = header_fields(content, path.name)
+    values = _required_values(path, fields)
     _validate_authority_url(path, values["authority_url"])
 
     for field, allowed in ALLOWED_VALUES.items():

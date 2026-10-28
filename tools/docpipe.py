@@ -15,6 +15,7 @@ import sys
 from collections import Counter
 from collections.abc import Callable
 from io import TextIOWrapper
+from pathlib import Path
 from typing import Final
 
 import fitz  # PyMuPDF
@@ -106,24 +107,7 @@ def _reflow(lines: list[str]) -> str:
     return _para(lines)
 
 
-def chunk(
-    markdown: str,
-    mode: str,
-    token_len: Callable[[str], int],
-    target: int = 380,
-    hard: int = 450,
-    overlap: int = 48,
-) -> list[tuple[str, str]]:
-    """One chunk per член where it fits; recursively sub-split long ones."""
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-    sub = RecursiveCharacterTextSplitter(
-        chunk_size=target,
-        chunk_overlap=overlap,
-        length_function=token_len,
-        separators=["\n\n", "\n", ". ", "! ", "? ", "; ", ", ", " ", ""],
-    )
-
+def _chunk_units(markdown: str, mode: str) -> list[tuple[str, str]]:
     units: list[tuple[str, str]] = []
     if mode == "member":
         blocks = re.split(
@@ -146,6 +130,29 @@ def chunk(
     else:
         units.append(("", markdown))
 
+    return units
+
+
+def chunk(
+    markdown: str,
+    mode: str,
+    token_len: Callable[[str], int],
+    target: int = 380,
+    hard: int = 450,
+    overlap: int = 48,
+) -> list[tuple[str, str]]:
+    """One chunk per член where it fits; recursively sub-split long ones."""
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+    sub = RecursiveCharacterTextSplitter(
+        chunk_size=target,
+        chunk_overlap=overlap,
+        length_function=token_len,
+        separators=["\n\n", "\n", ". ", "! ", "? ", "; ", ", ", " ", ""],
+    )
+
+    units = _chunk_units(markdown, mode)
+
     chunks: list[tuple[str, str]] = []
     for label, body in units:
         if token_len(body) <= hard:
@@ -156,72 +163,67 @@ def chunk(
     return chunks
 
 
-def main() -> int:
-    sys.stdout = TextIOWrapper(
-        sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
-    )
-    sys.stderr = TextIOWrapper(
-        sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
-    )
-    if len(sys.argv) != 2 or sys.argv[1] in {"-h", "--help"}:
-        print(USAGE)
-        return 0 if len(sys.argv) == 2 else 2
+def _validated_input(path: Path) -> Path:
+    # Explicit absolute CLI inputs remain supported. Reject ambiguous traversal,
+    # symlinks and special files before loading a tokenizer or opening content.
+    if ".." in path.parts:
+        raise ValueError("input path must not contain parent traversal")
+    absolute = path.absolute()
+    for component in (absolute, *absolute.parents):
+        if component.is_symlink() or component.is_junction():
+            raise ValueError("input path must not contain symlinks or junctions")
+    resolved = path.resolve(strict=True)
+    if resolved.is_dir():
+        return resolved
+    if not resolved.is_file() or resolved.suffix.casefold() not in {
+        ".pdf",
+        ".md",
+        ".markdown",
+    }:
+        raise ValueError("input must be a PDF, Markdown file, or directory")
+    return resolved
 
-    path = sys.argv[1]
-    if not os.path.exists(path):
-        print(f"error: path does not exist: {path}", file=sys.stderr)
-        return 2
 
-    from transformers import AutoTokenizer
-
-    tok = AutoTokenizer.from_pretrained("intfloat/multilingual-e5-large")
-
-    def tlen(s: str) -> int:
-        return len(tok.encode(s, add_special_tokens=False))
-
-    import glob
-
-    if os.path.isdir(path):
-        files = sorted(glob.glob(os.path.join(path, "*.pdf")))
-        print(
-            f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE"
-        )
-        total = 0
-        for f in files:
-            try:
-                raw = extract_pdf(f)
-                if len(raw.strip()) < 50:
-                    print(
-                        f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}"
-                    )
-                    continue
-                cyr = sum(1 for c in raw if "Ѐ" <= c <= "ӿ")
-                lat = sum(1 for c in raw if c.isascii() and c.isalpha())
-                if cyr / (cyr + lat + 1) < 0.85:
-                    print(
-                        f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)"
-                    )
-                    continue
-                mode, md = to_markdown(raw)
-                ch = chunk(md, mode, tlen)
-                title = os.path.basename(f)
-                sizes = [
-                    tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}")
-                    for lb, b in ch
-                ]
-                over = sum(1 for s in sizes if s > 512)
-                total += len(ch)
-                nm = len({lb for lb, _ in ch if lb.startswith("Член")})
+def _directory_report(path: str, tlen: Callable[[str], int]) -> int:
+    files = [str(_validated_input(file)) for file in sorted(Path(path).glob("*.pdf"))]
+    print(f"{'MODE':8} {'CHUNKS':>6} {'MAXTOK':>6} {'>512':>5} {'MEMBERS':>7}  FILE")
+    total = 0
+    for f in files:
+        try:
+            raw = extract_pdf(f)
+            if len(raw.strip()) < 50:
                 print(
-                    f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}"
+                    f"{'SCANNED':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}"
                 )
-            except (fitz.FileDataError, OSError, RuntimeError, ValueError) as error:
+                continue
+            cyr = sum(1 for c in raw if "Ѐ" <= c <= "ӿ")
+            lat = sum(1 for c in raw if c.isascii() and c.isalpha())
+            if cyr / (cyr + lat + 1) < 0.85:
                 print(
-                    f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {error}"
+                    f"{'CORRUPT':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)}  (legacy font -> route to vision)"
                 )
-        print(f"\nTOTAL CHUNKS (text-layer PDFs): {total}")
-        return 0
+                continue
+            mode, md = to_markdown(raw)
+            ch = chunk(md, mode, tlen)
+            title = os.path.basename(f)
+            sizes = [
+                tlen(f"passage: Наслов: {title} ({lb})\nСодржина: {b}") for lb, b in ch
+            ]
+            over = sum(1 for s in sizes if s > 512)
+            total += len(ch)
+            nm = len({lb for lb, _ in ch if lb.startswith("Член")})
+            print(
+                f"{mode:8} {len(ch):6} {max(sizes):6} {over:5} {nm:7}  {os.path.basename(f)}"
+            )
+        except (fitz.FileDataError, OSError, RuntimeError, ValueError) as error:
+            print(
+                f"{'ERR':8} {'-':>6} {'-':>6} {'-':>5} {'-':>7}  {os.path.basename(f)} -> {error}"
+            )
+    print(f"\nTOTAL CHUNKS (text-layer PDFs): {total}")
+    return 0
 
+
+def _document_report(path: str, tlen: Callable[[str], int]) -> int:
     if path.lower().endswith(".pdf"):
         mode, md = to_markdown(extract_pdf(path))
     else:
@@ -233,7 +235,7 @@ def main() -> int:
             if re.search(rf"^# Член\s+{ARTICLE_NUMBER_RE}", md, re.MULTILINE)
             else "heading"
         )
-    doc_title = path.split("/")[-1].split("\\")[-1]
+    doc_title = Path(path).name
     chunks = chunk(md, mode, tlen)
 
     # embed string mirrors the FAQ format ("Наслов: ...\nСодржина: ...")
@@ -259,6 +261,36 @@ def main() -> int:
     for (label, body), n in list(zip(chunks, sizes))[:4]:
         print(f"\n[{label}] ({n} embed-tokens)\n{body[:320]}")
     return 0
+
+
+def main() -> int:
+    sys.stdout = TextIOWrapper(
+        sys.stdout.buffer, encoding="utf-8", errors="replace", write_through=True
+    )
+    sys.stderr = TextIOWrapper(
+        sys.stderr.buffer, encoding="utf-8", errors="replace", write_through=True
+    )
+    if len(sys.argv) != 2 or sys.argv[1] in {"-h", "--help"}:
+        print(USAGE)
+        return 0 if len(sys.argv) == 2 else 2
+
+    try:
+        path = str(_validated_input(Path(sys.argv[1])))
+    except (OSError, ValueError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+
+    from transformers import AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained("intfloat/multilingual-e5-large")
+
+    def tlen(s: str) -> int:
+        return len(tok.encode(s, add_special_tokens=False))
+
+    if Path(path).is_dir():
+        return _directory_report(path, tlen)
+
+    return _document_report(path, tlen)
 
 
 if __name__ == "__main__":

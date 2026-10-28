@@ -24,6 +24,8 @@ from . import document_metadata, website_privacy, website_reference
 _RELEASE_SCHEMA_VERSION: Final = 2
 _LEGAL_SOURCE_CLASS: Final = "official_legal"
 _WEBSITE_SOURCE_CLASS: Final = "official_website_informational"
+_PROCESSED_INPUT: Final = "processed corpus input"
+_WEBSITE_INPUT: Final = "website corpus input"
 
 
 class BundleValidationError(ValueError):
@@ -78,7 +80,8 @@ def _hash_metadata(metadata: Mapping[str, str]) -> str:
 
 def _read_utf8(path: Path) -> str:
     try:
-        return path.read_text(encoding="utf-8", newline="")
+        with path.open(encoding="utf-8", newline="") as source:
+            return source.read()
     except (OSError, UnicodeDecodeError) as exc:
         raise _fail(f"cannot read corpus source {path}: {exc}") from exc
 
@@ -230,25 +233,30 @@ def _website_entry(
     )
 
 
-def _discover_entries(root: Path) -> tuple[CorpusEntry, ...]:
-    processed = _input_directory(root, "processed", required=True)
-    assert processed is not None
-    _reject_symlinks_in_directory(root, processed, label="processed corpus input")
-    document_paths = sorted(path for path in processed.rglob("*.md") if path.is_file())
-    if not document_paths:
-        raise _fail(f"{processed}: no Markdown documents found")
-    for path in document_paths:
-        _reject_symlink_path(root, path, label="processed corpus input")
-    _raw_provenance_paths(root, document_paths)
+def _validate_website_pages(pages: Sequence[website_reference.ReferencePage]) -> None:
+    seen_page_hashes: dict[str, str] = {}
+    for page in pages:
+        if website_privacy.contains_sensitive_personal_identifier(
+            title=page.title, markdown=page.body
+        ):
+            raise _fail(f"page {page.source_id} contains a sensitive identifier")
+        duplicate_id = seen_page_hashes.get(page.content_sha256)
+        if duplicate_id is not None:
+            raise _fail(
+                f"duplicate normalized content for {page.source_id} and {duplicate_id}"
+            )
+        seen_page_hashes[page.content_sha256] = page.source_id
 
-    entries = [_legal_entry(root, path) for path in document_paths]
+
+def _discover_website_entries(root: Path) -> list[CorpusEntry]:
+    entries: list[CorpusEntry] = []
     website_root = _input_directory(root, "website-reference", required=False)
     if website_root is not None:
-        _reject_symlinks_in_directory(root, website_root, label="website corpus input")
+        _reject_symlinks_in_directory(root, website_root, label=_WEBSITE_INPUT)
         for aggregate in sorted(website_root.rglob("*.md")):
             if not aggregate.is_file():
                 continue
-            _reject_symlink_path(root, aggregate, label="website corpus input")
+            _reject_symlink_path(root, aggregate, label=_WEBSITE_INPUT)
             text = _read_utf8(aggregate).replace("\r\n", "\n").replace("\r", "\n")
             if "<!-- finki-static-page:" not in text:
                 continue
@@ -256,21 +264,25 @@ def _discover_entries(root: Path) -> tuple[CorpusEntry, ...]:
                 pages = website_reference.parse_aggregate(text)
             except ValueError as exc:
                 raise _fail(str(exc)) from exc
-            seen_page_hashes: dict[str, str] = {}
-            for page in pages:
-                if website_privacy.contains_sensitive_personal_identifier(
-                    title=page.title, markdown=page.body
-                ):
-                    raise _fail(
-                        f"page {page.source_id} contains a sensitive identifier"
-                    )
-                duplicate_id = seen_page_hashes.get(page.content_sha256)
-                if duplicate_id is not None:
-                    raise _fail(
-                        f"duplicate normalized content for {page.source_id} and {duplicate_id}"
-                    )
-                seen_page_hashes[page.content_sha256] = page.source_id
+            _validate_website_pages(pages)
             entries.extend(_website_entry(root, aggregate, page) for page in pages)
+
+    return entries
+
+
+def _discover_entries(root: Path) -> tuple[CorpusEntry, ...]:
+    processed = _input_directory(root, "processed", required=True)
+    assert processed is not None
+    _reject_symlinks_in_directory(root, processed, label=_PROCESSED_INPUT)
+    document_paths = sorted(path for path in processed.rglob("*.md") if path.is_file())
+    if not document_paths:
+        raise _fail(f"{processed}: no Markdown documents found")
+    for path in document_paths:
+        _reject_symlink_path(root, path, label=_PROCESSED_INPUT)
+    _raw_provenance_paths(root, document_paths)
+
+    entries = [_legal_entry(root, path) for path in document_paths]
+    entries.extend(_discover_website_entries(root))
 
     names = [entry.name for entry in entries]
     if len(set(names)) != len(names):
@@ -281,10 +293,10 @@ def _discover_entries(root: Path) -> tuple[CorpusEntry, ...]:
 def _processed_files(root: Path) -> tuple[Path, ...]:
     processed = _input_directory(root, "processed", required=True)
     assert processed is not None
-    _reject_symlinks_in_directory(root, processed, label="processed corpus input")
+    _reject_symlinks_in_directory(root, processed, label=_PROCESSED_INPUT)
     processed_files = tuple(path for path in processed.rglob("*.md") if path.is_file())
     for path in processed_files:
-        _reject_symlink_path(root, path, label="processed corpus input")
+        _reject_symlink_path(root, path, label=_PROCESSED_INPUT)
     return tuple(
         sorted(processed_files, key=lambda path: _relative_source_path(root, path))
     )
@@ -294,10 +306,10 @@ def _website_files(root: Path) -> tuple[Path, ...]:
     website_root = _input_directory(root, "website-reference", required=False)
     if website_root is None:
         return ()
-    _reject_symlinks_in_directory(root, website_root, label="website corpus input")
+    _reject_symlinks_in_directory(root, website_root, label=_WEBSITE_INPUT)
     website_files = tuple(path for path in website_root.rglob("*.md") if path.is_file())
     for path in website_files:
-        _reject_symlink_path(root, path, label="website corpus input")
+        _reject_symlink_path(root, path, label=_WEBSITE_INPUT)
     return tuple(
         sorted(website_files, key=lambda path: _relative_source_path(root, path))
     )
