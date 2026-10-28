@@ -109,17 +109,104 @@ async def _fetch_page(
     )
 
 
-async def crawl_pages(
-    client: httpx2.AsyncClient,
-    plan: CrawlPlan,
-) -> CrawlResult:
+def _seed_frontier(plan: CrawlPlan) -> tuple[deque[str], set[str]]:
     seed_frontier: deque[str] = deque()
-    discovered_frontier: deque[str] = deque()
     queued: set[str] = set()
     for url in plan.seed_urls:
         if (normalized := normalize_url(url)) is not None and normalized not in queued:
             seed_frontier.append(normalized)
             queued.add(normalized)
+    return seed_frontier, queued
+
+
+def _next_batch(
+    seed_frontier: deque[str],
+    discovered_frontier: deque[str],
+    queued: set[str],
+    visited: set[str],
+    batch_limit: int,
+) -> list[str]:
+    batch: list[str] = []
+    while (seed_frontier or discovered_frontier) and len(batch) < batch_limit:
+        frontier = seed_frontier or discovered_frontier
+        url = frontier.popleft()
+        queued.discard(url)
+        if url in visited:
+            continue
+        visited.add(url)
+        batch.append(url)
+    return batch
+
+
+async def _fetch_batch(
+    client: httpx2.AsyncClient, batch: list[str]
+) -> list[_PageFetchResult]:
+    outcomes: list[_PageFetchResult] = []
+    failures: list[PublicFetchError] = []
+
+    async def fetch(url: str) -> None:
+        try:
+            outcomes.append(await _fetch_page(client, url))
+        except NonPublicRedirectError:
+            return
+        except PublicFetchError as error:
+            failures.append(error)
+
+    async with anyio.create_task_group() as tasks:
+        for url in batch:
+            _ = tasks.start_soon(fetch, url)
+    if failures:
+        raise CrawlIncompleteError(tuple(failures))
+    return outcomes
+
+
+def _merge_snapshots(
+    outcomes: list[_PageFetchResult],
+    discovery_only_urls: set[str],
+    snapshots: dict[str, PageSnapshot],
+    redirects: set[tuple[str, str]],
+) -> set[str]:
+    results = [outcome.snapshot for outcome in outcomes if outcome.snapshot is not None]
+    discovered: set[str] = set()
+    for snapshot in sorted(
+        results, key=lambda item: (item.final_url, item.requested_url)
+    ):
+        redirects.update((snapshot.final_url, alias) for alias in snapshot.aliases)
+        if snapshot.requested_url not in discovery_only_urls:
+            if existing := snapshots.get(snapshot.final_url):
+                snapshots[snapshot.final_url] = replace(
+                    existing,
+                    aliases=tuple(sorted({*existing.aliases, *snapshot.aliases})),
+                    links=tuple(sorted({*existing.links, *snapshot.links})),
+                )
+            else:
+                snapshots[snapshot.final_url] = snapshot
+        discovered.update(snapshot.links)
+    return discovered
+
+
+def _queue_discovered(
+    discovered: set[str],
+    visited: set[str],
+    queued: set[str],
+    frontier: deque[str],
+) -> None:
+    for link in sorted(discovered):
+        if link not in visited and link not in queued:
+            if len(visited) + len(queued) >= _MAX_CRAWL_URLS:
+                raise CrawlIncompleteError(
+                    (PublicFetchError(reason="crawl URL limit exceeded", url=link),)
+                )
+            frontier.append(link)
+            queued.add(link)
+
+
+async def crawl_pages(
+    client: httpx2.AsyncClient,
+    plan: CrawlPlan,
+) -> CrawlResult:
+    seed_frontier, queued = _seed_frontier(plan)
+    discovered_frontier: deque[str] = deque()
     discovery_only_urls = {
         normalized
         for url in plan.discovery_only_urls
@@ -131,40 +218,14 @@ async def crawl_pages(
     requested_count = 0
     received_bytes = 0
     while (seed_frontier or discovered_frontier) and requested_count < plan.max_pages:
-        batch: list[str] = []
         batch_limit = min(4, plan.max_pages - requested_count)
-        while (seed_frontier or discovered_frontier) and len(batch) < batch_limit:
-            frontier = seed_frontier or discovered_frontier
-            url = frontier.popleft()
-            queued.discard(url)
-            if url in visited:
-                continue
-            visited.add(url)
-            batch.append(url)
+        batch = _next_batch(
+            seed_frontier, discovered_frontier, queued, visited, batch_limit
+        )
         if not batch:
             continue
         requested_count += len(batch)
-        outcomes: list[_PageFetchResult] = []
-        failures: list[PublicFetchError] = []
-
-        async def fetch(
-            url: str,
-            output: list[_PageFetchResult],
-            output_failures: list[PublicFetchError],
-        ) -> None:
-            try:
-                output.append(await _fetch_page(client, url))
-            except NonPublicRedirectError:
-                return
-            except PublicFetchError as error:
-                output_failures.append(error)
-
-        async with anyio.create_task_group() as tasks:
-            for url in batch:
-                visited.add(url)
-                _ = tasks.start_soon(fetch, url, outcomes, failures)
-        if failures:
-            raise CrawlIncompleteError(tuple(failures))
+        outcomes = await _fetch_batch(client, batch)
         received_bytes += sum(outcome.size_bytes for outcome in outcomes)
         if received_bytes > _MAX_CRAWL_BYTES:
             raise CrawlIncompleteError(
@@ -175,33 +236,10 @@ async def crawl_pages(
                     ),
                 )
             )
-        results = [
-            outcome.snapshot for outcome in outcomes if outcome.snapshot is not None
-        ]
-        discovered: set[str] = set()
-        for snapshot in sorted(
-            results,
-            key=lambda item: (item.final_url, item.requested_url),
-        ):
-            redirects.update((snapshot.final_url, alias) for alias in snapshot.aliases)
-            if snapshot.requested_url not in discovery_only_urls:
-                if existing := snapshots.get(snapshot.final_url):
-                    snapshots[snapshot.final_url] = replace(
-                        existing,
-                        aliases=tuple(sorted({*existing.aliases, *snapshot.aliases})),
-                        links=tuple(sorted({*existing.links, *snapshot.links})),
-                    )
-                else:
-                    snapshots[snapshot.final_url] = snapshot
-            discovered.update(snapshot.links)
-        for link in sorted(discovered):
-            if link not in visited and link not in queued:
-                if len(visited) + len(queued) >= _MAX_CRAWL_URLS:
-                    raise CrawlIncompleteError(
-                        (PublicFetchError(reason="crawl URL limit exceeded", url=link),)
-                    )
-                discovered_frontier.append(link)
-                queued.add(link)
+        discovered = _merge_snapshots(
+            outcomes, discovery_only_urls, snapshots, redirects
+        )
+        _queue_discovered(discovered, visited, queued, discovered_frontier)
     return CrawlResult(
         pages=tuple(snapshots[url] for url in sorted(snapshots)),
         requested_count=requested_count,

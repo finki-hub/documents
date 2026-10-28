@@ -20,9 +20,9 @@ import httpx2
 from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from .document_metadata import assistant_note_error
-from .website_http import PAGE_FETCH_POLICY, fetch_public
+from .website_http import PAGE_FETCH_POLICY, PublicResponse, fetch_public
 from .website_markdown import WebsiteContentError, document_from_page
-from .website_models import WebsiteDocument, _normalized_path, normalize_url
+from .website_models import FINKI_HOST, WebsiteDocument, _normalized_path, normalize_url
 from .website_privacy import contains_sensitive_personal_identifier
 
 ALLOWED_LANGUAGES = frozenset({"en", "mk"})
@@ -31,7 +31,7 @@ ALLOWED_CONTENT_KINDS = frozenset(
     {"prose", "structured", "link-catalog", "person-list"}
 )
 LEGACY_HOST = "oldsite.finki.ukim.mk"
-_FINKI_HOSTS = frozenset({"finki.ukim.mk", "www.finki.ukim.mk", LEGACY_HOST})
+_FINKI_HOSTS = frozenset({FINKI_HOST, "www.finki.ukim.mk", LEGACY_HOST})
 ALLOWED_CATEGORIES = frozenset(
     {
         "studies",
@@ -53,6 +53,7 @@ ALLOWED_CATEGORIES = frozenset(
 MAX_REVIEW_AGE = timedelta(days=180)
 _DEFAULT_SOURCES = Path("website-reference/sources.toml")
 _DEFAULT_AGGREGATE = Path("website-reference/finki-static-pages.md")
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _BOILERPLATE_OUTPUT = frozenset(
     {
         "menu",
@@ -61,7 +62,7 @@ _BOILERPLATE_OUTPUT = frozenset(
         "skip to main content",
     }
 )
-_MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s+.*)?$")
+_MARKDOWN_HEADING = re.compile(r"^\s{0,3}#{1,6}(?:\s++.*)?$")
 _PROSE_LINE_MIN_LENGTH = 40
 _MARKDOWN_LINK_WITH_TARGET = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 
@@ -267,7 +268,21 @@ def _content_kind(value: object) -> str:
     return kind
 
 
-def _validate_route(raw_url: str, field: str) -> str:
+def _route_segments_forbidden(segments: tuple[str, ...], path: str) -> bool:
+    ignored: set[str] = set()
+    if path == _APPROVED_TRANSFER_PATH:
+        ignored.add("announcements")
+    if path in _APPROVED_INTERNATIONAL_PATHS:
+        ignored.add("admissions")
+    forbidden = _FORBIDDEN_ROUTE_SEGMENTS - ignored
+    return any(
+        segment in forbidden
+        or any(token in forbidden for token in re.split(r"[-_.]+", segment) if token)
+        for segment in segments
+    )
+
+
+def _normalized_reference_route(raw_url: str, field: str) -> str:
     try:
         parsed = urlsplit(raw_url)
     except ValueError as exc:
@@ -288,6 +303,12 @@ def _validate_route(raw_url: str, field: str) -> str:
             normalized = urlunsplit(("https", LEGACY_HOST, path, "", ""))
     if normalized is None:
         raise _error(f"{field} is not an allowed public route")
+    return normalized
+
+
+def _validate_route(raw_url: str, field: str) -> str:
+    normalized = _normalized_reference_route(raw_url, field)
+    host = (urlsplit(raw_url).hostname or "").casefold()
     normalized_path = urlsplit(normalized).path
     normalized_path_casefold = normalized_path.casefold()
     segments = tuple(
@@ -298,24 +319,7 @@ def _validate_route(raw_url: str, field: str) -> str:
         raise _error(f"{field} is not an approved curated route")
     if host == LEGACY_HOST and segments[0] != CURATED_SOURCE_LANGUAGE:
         raise _error(f"{field} must use a MK /mk/ route on the legacy host")
-    ignored_forbidden_segments = set[str]()
-    if normalized_path_casefold == _APPROVED_TRANSFER_PATH:
-        ignored_forbidden_segments.add("announcements")
-    if normalized_path_casefold in _APPROVED_INTERNATIONAL_PATHS:
-        ignored_forbidden_segments.add("admissions")
-    if any(
-        (
-            segment in _FORBIDDEN_ROUTE_SEGMENTS
-            and segment not in ignored_forbidden_segments
-        )
-        or any(
-            token in _FORBIDDEN_ROUTE_SEGMENTS
-            and token not in ignored_forbidden_segments
-            for token in re.split(r"[-_.]+", segment)
-            if token
-        )
-        for segment in segments
-    ):
+    if _route_segments_forbidden(segments, normalized_path_casefold):
         raise _error(f"{field} uses a forbidden route class")
     final_segment = segments[-1]
     if "." in final_segment and not final_segment.endswith(".html"):
@@ -361,10 +365,19 @@ def _routes_match(source_url: str, canonical_url: str) -> bool:
     source_host = (urlsplit(source_url).hostname or "").casefold()
     canonical_host = (urlsplit(canonical_url).hostname or "").casefold()
     return (
-        source_host in {"finki.ukim.mk", "www.finki.ukim.mk"}
+        source_host in {FINKI_HOST, "www.finki.ukim.mk"}
         and canonical_host == LEGACY_HOST
         and urlsplit(normalized_source).path == urlsplit(normalized_canonical).path
     )
+
+
+def _source_title(raw: Mapping[str, object]) -> str | None:
+    if "title" not in raw:
+        return None
+    title = _normalized_title(_text(raw["title"], "title"))
+    if not title or _MARKER_PREFIX in title:
+        raise _error("title must be a non-empty single-line title")
+    return title
 
 
 def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
@@ -386,11 +399,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
     source_url = _text(raw["source_url"], "source_url")
     canonical_url = _text(raw["canonical_url"], "canonical_url")
     content_selectors = _content_selectors(raw["content_selectors"])
-    title = None
-    if "title" in raw:
-        title = _normalized_title(_text(raw["title"], "title"))
-        if not title or _MARKER_PREFIX in title:
-            raise _error("title must be a non-empty single-line title")
+    title = _source_title(raw)
     assistant_note = (
         _assistant_note(raw["assistant_note"]) if "assistant_note" in raw else None
     )
@@ -423,6 +432,7 @@ def _source_from_mapping(raw: object, *, today: date) -> ReferenceSource:
 
 def load_sources(path: Path, *, today: date) -> tuple[ReferenceSource, ...]:
     """Load and validate the offline curated source allowlist."""
+    path = _reference_input_path(path)
     try:
         raw_document = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
@@ -528,6 +538,16 @@ def _link_catalog_links(markdown: str) -> tuple[tuple[str, str], ...]:
     return tuple(links)
 
 
+def _validate_person_label(label: str) -> None:
+    alphabetic = sum(character.isalpha() for character in label)
+    if (
+        alphabetic < 2
+        or not all(character.isalpha() or character in " .'-" for character in label)
+        or label.casefold() in {"home", "menu", "profile", "read more", "view profile"}
+    ):
+        raise _error("person-list profile labels must be human names")
+
+
 def _person_list_links(markdown: str) -> tuple[tuple[str, str], ...]:
     matches = tuple(_MARKDOWN_LINK_WITH_TARGET.finditer(markdown))
     profiles: list[tuple[str, str]] = []
@@ -541,7 +561,7 @@ def _person_list_links(markdown: str) -> tuple[tuple[str, str], ...]:
             continue
         if (
             parsed.scheme.casefold() != "https"
-            or parsed.hostname != "finki.ukim.mk"
+            or parsed.hostname != FINKI_HOST
             or parsed.username
             or parsed.password
             or parsed.port is not None
@@ -550,16 +570,7 @@ def _person_list_links(markdown: str) -> tuple[tuple[str, str], ...]:
             or re.fullmatch(r"/kadar/[a-z0-9]+(?:-[a-z0-9]+)*/", parsed.path) is None
         ):
             raise _error("person-list links must be official FINKI profile URLs")
-        alphabetic = sum(character.isalpha() for character in label)
-        if (
-            alphabetic < 2
-            or not all(
-                character.isalpha() or character in " .'-" for character in label
-            )
-            or label.casefold()
-            in {"home", "menu", "profile", "read more", "view profile"}
-        ):
-            raise _error("person-list profile labels must be human names")
+        _validate_person_label(label)
         profiles.append((target, label))
     if len(profiles) < 2:
         raise _error("person-list requires multiple distinct FINKI profiles")
@@ -568,6 +579,16 @@ def _person_list_links(markdown: str) -> tuple[tuple[str, str], ...]:
     if len(set(targets)) != len(targets) or len(set(labels)) != len(labels):
         raise _error("person-list contains duplicate profiles or names")
     return tuple(profiles)
+
+
+def _structured_quality_failure(body: str) -> bool:
+    non_link, labels = _without_markdown_links(body)
+    link_dominated = bool(non_link) and sum(len(label) for label in labels) >= len(
+        non_link
+    )
+    return not _has_substantive_non_link_prose(body) or (
+        link_dominated and is_navigation_shaped(body, ignore_headings=True)
+    )
 
 
 def _validate_reference_body(markdown: str, page_id: str, *, content_kind: str) -> str:
@@ -585,15 +606,7 @@ def _validate_reference_body(markdown: str, page_id: str, *, content_kind: str) 
             or is_navigation_shaped(body)
         )
     elif content_kind == "structured":
-        link_dominated = False
-        non_link, labels = _without_markdown_links(body)
-        if non_link:
-            link_dominated = sum(len(label) for label in labels) >= len(non_link)
-        quality_failure = (
-            common_failure
-            or not _has_substantive_non_link_prose(body)
-            or (link_dominated and is_navigation_shaped(body, ignore_headings=True))
-        )
+        quality_failure = common_failure or _structured_quality_failure(body)
     elif content_kind == "person-list":
         quality_failure = common_failure or is_navigation_shaped(body)
         if not quality_failure:
@@ -620,9 +633,7 @@ def _content_hash(title: str, body: str) -> str:
     return sha256(f"{title}\n\n{body}".encode()).hexdigest()
 
 
-def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
-    if len(lines) < 8 or lines[0] != f"<!-- finki-static-page:start id={source_id} -->":
-        raise _error("malformed aggregate block start")
+def _block_metadata(lines: list[str]) -> tuple[dict[str, str], int]:
     metadata: dict[str, str] = {}
     index = 1
     while index < len(lines) and lines[index]:
@@ -659,6 +670,13 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
         or lines[index] != ""
     ):
         raise _error("aggregate metadata is incomplete")
+    return metadata, index
+
+
+def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
+    if len(lines) < 8 or lines[0] != f"<!-- finki-static-page:start id={source_id} -->":
+        raise _error("malformed aggregate block start")
+    metadata, index = _block_metadata(lines)
     content_kind = _content_kind(metadata["content_kind"])
     body = _validate_reference_body(
         "\n".join(lines[index + 1 :]), source_id, content_kind=content_kind
@@ -702,6 +720,16 @@ def _page_from_block(lines: list[str], source_id: str) -> ReferencePage:
     )
 
 
+def _aggregate_block_end(lines: list[str], start: int) -> int:
+    try:
+        end = lines.index(_END_MARKER, start + 1)
+    except ValueError as exc:
+        raise _error("aggregate block boundary is incomplete") from exc
+    if any(_MARKER_PREFIX in line for line in lines[start + 1 : end]):
+        raise _error("aggregate block boundary injection")
+    return end
+
+
 def parse_aggregate(text: str) -> tuple[ReferencePage, ...]:
     """Parse and verify the deterministic, offline aggregate contract."""
     if "\r" in text:
@@ -718,13 +746,7 @@ def parse_aggregate(text: str) -> tuple[ReferencePage, ...]:
             raise _error("unexpected content outside aggregate block")
         source_id = match.group(1)
         start = index
-        try:
-            end = lines.index(_END_MARKER, start + 1)
-        except ValueError as exc:
-            raise _error("aggregate block boundary is incomplete") from exc
-        block_body = lines[start + 1 : end]
-        if any(_MARKER_PREFIX in line for line in block_body):
-            raise _error("aggregate block boundary injection")
+        end = _aggregate_block_end(lines, start)
         index = end + 1
         while index < len(lines) and not lines[index]:
             index += 1
@@ -856,6 +878,20 @@ def _strip_images(html: str) -> str:
     return parser.root.html or ""
 
 
+def _reorder_person_role(card_html: str, role_html: str, heading_html: str) -> str:
+    role_offset = card_html.find(role_html)
+    heading_offset = card_html.find(heading_html)
+    if not role_html or not heading_html or role_offset < 0 or heading_offset < 0:
+        raise WebsiteContentError(
+            "Cannot associate a person-list role with its profile"
+        )
+    if role_offset > heading_offset:
+        return card_html
+    card_without_role = card_html.replace(role_html, "", 1)
+    heading_end = card_without_role.find(heading_html) + len(heading_html)
+    return card_without_role[:heading_end] + role_html + card_without_role[heading_end:]
+
+
 def _roles_after_person_names(html: str) -> str:
     parser = HTMLParser(html)
     if parser.root is None:
@@ -873,23 +909,11 @@ def _roles_after_person_names(html: str) -> str:
         card_html = card.html or ""
         role_html = role.html or ""
         heading_html = heading.html or ""
-        role_offset = card_html.find(role_html)
-        heading_offset = card_html.find(heading_html)
-        if not role_html or not heading_html or role_offset < 0 or heading_offset < 0:
-            raise WebsiteContentError(
-                "Cannot associate a person-list role with its profile"
-            )
-        if role_offset > heading_offset:
+        reordered_card = _reorder_person_role(card_html, role_html, heading_html)
+        if reordered_card == card_html:
             continue
         if rendered_html.count(card_html) != 1:
             raise WebsiteContentError("Cannot isolate a person-list profile card")
-        card_without_role = card_html.replace(role_html, "", 1)
-        heading_end = card_without_role.find(heading_html) + len(heading_html)
-        reordered_card = (
-            card_without_role[:heading_end]
-            + role_html
-            + card_without_role[heading_end:]
-        )
         rendered_html = rendered_html.replace(card_html, reordered_card, 1)
     return rendered_html
 
@@ -910,7 +934,7 @@ def extract_reference_document(html: str, source: ReferenceSource) -> WebsiteDoc
     if normalize_url(document_url) is None:
         parsed = urlsplit(document_url)
         document_url = urlunsplit(
-            ("https", "finki.ukim.mk", parsed.path, parsed.query, parsed.fragment)
+            ("https", FINKI_HOST, parsed.path, parsed.query, parsed.fragment)
         )
     cleaned_html = _strip_images(html)
     if source.content_kind == "person-list":
@@ -922,7 +946,37 @@ def extract_reference_document(html: str, source: ReferenceSource) -> WebsiteDoc
     )
 
 
+def _reference_input_path(path: Path) -> Path:
+    if ".." in path.parts:
+        raise _error("reference input path must not contain parent traversal")
+    absolute = path.absolute()
+    if any(
+        part.is_symlink() or part.is_junction()
+        for part in (absolute, *absolute.parents)
+    ):
+        raise _error("reference input path must not traverse symlinks or junctions")
+    if not absolute.is_file():
+        raise _error("reference input path must identify a regular file")
+    return absolute.resolve(strict=True)
+
+
+def _cli_reference_path(path: Path) -> Path:
+    if ".." in path.parts:
+        raise _error("CLI reference path must not contain parent traversal")
+    resolved = path.resolve()
+    if not resolved.is_relative_to(_PROJECT_ROOT):
+        raise _error("CLI reference path must remain within the project directory")
+    absolute = path.absolute()
+    if any(
+        part.is_symlink() or part.is_junction()
+        for part in (absolute, *absolute.parents)
+    ):
+        raise _error("CLI reference path must not traverse symlinks or junctions")
+    return resolved
+
+
 def _read_aggregate(path: Path) -> str:
+    path = _reference_input_path(path)
     with path.open("r", encoding="utf-8", newline="") as stream:
         return stream.read()
 
@@ -943,6 +997,55 @@ def _validate_refresh_sources(sources: Sequence[ReferenceSource]) -> None:
         _content_selectors(list(source.content_selectors))
 
 
+def _validate_reference_response(
+    response: PublicResponse, source: ReferenceSource
+) -> str:
+    if response.status != 200:
+        raise _error(f"page returned HTTP {response.status} for {source.id}")
+    if not _is_html_content_type(response.content_type):
+        raise _error(f"page is not HTML for {source.id}")
+    if response.url != source.canonical_url:
+        raise _error(
+            f"page canonical URL differs for {source.id}: "
+            f"expected {source.canonical_url}, got {response.url}"
+        )
+    html = response.body.decode(response.encoding, errors="replace")
+    if _MARKER_PREFIX in html or _MARKER_PREFIX in html_module.unescape(html):
+        raise _error(f"page {source.id} contains an aggregate boundary marker")
+    return html
+
+
+def _reference_page_from_html(html: str, source: ReferenceSource) -> ReferencePage:
+    try:
+        document = extract_reference_document(html, source)
+    except WebsiteContentError as exc:
+        raise _error(f"cannot convert page {source.id}: {exc}") from exc
+    title = source.title or _normalized_title(document.title)
+    body = _validate_reference_body(
+        document.markdown, source.id, content_kind=source.content_kind
+    )
+    if not title:
+        raise _error(f"page {source.id} has an empty title")
+    if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
+        raise _error(f"page {source.id} contains an aggregate boundary marker")
+    if contains_sensitive_personal_identifier(title=title, markdown=body):
+        raise _error(f"page {source.id} contains a sensitive identifier")
+    digest = _content_hash(title, body)
+    return ReferencePage(
+        source_id=source.id,
+        source_url=source.source_url,
+        canonical_url=source.canonical_url,
+        language=source.language,
+        category=source.category,
+        content_kind=source.content_kind,
+        last_verified=source.last_verified,
+        title=title,
+        body=body,
+        content_sha256=digest,
+        assistant_note=source.assistant_note,
+    )
+
+
 async def _fetch_reference_pages(
     sources: Sequence[ReferenceSource], client: httpx2.AsyncClient
 ) -> tuple[ReferencePage, ...]:
@@ -957,54 +1060,15 @@ async def _fetch_reference_pages(
             allowed_redirect_urls=frozenset({source.canonical_url}),
             allowed_hosts=frozenset({urlsplit(source.canonical_url).hostname or ""}),
         )
-        if response.status != 200:
-            raise _error(f"page returned HTTP {response.status} for {source.id}")
-        if not _is_html_content_type(response.content_type):
-            raise _error(f"page is not HTML for {source.id}")
-        if response.url != source.canonical_url:
-            raise _error(
-                f"page canonical URL differs for {source.id}: "
-                f"expected {source.canonical_url}, got {response.url}"
-            )
-        html = response.body.decode(response.encoding, errors="replace")
-        if _MARKER_PREFIX in html or _MARKER_PREFIX in html_module.unescape(html):
-            raise _error(f"page {source.id} contains an aggregate boundary marker")
-        try:
-            document = extract_reference_document(html, source)
-        except WebsiteContentError as exc:
-            raise _error(f"cannot convert page {source.id}: {exc}") from exc
-        title = source.title or _normalized_title(document.title)
-        body = _validate_reference_body(
-            document.markdown, source.id, content_kind=source.content_kind
-        )
-        if not title:
-            raise _error(f"page {source.id} has an empty title")
-        if _MARKER_PREFIX in title or _MARKER_PREFIX in body:
-            raise _error(f"page {source.id} contains an aggregate boundary marker")
-        if contains_sensitive_personal_identifier(title=title, markdown=body):
-            raise _error(f"page {source.id} contains a sensitive identifier")
-        digest = _content_hash(title, body)
-        duplicate_id = seen_hashes.get(digest)
+        html = _validate_reference_response(response, source)
+        page = _reference_page_from_html(html, source)
+        duplicate_id = seen_hashes.get(page.content_sha256)
         if duplicate_id is not None:
             raise _error(
                 f"duplicate normalized content for {source.id} and {duplicate_id}"
             )
-        seen_hashes[digest] = source.id
-        pages.append(
-            ReferencePage(
-                source_id=source.id,
-                source_url=source.source_url,
-                canonical_url=source.canonical_url,
-                language=source.language,
-                category=source.category,
-                content_kind=source.content_kind,
-                last_verified=source.last_verified,
-                title=title,
-                body=body,
-                content_sha256=digest,
-                assistant_note=source.assistant_note,
-            )
-        )
+        seen_hashes[page.content_sha256] = source.id
+        pages.append(page)
     return tuple(pages)
 
 
@@ -1091,13 +1155,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
-    sources = load_sources(arguments.sources, today=datetime.now(tz=UTC).date())
+    source_path = _cli_reference_path(arguments.sources)
+    aggregate_path = _cli_reference_path(arguments.aggregate)
+    sources = load_sources(source_path, today=datetime.now(tz=UTC).date())
     if arguments.check:
-        validate_aggregate(_read_aggregate(arguments.aggregate), sources)
+        validate_aggregate(_read_aggregate(aggregate_path), sources)
     elif arguments.refresh:
-        refresh_reference(sources, arguments.aggregate)
+        refresh_reference(sources, aggregate_path)
     else:
-        verify_live(sources, arguments.aggregate)
+        verify_live(sources, aggregate_path)
     return 0
 
 

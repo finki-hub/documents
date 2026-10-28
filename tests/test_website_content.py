@@ -84,11 +84,13 @@ def test_write_output_rejects_nonempty_foreign_directory(tmp_path: Path) -> None
     sentinel = output_dir / "keep.txt"
     _ = sentinel.write_text("do not delete", encoding="utf-8")
 
+    documents = [_document("https://finki.ukim.mk/notice/", "Notice", "mk")]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(RuntimeError):
         write_output(
             output_dir,
-            [_document("https://finki.ukim.mk/notice/", "Notice", "mk")],
-            GenerationMetadata(rest_totals={}),
+            documents,
+            metadata,
         )
 
     assert sentinel.read_text(encoding="utf-8") == "do not delete"
@@ -125,11 +127,13 @@ def test_write_output_restores_owned_snapshot_when_install_fails(
 
     monkeypatch.setattr(Path, "rename", fail_snapshot_swap_once)
 
+    documents = [_document("https://finki.ukim.mk/replacement/", "Replacement", "en")]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(OSError, match="injected install failure"):
         write_output(
             output_dir,
-            [_document("https://finki.ukim.mk/replacement/", "Replacement", "en")],
-            GenerationMetadata(rest_totals={}),
+            documents,
+            metadata,
         )
 
     restored_files = {
@@ -155,11 +159,13 @@ def test_write_output_rejects_symlink_inside_owned_snapshot(tmp_path: Path) -> N
     except OSError:
         pytest.skip("symlinks are unavailable on this runner")
 
+    documents = [_document("https://finki.ukim.mk/replacement/", "Replacement", "en")]
+    metadata = GenerationMetadata(rest_totals={})
     with pytest.raises(RuntimeError):
         write_output(
             output_dir,
-            [_document("https://finki.ukim.mk/replacement/", "Replacement", "en")],
-            GenerationMetadata(rest_totals={}),
+            documents,
+            metadata,
         )
 
     assert outside.read_text(encoding="utf-8") == "outside"

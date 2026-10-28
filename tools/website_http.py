@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Final, final, override
 from urllib.parse import urlencode, urljoin, urlsplit, urlunsplit
@@ -128,6 +129,32 @@ async def _read_body(response: httpx2.Response, policy: FetchPolicy) -> bytes:
     return b"".join(chunks)
 
 
+def _redirect_target(
+    response: httpx2.Response,
+    current_url: str,
+    redirects: int,
+    policy: FetchPolicy,
+    allowed_redirect_urls: frozenset[str] | None,
+    allowed_hosts: frozenset[str] | None,
+) -> str:
+    location = response.headers.get("location")
+    if location is None:
+        raise PublicFetchError(
+            reason="redirect response has no Location", url=current_url
+        )
+    if redirects > _MAX_REDIRECTS:
+        raise PublicFetchError(reason="redirect limit exceeded", url=current_url)
+    try:
+        redirect_url = _safe_url(location, current_url, policy, allowed_hosts)
+    except PublicFetchError as error:
+        raise NonPublicRedirectError(reason=error.reason, url=error.url) from error
+    if allowed_redirect_urls is not None and redirect_url not in allowed_redirect_urls:
+        raise PublicFetchError(
+            reason="redirect target is not allowlisted", url=redirect_url
+        )
+    return redirect_url
+
+
 async def fetch_public(
     client: httpx2.AsyncClient,
     url: str,
@@ -146,36 +173,15 @@ async def fetch_public(
                 follow_redirects=False,
             ) as response:
                 if response.status_code in _REDIRECT_STATUSES:
-                    location = response.headers.get("location")
-                    if location is None:
-                        raise PublicFetchError(
-                            reason="redirect response has no Location",
-                            url=current_url,
-                        )
                     redirects += 1
-                    if redirects > _MAX_REDIRECTS:
-                        raise PublicFetchError(
-                            reason="redirect limit exceeded",
-                            url=current_url,
-                        )
-                    try:
-                        redirect_url = _safe_url(
-                            location, current_url, policy, allowed_hosts
-                        )
-                    except PublicFetchError as error:
-                        raise NonPublicRedirectError(
-                            reason=error.reason,
-                            url=error.url,
-                        ) from error
-                    if (
-                        allowed_redirect_urls is not None
-                        and redirect_url not in allowed_redirect_urls
-                    ):
-                        raise PublicFetchError(
-                            reason="redirect target is not allowlisted",
-                            url=redirect_url,
-                        )
-                    current_url = redirect_url
+                    current_url = _redirect_target(
+                        response,
+                        current_url,
+                        redirects,
+                        policy,
+                        allowed_redirect_urls,
+                        allowed_hosts,
+                    )
                     continue
                 if (
                     response.status_code >= 400
@@ -198,6 +204,40 @@ async def fetch_public(
         raise PublicFetchError(reason=type(error).__name__, url=current_url) from error
 
 
+async def _rest_pages(
+    client: httpx2.AsyncClient,
+    endpoint: str,
+    totals: dict[str, int],
+    rest_base: str,
+) -> AsyncIterator[PublicResponse]:
+    response = await fetch_public(
+        client,
+        f"{endpoint}?{urlencode({'page': 1, 'per_page': 100})}",
+        REST_FETCH_POLICY,
+    )
+    total_pages = int(response.headers.get("X-WP-TotalPages", "1"))
+    if total_pages > _MAX_REST_PAGES:
+        raise PublicFetchError(reason="REST pagination limit exceeded", url=endpoint)
+    totals[rest_base] = int(response.headers.get("X-WP-Total", "0"))
+    for page in range(1, total_pages + 1):
+        if page > 1:
+            response = await fetch_public(
+                client,
+                f"{endpoint}?{urlencode({'page': page, 'per_page': 100})}",
+                REST_FETCH_POLICY,
+            )
+        yield response
+
+
+def _merge_rest_records(
+    records_by_url: dict[str, RestRecord], records: list[RestRecord]
+) -> None:
+    for record in records:
+        canonical_url = normalize_url(record.link)
+        if canonical_url is not None:
+            records_by_url[canonical_url] = record
+
+
 async def fetch_rest_inventory(client: httpx2.AsyncClient) -> RestInventory:
     types_response = await fetch_public(
         client,
@@ -216,24 +256,7 @@ async def fetch_rest_inventory(client: httpx2.AsyncClient) -> RestInventory:
             continue
         fetched_bases.add(rest_base)
         endpoint = f"{BASE_URL}wp-json/wp/v2/{rest_base}"
-        response = await fetch_public(
-            client,
-            f"{endpoint}?{urlencode({'page': 1, 'per_page': 100})}",
-            REST_FETCH_POLICY,
-        )
-        total_pages = int(response.headers.get("X-WP-TotalPages", "1"))
-        if total_pages > _MAX_REST_PAGES:
-            raise PublicFetchError(
-                reason="REST pagination limit exceeded", url=endpoint
-            )
-        totals[rest_base] = int(response.headers.get("X-WP-Total", "0"))
-        for page in range(1, total_pages + 1):
-            if page > 1:
-                response = await fetch_public(
-                    client,
-                    f"{endpoint}?{urlencode({'page': page, 'per_page': 100})}",
-                    REST_FETCH_POLICY,
-                )
+        async for response in _rest_pages(client, endpoint, totals, rest_base):
             received_bytes += len(response.body)
             page_records = REST_RECORDS.validate_json(response.body)
             received_records += len(page_records)
@@ -241,8 +264,5 @@ async def fetch_rest_inventory(client: httpx2.AsyncClient) -> RestInventory:
                 raise PublicFetchError(
                     reason="REST inventory limit exceeded", url=endpoint
                 )
-            for record in page_records:
-                canonical_url = normalize_url(record.link)
-                if canonical_url is not None:
-                    records_by_url[canonical_url] = record
+            _merge_rest_records(records_by_url, page_records)
     return RestInventory(records_by_url=records_by_url, totals=totals)
