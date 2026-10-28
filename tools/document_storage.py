@@ -14,14 +14,15 @@ def _r2_client() -> _R2Client:
     endpoint = os.environ.get("R2_ENDPOINT") or (
         f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com"
     )
+    region = os.environ.get("R2_REGION", "auto")
+    if region not in {"auto", "", "us-east-1"}:
+        raise ValueError("R2_REGION must be auto, empty, or us-east-1")
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
-        region_name=os.environ.get("AWS_REGION")
-        or os.environ.get("AWS_DEFAULT_REGION")
-        or "auto",
+        region_name=region,
     )
 
 

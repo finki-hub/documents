@@ -55,6 +55,10 @@ Use HTTPS for remote deployments. API requests do not follow redirects or use
 environment-configured proxies, so the API key is not forwarded to another
 destination.
 
+R2 uploads default to the signing region `auto`, independently of `AWS_REGION`
+and `AWS_DEFAULT_REGION`. The optional `R2_REGION` setting accepts only `auto`
+or R2's compatibility aliases, an empty value and `us-east-1`.
+
 ## Public website content
 
 Generate a fresh Markdown snapshot of the public FINKI website with:
