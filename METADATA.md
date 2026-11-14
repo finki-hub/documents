@@ -63,7 +63,7 @@ This ledger records the authority evidence behind the machine-readable headers i
 
 ## Canonical authority URLs
 
-The 34 direct-file URLs below were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256: the original 33 on 2026-09-01, and the Annex 1 URL on 2026-11-14. Re-checking on 2026-11-14 found that five legacy `/sites/default/files/u703/` links in this ledger now return HTTP 404; four documents have working `wp-content` replacements recorded in their headers, and the corruption-officer rulebook has no replacement copy on the FINKI site. This partnership program uses a user-confirmed official FINKI SharePoint URL; automated direct HTTP access returns 403. The disciplinary rulebook also uses an official FINKI authority page because its SharePoint file is not a stable direct URL.
+The 33 direct-file URLs originally in this list were downloaded and verified byte-identical to their tracked `raw/` sources by SHA-256 on 2026-09-01. On 2026-11-14, four replacement URLs and Annex 1 were verified byte-identical, and the corruption-officer URL returned HTTP 404. The ledger previously used five legacy `/sites/default/files/u703/` links; four documents now record working `wp-content` replacements in their headers, and the corruption-officer rulebook has no replacement copy on the FINKI site. This partnership program uses a user-confirmed official FINKI SharePoint URL; automated direct HTTP access returns 403. The disciplinary rulebook also uses an official FINKI authority page because its SharePoint file is not a stable direct URL.
 
 - `264-statut-ukim-6-6-2019` — <https://finki.ukim.mk/wp-content/uploads/2026/06/264_statut_ukim-6.6.2019.pdf>
 - `aneks-1-pravilnik-studii-ukim-689-2024` — <https://ukim.edu.mk/wp-content/uploads/2024/10/80_663969827.pdf>
@@ -103,6 +103,8 @@ The 34 direct-file URLs below were downloaded and verified byte-identical to the
 - `правилник-за-дисциплинска-одговорност-на-студентите` — <https://finki.ukim.mk/za-nas/administracija-i-dokumenti/pravni-akti-i-dokumenti/>
 
 ## UKIM study rules: provenance, scope and conflicts (2026-10-16)
+
+Annex 1 was added on 2026-11-14; the heading retains the 2026-10-16 review date as the stable anchor used by the workflow guide.
 
 This is repository review evidence, not part of the acts. The objection and grade-entry conflicts below are resolved downstream rather than in this repository: in practice FINKI applies neither procedure, which the chat-bot FAQ „Закаснет внес на оцена и запишување семестар без оцени“ and its assistant note state. This ledger and the conflict notes are still **not** exported as machine-readable conflict metadata.
 
