@@ -556,9 +556,9 @@ canonical_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavno-
 language: mk
 category: institutional
 content_kind: person-list
-last_verified: 2026-10-15
+last_verified: 2026-11-14
 title: Наставно-научен совет – ФИНКИ
-sha256: 76725335783333abd10d6e54e9c93cb8888b3fe71bdf38205154250341a23496
+sha256: d2c8521624e376b1ddeefa49dde9e38140b9da31f7a4e9ec7d74ba2f6b8750d7
 
 [д-р Марјан Гушев](https://finki.ukim.mk/kadar/d-r-marjan-gushev/)
 
@@ -638,7 +638,7 @@ sha256: 76725335783333abd10d6e54e9c93cb8888b3fe71bdf38205154250341a23496
 
 [д-р Андреја Наумоски](https://finki.ukim.mk/kadar/d-r-andreja-naumoski/)
 
-[д-р Билјана Тојтовска](https://finki.ukim.mk/kadar/d-r-biljana-tojtovska/)
+[д-р Билјана Тојтовска Рибарски](https://finki.ukim.mk/kadar/d-r-biljana-tojtovska/)
 
 [д-р Милош Јовановиќ](https://finki.ukim.mk/kadar/d-r-milos-jovanovik/)
 
