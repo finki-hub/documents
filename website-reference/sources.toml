@@ -87,7 +87,7 @@ canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/nastavn
 language = "mk"
 category = "institutional"
 content_kind = "person-list"
-last_verified = "2026-10-15"
+last_verified = "2026-11-14"
 content_selectors = [".kadar-grid"]
 
 [[sources]]

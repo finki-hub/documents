@@ -268,7 +268,7 @@ def test_task3_source_config_contains_exact_approved_28_pages() -> None:
         "finki-teaching-scientific-council",
     }
     link_catalog_ids = {"student-forms"}
-    sources = load_sources(SOURCES, today=date(2026, 10, 20))
+    sources = load_sources(SOURCES, today=date(2026, 11, 14))
     records = {
         source.id: (
             source.source_url,
@@ -315,6 +315,7 @@ def test_task3_source_config_contains_exact_approved_28_pages() -> None:
         date(2026, 9, 7),
         date(2026, 10, 15),
         date(2026, 10, 20),
+        date(2026, 11, 14),
     }
     assert not {
         "study-guide",
@@ -383,7 +384,7 @@ def test_source_contract_requires_v2_and_explicit_known_content_kind(
 def test_source_title_override_is_optional_and_must_be_non_blank(
     tmp_path: Path,
 ) -> None:
-    today = date(2026, 10, 20)
+    today = date(2026, 11, 14)
     sources = load_sources(SOURCES, today=today)
     first = next(source for source in sources if source.title is None)
     text = SOURCES.read_text(encoding="utf-8")
@@ -1228,7 +1229,7 @@ def test_direct_legacy_source_refreshes_without_following_page_links(
     ],
 )
 def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None:
-    first_source = load_sources(SOURCES, today=date(2026, 10, 20))[0]
+    first_source = load_sources(SOURCES, today=date(2026, 11, 14))[0]
     text = SOURCES.read_text(encoding="utf-8")
     text = text.replace(
         f'source_url = "{first_source.source_url}"',
@@ -1243,7 +1244,7 @@ def test_allowlist_rejects_unsafe_url_routes(tmp_path: Path, value: str) -> None
     path = tmp_path / "sources.toml"
     path.write_text(text, encoding="utf-8")
 
-    today = date(2026, 10, 20)
+    today = date(2026, 11, 14)
     with pytest.raises(ValueError, match="(URL|route|candidate|HTTPS|host|query)"):
         load_sources(path, today=today)
 
@@ -1788,7 +1789,7 @@ def test_validate_aggregate_alias_checks_allowlist() -> None:
 
 def test_committed_aggregate_matches_allowlist_exactly() -> None:
     aggregate_path = ROOT / "website-reference" / "finki-static-pages.md"
-    sources = load_sources(SOURCES, today=date(2026, 10, 20))
+    sources = load_sources(SOURCES, today=date(2026, 11, 14))
     text = aggregate_path.read_text(encoding="utf-8", newline="")
 
     pages = validate_aggregate(text, sources)
@@ -1801,7 +1802,7 @@ def test_committed_aggregate_matches_allowlist_exactly() -> None:
 
 
 def test_committed_aggregate_has_only_qualified_source_contract() -> None:
-    sources = load_sources(SOURCES, today=date(2026, 10, 20))
+    sources = load_sources(SOURCES, today=date(2026, 11, 14))
     pages = validate_aggregate(
         (ROOT / "website-reference" / "finki-static-pages.md").read_text(
             encoding="utf-8"
@@ -1839,7 +1840,7 @@ def test_committed_aggregate_has_only_qualified_source_contract() -> None:
 
 
 def test_governance_roster_roles_follow_their_own_profile_headings() -> None:
-    sources = load_sources(SOURCES, today=date(2026, 10, 20))
+    sources = load_sources(SOURCES, today=date(2026, 11, 14))
     pages = validate_aggregate(
         (ROOT / "website-reference" / "finki-static-pages.md").read_text(
             encoding="utf-8"
@@ -1921,7 +1922,7 @@ def test_governance_roster_roles_follow_their_own_profile_headings() -> None:
 def test_source_assistant_note_round_trips_and_check_enforces_it(
     tmp_path: Path,
 ) -> None:
-    today = date(2026, 10, 20)
+    today = date(2026, 11, 14)
     text = SOURCES.read_text(encoding="utf-8")
     first = next(
         source
@@ -1979,7 +1980,7 @@ def test_source_assistant_note_round_trips_and_check_enforces_it(
 def test_source_assistant_note_rejects_invalid_text(
     tmp_path: Path, note: str, message: str
 ) -> None:
-    today = date(2026, 10, 20)
+    today = date(2026, 11, 14)
     text = SOURCES.read_text(encoding="utf-8")
     first = load_sources(SOURCES, today=today)[0]
     id_line = f'id = "{first.id}"\n'
