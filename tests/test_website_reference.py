@@ -87,7 +87,7 @@ def _refresh_with_responses(
     return requested
 
 
-def test_task3_source_config_contains_exact_approved_28_pages() -> None:
+def test_task3_source_config_contains_exact_approved_29_pages() -> None:
     expected = {
         "finki-about": (
             "https://finki.ukim.mk/za-nas/nastavno-nauchna-dejnost/za-fakultetot/",
@@ -123,6 +123,12 @@ def test_task3_source_config_contains_exact_approved_28_pages() -> None:
             "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/instituti-i-centri/centri/",
             "mk",
             "organizations",
+            ".page-content__body",
+        ),
+        "fokus-lab": (
+            "https://finki.ukim.mk/fokus-lab/",
+            "mk",
+            "student-support",
             ".page-content__body",
         ),
         "finki-deanery": (
@@ -300,8 +306,8 @@ def test_task3_source_config_contains_exact_approved_28_pages() -> None:
         )
         for source_id, (url, language, category, selector) in expected.items()
     }
-    assert len(sources) == 28
-    assert sum(source.content_kind == "prose" for source in sources) == 22
+    assert len(sources) == 29
+    assert sum(source.content_kind == "prose" for source in sources) == 23
     assert {
         source.id for source in sources if source.content_kind == "structured"
     } == structured_ids
@@ -816,6 +822,7 @@ def _route_allowlist(url: str, *, language: str = "mk") -> str:
         ("https://finki.ukim.mk/upisi/programmes/", "mk"),
         ("https://finki.ukim.mk/studii-2/support/", "mk"),
         ("https://finki.ukim.mk/elektronski-dokumenti/", "mk"),
+        ("https://finki.ukim.mk/fokus-lab/", "mk"),
         ("https://finki.ukim.mk/procedura-za-ponishtuvanje-na-ocena/", "mk"),
         ("https://finki.ukim.mk/pravila-za-zapishuvanje-na-predmeti/", "mk"),
         (

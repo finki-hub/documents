@@ -61,6 +61,16 @@ last_verified = "2026-11-21"
 content_selectors = [".page-content__body"]
 
 [[sources]]
+id = "fokus-lab"
+source_url = "https://finki.ukim.mk/fokus-lab/"
+canonical_url = "https://finki.ukim.mk/fokus-lab/"
+language = "mk"
+category = "student-support"
+content_kind = "prose"
+last_verified = "2026-11-21"
+content_selectors = [".page-content__body"]
+
+[[sources]]
 id = "finki-deanery"
 source_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/"
 canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/dekanat/"

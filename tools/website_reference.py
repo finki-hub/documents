@@ -152,6 +152,7 @@ _APPROVED_MK_ROUTE_ROOTS = frozenset({"za-nas", "upisi", "studii-2"})
 _APPROVED_MK_ROUTE_PATHS = frozenset(
     {
         "/elektronski-dokumenti/",
+        "/fokus-lab/",
         "/procedura-za-ponishtuvanje-na-ocena/",
         "/pravila-za-zapishuvanje-na-predmeti/",
     }
