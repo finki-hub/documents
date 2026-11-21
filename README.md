@@ -39,15 +39,17 @@ It does not verify that authority URLs are reachable.
 | Task | Command or guide |
 | --- | --- |
 | Extract originals | [Processing and OCR](docs/WORKFLOWS.md#document-processing-and-ingestion) |
-| Update the chat-bot | `uv run --locked python tools/preprocess.py ingest [url]`, then `fill [url]` |
+| Update legal documents directly | `uv run --locked python tools/preprocess.py ingest [url]`, then `fill [url]` |
 | Mirror removals or renames | Use `sync [url]`, then `fill [url]`; **sync prunes remote documents** |
-| Export a release bundle | [Clean-checkout export procedure](docs/WORKFLOWS.md#rag-corpus-release-export) |
+| Publish a RAG release | [Export the bundle](docs/WORKFLOWS.md#rag-corpus-release-export), then run the chat-bot `sync_rag_corpus` dry-run/apply |
 | Check curated website content | `uv run --locked python -m tools.website_reference --check` |
 | Refresh curated website content | [Refresh and review procedure](docs/WORKFLOWS.md#curated-website-reference) |
 | Crawl the public website | [Ephemeral snapshot procedure](docs/WORKFLOWS.md#public-website-content) |
 
-For ingestion, `API_KEY` is required. Loopback API URLs work by default; remote
-origins must be explicitly trusted through `DOCUMENT_API_ALLOWED_ORIGINS`.
+`API_KEY` is required only for the direct `/documents` commands. Loopback API
+URLs work by default; remote origins must be explicitly trusted through
+`DOCUMENT_API_ALLOWED_ORIGINS`. The release sync runs inside the chat-bot
+deployment and uses its database and configured release pins, not `API_KEY`.
 See the [workflow guide](docs/WORKFLOWS.md#document-processing-and-ingestion)
 for API and R2 configuration, optional dependencies, and command details.
 
@@ -58,8 +60,10 @@ for API and R2 configuration, optional dependencies, and command details.
   document's metadata. A published source is not automatically current.
 - Treat `website-reference/` as lower-authority informational material, not
   legal text. Review every refresh for drift, sensitive data, and suitability.
-- Do not commit generated `website/` snapshots or pass them to document
-  ingestion. Dedicated website ingestion remains deferred.
+- Do not commit generated `website/` snapshots or pass them to the legacy
+  `/documents` ingestion. Curated `website-reference/` pages are published as
+  `website/` entries in the RAG release bundle and synced with the chat-bot's
+  `sync_rag_corpus`; they remain lower-authority informational content.
 - Export releases only from a clean, pinned checkout, with output outside the
   repository.
 
