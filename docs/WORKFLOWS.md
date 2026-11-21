@@ -130,10 +130,11 @@ command, not by `/documents` or `/documents/fill`. It manages the `legal/` and
 bundle and preserves unrelated document names. It waits for embeddings and runs
 retrieval smoke checks.
 
-Place the bundle in the deployment's releases directory, set
-`RAG_SYNC_EXPECTED_SOURCE_COMMIT`, `RAG_SYNC_EXPECTED_BUNDLE_SHA256`, and
-`RAG_SYNC_DEPLOYMENT_IDENTITY` to the approved release, and recreate the API
-service so the pins are loaded. Run a dry run first:
+Place the bundle in the deployment's releases directory. Set the two release
+pins, `RAG_SYNC_EXPECTED_SOURCE_COMMIT` and
+`RAG_SYNC_EXPECTED_BUNDLE_SHA256`, to the approved release and recreate the API
+service so they are loaded. Keep the configured `RAG_SYNC_DEPLOYMENT_IDENTITY`
+and pass the same value to `--expected-deployment-identity`. Run a dry run first:
 
 ```bash
 docker compose -f <compose-file> exec api python -m app.sync_rag_corpus \
