@@ -57,7 +57,7 @@ canonical_url = "https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/institu
 language = "mk"
 category = "organizations"
 content_kind = "structured"
-last_verified = "2026-09-07"
+last_verified = "2026-11-21"
 content_selectors = [".page-content__body"]
 
 [[sources]]
