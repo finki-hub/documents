@@ -40,7 +40,7 @@ uv run --with pymupdf --with pypdf --with python-docx --with anthropic \
 
 - `extract` / `ocr <pdf>` — convert originals into `processed/*.md`. **Human-review every file against its original before ingesting** — these are legal texts.
 - `upload [dir]` — mirror the originals to Cloudflare R2 for backup / public serving (optional; needs the `R2_*` env vars).
-- `ingest [url]` then `fill [url]` — push the Markdown to the chat-bot `/documents` API and embed it. Idempotent by name (the filename stem); a revision under the **same filename** re-embeds only the changed document. Needs `API_KEY`.
+- `ingest [url]` then `fill [url]` — direct `/documents` path for processed legal Markdown. For a full legal + website release, use the RAG release export and chat-bot sync below instead. Idempotent by name (the filename stem); a revision under the **same filename** re-embeds only the changed document. Needs `API_KEY`.
 - `sync [url]` then `fill [url]` — like `ingest`, but also **prunes** any stored document whose file was removed or **renamed**, so the API mirrors `processed/`. Use this whenever documents are renamed or retired. R2 originals are kept as an archive (orphaned keys are reported, not deleted).
 - `audit` — validate all reviewed headers, including the `authority_url` scheme and official host, and report the corpus status distribution without contacting external services. Check URL reachability separately when authority evidence is reviewed or updated.
 
@@ -75,7 +75,7 @@ For safety, the generator writes a complete sibling staging snapshot before movi
 
 Use `--max-pages 20` for a quick network smoke test. For a complete local audit, run the full command and require `crawl_truncated` to be `false` in `manifest.json`. Generated website snapshots are ignored and must not be committed: a complete crawl includes thousands of unreviewed, duplicated, historical, and time-sensitive pages that do not satisfy this repository's corpus standards. Re-running removes stale generated files; it does not modify `raw/` or the human-reviewed legal corpus in `processed/`.
 
-Website output is ephemeral informational source material, not reviewed legal text. Do not pass it to `preprocess.py ingest` or `sync`, or track a curated subset, until the chat-bot has a dedicated website-ingestion contract with default-deny relevance, currentness, and conflict-resolution rules.
+Website output is ephemeral informational source material, not reviewed legal text. Do not pass the full generated snapshots to `preprocess.py ingest` or `sync`, and do not commit them. Only the narrow, manually reviewed `website-reference/` corpus is published through the release bundle's `website/` namespace; it remains lower-authority informational content.
 
 ## RAG corpus release export
 
@@ -122,6 +122,41 @@ directory (the example stages and atomically installs with `mv -n`); the
 exporter never opens or overwrites a caller-provided path and does not crawl,
 fetch, or reprocess raw files.
 
+### Chat-bot sync
+
+The release bundle is imported by the chat-bot's one-off `app.sync_rag_corpus`
+command, not by `/documents` or `/documents/fill`. It manages the `legal/` and
+`website/` name namespaces: it adds, updates, or deletes those rows to match the
+bundle and preserves unrelated document names. It waits for embeddings and runs
+retrieval smoke checks.
+
+Place the bundle in the deployment's releases directory, set
+`RAG_SYNC_EXPECTED_SOURCE_COMMIT`, `RAG_SYNC_EXPECTED_BUNDLE_SHA256`, and
+`RAG_SYNC_DEPLOYMENT_IDENTITY` to the approved release, and recreate the API
+service so the pins are loaded. Run a dry run first:
+
+```bash
+docker compose -f <compose-file> exec api python -m app.sync_rag_corpus \
+  --bundle /releases/<bundle>.json --dry-run
+```
+
+Apply only after reviewing the add/update/delete report:
+
+```bash
+docker compose -f <compose-file> exec api python -m app.sync_rag_corpus \
+  --bundle /releases/<bundle>.json --apply \
+  --expected-source-commit <40-hex> \
+  --expected-bundle-sha256 <64-hex> \
+  --expected-deployment-identity <configured-identity> \
+  --max-deletions <approved-cap>
+```
+
+Ordinary apply requires the exact approved pins, the configured deployment
+identity, and an explicit deletion cap. `--replace-all` is a separate
+destructive one-time replacement mode; take a database backup before using it.
+See the chat-bot's [trusted corpus synchronization](https://github.com/finki-hub/chat-bot#trusted-rag-corpus-synchronization)
+section for host-specific details.
+
 ## Curated website reference
 
 The separate `website-reference/` corpus is classified as `official_website_informational`: a deliberately narrow, 29-page manually reviewed snapshot of public FINKI pages, lower authority than the reviewed legal documents in `processed/`. Directly selected pages may include admissions information, dates or quotas, public institutional contacts or person listings, payment/account details, and public PDF links. Each source declares an explicit `content_kind`: 23 prose pages, two structured pages, three person lists, and one link catalog. A person-list page must contain multiple distinct human-name labels linked to official FINKI profile routes; validation rejects the whole page if the roster is empty, duplicate-only, boilerplate, or navigation-shaped. Visible role text and published email links are preserved.
@@ -141,4 +176,4 @@ uv run --locked python -m tools.website_reference --verify-live
 Custom `--sources` and `--aggregate` CLI paths must stay inside this repository;
 parent traversal, symlinks, junctions, and nonregular input files are rejected.
 
-Reviewer workflow: inspect every generated `finki-static-page` block, confirm the visible source and canonical URLs, check for prohibited or stale material, run `--check` and `--verify-live`, and review the resulting diff before accepting a change. Page-level ingestion is deferred until the chat-bot has a dedicated contract for relevance, currentness, provenance, conflict resolution, and this source class. The full `website/` snapshots remain ignored and must not be ingested; they are an unreviewed crawl, not a curated reference corpus.
+Reviewer workflow: inspect every generated `finki-static-page` block, confirm the visible source and canonical URLs, check for prohibited or stale material, run `--check` and `--verify-live`, and review the resulting diff before accepting a change. Curated `website-reference/` pages are published as `website/` entries in the RAG release bundle and synced by the chat-bot's `sync_rag_corpus`; they remain lower-authority informational material. The full generated `website/` snapshots remain ignored and must not be ingested; they are an unreviewed crawl, not a curated reference corpus.
