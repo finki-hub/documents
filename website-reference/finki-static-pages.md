@@ -321,10 +321,11 @@ canonical_url: https://finki.ukim.mk/za-nas/rakovodstvo-i-organizacija/instituti
 language: mk
 category: organizations
 content_kind: structured
-last_verified: 2026-09-07
+last_verified: 2026-11-21
 title: Центри – ФИНКИ
-sha256: c0cc2931eefcfafb2de0566d2e64d013d387f8fe9e1fbbf613da09f9326b6e7b
+sha256: 37736d0c5043235b6de7eb2f08c97030df202b1064ac880a9e14e81ea05857af
 
+- [Простор за фокусирање при учење, колегијална поддршка и намалување на академскиот стрес – ФОКУС Лаб](https://finki.ukim.mk/fokus-lab/); [Раководител](https://finki.ukim.mk/kadar/d-r-ana-madevska-bogdanova/)
 - Компјутерски центар на Факултетот-Национален центар за пресметување со високи перформанси и облак; [Раководител](https://finki.ukim.mk/kadar/d-r-boro-jakimovski/)
 - Центар за информатичко образование и учење на далечина; [Раководител](https://finki.ukim.mk/kadar/d-r-vladimir-trajkovikj/)
 - [Центар за кариера согласно со актите на Универзитетот](https://kariera.finki.ukim.mk/); [Раководител](https://finki.ukim.mk/kadar/d-r-bojan-ilijoski/)
@@ -334,7 +335,6 @@ sha256: c0cc2931eefcfafb2de0566d2e64d013d387f8fe9e1fbbf613da09f9326b6e7b
 - [Центар за компјутерска безбедност и брз одговор за превенција на инциденти – (Computer Security Incident Response Team) – CSIRT](https://cirt.finki.ukim.mk/mk/doma/); [Раководител](https://finki.ukim.mk/kadar/d-r-sonja-filiposka/)
 - Авторизиран центар за тестирање; [Раководител](https://finki.ukim.mk/kadar/d-r-igor-mishkovski/)
 - Центар за одржување и развој на универзитетски сервиси; [Раководител](https://finki.ukim.mk/kadar/d-r-ivan-chorbev/)
-- [Простор за фокусирање при учење, колегијална поддршка и намалување на академскиот стрес – ФОКУС Лаб](https://finki.ukim.mk/wp-content/uploads/2026/08/fokus-lab-odluka.pdf); [Раководител](https://finki.ukim.mk/kadar/d-r-ana-madevska-bogdanova/)
 <!-- finki-static-page:end -->
 
 <!-- finki-static-page:start id=finki-deanery -->
